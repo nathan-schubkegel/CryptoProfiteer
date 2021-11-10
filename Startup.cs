@@ -1,0 +1,47 @@
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.HttpsPolicy;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using CryptoProfiteer.Services;
+using System;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+
+namespace CryptoProfiteer
+{
+  public class Startup
+  {
+    public Startup(IConfiguration configuration)
+    {
+      Configuration = configuration;
+    }
+
+    public IConfiguration Configuration { get; }
+
+    // This method gets called by the runtime. Use this method to add services to the container.
+    public void ConfigureServices(IServiceCollection services)
+    {
+      services.AddControllersWithViews();
+
+      services.AddSingleton<PersistenceService>();
+      services.AddSingleton<IPersistenceService>(sp => sp.GetRequiredService<PersistenceService>());
+      services.AddHostedService(sp => sp.GetRequiredService<PersistenceService>());
+    }
+
+    // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
+    public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+    {
+      app.UseRouting();
+
+      app.UseEndpoints(endpoints =>
+      {
+        endpoints.MapControllerRoute(
+          name: "default",
+          pattern: "{controller=TheController}/{action=Index}/{id?}");
+      });
+    }
+  }
+}
