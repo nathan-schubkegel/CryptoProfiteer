@@ -1,0 +1,34 @@
+﻿@page
+@model TransactionsModel
+@{
+  ViewData["Title"] = "Transactions";
+}
+<h1>@ViewData["Title"]</h1>
+
+<table class="table table-sm ">
+  <thead>
+    <tr></tr>
+      <th scope="col"></th>
+      <th scope="col"></th>
+      <th scope="col">Name</th>
+      <th scope="col">Count</th>
+      <th scope="col">Per Coin</th>
+      <th scope="col">Fee</th>
+      <th scope="col">Total</th>
+    </tr>
+  </thead>
+@foreach (var t in Model.Data.Transactions) 
+{
+  <tbody>
+    <tr>
+      <td>@t.Time.ToString("g")</td>
+      <td>@t.TransactionType</td>
+      <td>@t.CoinType</td>
+      <td>@t.CoinCount</td>
+      <td>$@t.PerCoinCost.ToString()</td>
+      <td>@t.Fee.ToString("c")</td>
+      <td>@t.TotalCost.ToString("c")</td>
+    </tr>
+  </tbody>
+}
+</table>
