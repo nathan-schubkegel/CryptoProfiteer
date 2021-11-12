@@ -36,8 +36,9 @@ namespace CryptoProfiteer.Controllers
     }
     
     [HttpPost("fillsCsv")]
-    public async Task<IActionResult> PostFillsCsv(IFormFile file) //List<IFormFile> files)
+    public async Task<IActionResult> PostFillsCsv(IFormFile file)
     {
+      var lines = new List<string>();
       if (file.Length > 0)
       {
         using var ms = new MemoryStream();
@@ -45,12 +46,113 @@ namespace CryptoProfiteer.Controllers
         ms.Position = 0;
         using var sr = new StreamReader(ms);
         string line;
+        _logger.LogInformation($"Importing {(file.FileName ?? "fills.csv")}...");
         while (null != (line = sr.ReadLine()))
         {
-          Console.WriteLine(line);
+          lines.Add(line);
         }
       }
-      
+
+      var transactions = new List<Transaction>();
+      if (lines.Count > 0)
+      {
+        var headerFields = Csv.Parse(lines[0]);
+
+        int IndexOrBust(string name)
+        {
+          int index = headerFields.IndexOf(name);
+          if (index < 0)
+          {
+            throw new Exception("CSV header lacks required '" + name + "' field");
+          }
+          return index;
+        }
+
+        var tradeIdIndex = IndexOrBust("trade id");
+        var buySellIndex = IndexOrBust("side");
+        var createdAtIndex = IndexOrBust("created at");
+        var coinCountIndex = IndexOrBust("size");
+        var coinTypeIndex = IndexOrBust("size unit");
+        var perCoinPriceIndex = IndexOrBust("price");
+        var feeIndex = IndexOrBust("fee");
+        var totalCostIndex = IndexOrBust("total");
+        
+        int lineNumber = 1;
+        foreach (var line in lines.Skip(1))
+        {
+          lineNumber++;
+          var fields = Csv.Parse(line);
+          if (fields.Count == 0) continue;
+          if (fields.Count != headerFields.Count)
+          {
+            throw new Exception($"CSV line {lineNumber} has {fields.Count} fields; different from header line which has {headerFields.Count} fields; aborting.");
+          }
+
+          if (!Enum.TryParse<TransactionType>(fields[buySellIndex], ignoreCase: true, out var transactionType))
+          {
+            throw new Exception($"CSV line {lineNumber} has unrecognized field {buySellIndex + 1} \"{fields[buySellIndex]}\"; expected one of " + string.Join(",", Enum.GetNames(typeof(TransactionType)).Select(x => "\"" + x + "\"")));
+          }
+
+          if (!DateTimeOffset.TryParse(fields[createdAtIndex], out var createdAtTime))
+          {
+            throw new Exception($"CSV line {lineNumber} has non-date/time field {createdAtIndex + 1} \"{fields[createdAtIndex]}\"; expected date/time such as \"{DateTimeOffset.Now.ToString("o")}\"");
+          }
+
+          if (!Decimal.TryParse(fields[coinCountIndex], out var coinCount))
+          {
+            throw new Exception($"CSV line {lineNumber} has non-numeric field {coinCountIndex + 1} \"{fields[coinCountIndex]}\"; expected numeric value such as \"3.17\"");
+          }
+
+          if (!Decimal.TryParse(fields[perCoinPriceIndex], out var perCoinPrice))
+          {
+            throw new Exception($"CSV line {lineNumber} has non-numeric field {perCoinPriceIndex + 1} \"{fields[perCoinPriceIndex]}\"; expected numeric value such as \"3.17\"");
+          }
+
+          if (!Decimal.TryParse(fields[feeIndex], out var fee))
+          {
+            throw new Exception($"CSV line {lineNumber} has non-numeric field {feeIndex + 1} \"{fields[feeIndex]}\"; expected numeric value such as \"3.17\"");
+          }
+
+          if (!Decimal.TryParse(fields[totalCostIndex], out var totalCost))
+          {
+            throw new Exception($"CSV line {lineNumber} has non-numeric field {totalCostIndex + 1} \"{fields[totalCostIndex]}\"; expected numeric value such as \"3.17\"");
+          }
+
+          var transaction = new Transaction
+          {
+            TradeId = fields[tradeIdIndex],
+            TransactionType = transactionType,
+            Time = createdAtTime,
+            CoinType = fields[coinTypeIndex],
+            CoinCount = coinCount,
+            PerCoinCost = perCoinPrice,
+            Fee = fee,
+            TotalCost = totalCost,
+          };
+          transaction.Cleanse();
+          transactions.Add(transaction);
+        }
+      }
+
+      if (transactions.Count > 0)
+      {
+        var service = _provider.GetRequiredService<IPersistenceService>();
+        lock (service.Data)
+        {
+          var knownTradeIds = new HashSet<string>(service.Data.Transactions.Select(x => x.TradeId));
+          foreach (var transaction in transactions)
+          {
+            if (knownTradeIds.Contains(transaction.TradeId))
+            {
+              continue;
+            }
+            service.Data.Transactions.Add(transaction);
+          }
+          service.Data.SortTransactions();
+          service.MarkDirty();
+        }
+      }
+
       return Ok();
     }
   }

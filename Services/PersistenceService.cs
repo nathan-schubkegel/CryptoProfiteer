@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using System.IO;
 using System;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 using CryptoProfiteer.Models;
 using Newtonsoft.Json;
 
@@ -24,6 +25,16 @@ namespace CryptoProfiteer.Services
     {
       Transactions = other.Transactions;
     }
+    
+    public void SortTransactions()
+    {
+      Transactions.Sort((a, b) => 
+      {
+        var r = Comparer<DateTimeOffset>.Default.Compare(a.Time, b.Time);
+        if (r != 0) return -r;
+        return Comparer<string>.Default.Compare(a.TradeId, b.TradeId);
+      });
+    }
   }
 
   public interface IPersistenceService
@@ -34,42 +45,54 @@ namespace CryptoProfiteer.Services
 
   public class PersistenceService : BackgroundService, IPersistenceService
   {
+    private readonly ILogger<PersistenceService> _logger;
     private readonly JsonSerializer _serializer = new JsonSerializer();
     private volatile bool _dirty;
 
     public PersistenceData Data { get; } = NewFakeData();
+    
+    public PersistenceService(ILogger<PersistenceService> logger)
+    {
+      _logger = logger;
+    }
 
     private static PersistenceData NewFakeData()
     {
       return new PersistenceData
-    {
-      Transactions = new List<Transaction> {
-        new Transaction
-        {
-          CoinType = "POO",
-          CoinCount = 2.3m,
-          PerCoinCost = 0.0001m,
-          Fee = 3m,
-          TotalCost = 3.00023m
-        },
-        new Transaction
-        {
-          CoinType = "POO",
-          CoinCount = 7m,
-          PerCoinCost = 0.0002m,
-          Fee = 2m,
-          TotalCost = 2.00014m
-        },
-        new Transaction
-        {
-          CoinType = "BTC",
-          CoinCount = 0.00001m,
-          PerCoinCost = 60000m,
-          Fee = 3m,
-          TotalCost = 3.6m
-        },
-      }
-    };
+      {
+        Transactions = new List<Transaction> {
+          new Transaction
+          {
+            TradeId = "POO1",
+            TransactionType = TransactionType.Buy,
+            CoinType = "POO",
+            CoinCount = 2.3m,
+            PerCoinCost = 0.0001m,
+            Fee = 3m,
+            TotalCost = 3.00023m
+          },
+          new Transaction
+          {
+            TradeId = "POO2",
+            TransactionType = TransactionType.Sell,
+            CoinType = "POO",
+            CoinCount = 7m,
+            PerCoinCost = 0.0002m,
+            Fee = 2m,
+            TotalCost = 2.00014m
+          },
+          new Transaction
+          {
+            TradeId = "POO3",
+            TransactionType = TransactionType.Buy,
+            CoinType = "BTC",
+            CoinCount = 0.00001m,
+            PerCoinCost = 60000m,
+            Fee = 3m,
+            TotalCost = 3.6m
+          },
+        }
+      };
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -78,9 +101,6 @@ namespace CryptoProfiteer.Services
       // so use that to sanity-guard loading data
       Load();
       
-      // TODO: remove this when I want to start saving/loading real data
-      Data.TakeFrom(NewFakeData());
-
       await Task.Yield();
       try
       {
@@ -88,7 +108,6 @@ namespace CryptoProfiteer.Services
         {
           if (_dirty)
           {
-            _dirty = false;
             Save();
           }
           await Task.Delay(1000, stoppingToken);
@@ -96,7 +115,10 @@ namespace CryptoProfiteer.Services
       }
       finally
       {
-        Save();
+        if (_dirty)
+        {
+          Save();
+        }
       }
     }
 
@@ -130,7 +152,8 @@ namespace CryptoProfiteer.Services
         toSave.TakeFrom(Data);
       }
 
-      // serialize JSON directly to a file
+      _dirty = false;
+      _logger.LogInformation("Saving " + DataFilePath);
       using (StreamWriter file = File.CreateText(DataFilePath))
       {
         _serializer.Serialize(file, toSave);

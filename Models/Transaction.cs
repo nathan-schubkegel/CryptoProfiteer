@@ -6,6 +6,7 @@ namespace CryptoProfiteer.Models
 
   public class Transaction
   {
+    public string TradeId { get; set; }
     public TransactionType TransactionType { get; set; }
     public DateTimeOffset Time { get; set; }
     public string CoinType { get; set; }
