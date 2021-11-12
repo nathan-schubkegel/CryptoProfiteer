@@ -1,8 +1,10 @@
 ﻿using System;
+using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using CryptoProfiteer.Models;
@@ -31,6 +33,25 @@ namespace CryptoProfiteer.Controllers
       {
         return data.Transactions.ToList();
       }
+    }
+    
+    [HttpPost("fillsCsv")]
+    public async Task<IActionResult> PostFillsCsv(IFormFile file) //List<IFormFile> files)
+    {
+      if (file.Length > 0)
+      {
+        using var ms = new MemoryStream();
+        await file.CopyToAsync(ms);
+        ms.Position = 0;
+        using var sr = new StreamReader(ms);
+        string line;
+        while (null != (line = sr.ReadLine()))
+        {
+          Console.WriteLine(line);
+        }
+      }
+      
+      return Ok();
     }
   }
 }

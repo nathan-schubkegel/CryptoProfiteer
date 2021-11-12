@@ -3,7 +3,26 @@
 @{
   ViewData["Title"] = "Transactions";
 }
-<h1>@ViewData["Title"]</h1>
+<h1>
+  @ViewData["Title"]
+  <button type="button" class="btn btn-secondary" style="margin-left:20px;" 
+    onclick="
+    {
+      let input = document.getElementById('upload-coinbase-fills-input');
+      input.onchange = e => { 
+        var file = e.target.files[0];
+        let formData = new FormData();
+        formData.append('file', file);
+        fetch('/api/fillsCsv', {method: 'POST', body: formData}).then(() => location.reload());
+      };
+      input.click();
+    }"
+  >
+    Upload Coinbase Fills.csv
+  </button>
+  <input id="upload-coinbase-fills-input" type="file" name="name" style="display: none;" />
+
+</h1>
 
 <table class="table table-sm ">
   <thead>
