@@ -5,10 +5,9 @@ using System.IO;
 using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
-using CryptoProfiteer.Models;
 using Newtonsoft.Json;
 
-namespace CryptoProfiteer.Services
+namespace CryptoProfiteer
 {
   public class PersistenceData
   {

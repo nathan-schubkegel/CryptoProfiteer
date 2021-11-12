@@ -7,10 +7,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
-using CryptoProfiteer.Models;
-using CryptoProfiteer.Services;
 
-namespace CryptoProfiteer.Controllers
+namespace CryptoProfiteer
 {
   [ApiController]
   [Route("api")]

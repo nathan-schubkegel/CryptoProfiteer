@@ -1,6 +1,6 @@
 using System;
 
-namespace CryptoProfiteer.Models
+namespace CryptoProfiteer
 {
   public enum TransactionType { Buy, Sell }
 

@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace CryptoProfiteer.Services
+namespace CryptoProfiteer
 {
   public class Csv
   {
