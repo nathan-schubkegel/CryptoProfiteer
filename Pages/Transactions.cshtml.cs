@@ -19,7 +19,8 @@ namespace CryptoProfiteer.Pages
       _p = p;
     }
 
-    public PersistenceData Data => _p.Data;
+    public IEnumerable<Transaction> OrderedTransactions =>  _p.Data.Transactions
+      .OrderByDescending(x => x.Time).ThenBy(x => x.TradeId);
 
     public void OnGet()
     {

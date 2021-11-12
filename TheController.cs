@@ -127,7 +127,6 @@ namespace CryptoProfiteer
             Fee = fee,
             TotalCost = totalCost,
           };
-          transaction.Cleanse();
           transactions.Add(transaction);
         }
       }
@@ -138,15 +137,9 @@ namespace CryptoProfiteer
         lock (service.Data)
         {
           var knownTradeIds = new HashSet<string>(service.Data.Transactions.Select(x => x.TradeId));
-          foreach (var transaction in transactions)
-          {
-            if (knownTradeIds.Contains(transaction.TradeId))
-            {
-              continue;
-            }
-            service.Data.Transactions.Add(transaction);
-          }
-          service.Data.SortTransactions();
+          service.Data.Transactions = service.Data.Transactions
+            .Concat(transactions.Where(t => !knownTradeIds.Contains(t.TradeId)))
+            .ToArray();
           service.MarkDirty();
         }
       }
