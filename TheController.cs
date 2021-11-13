@@ -96,22 +96,22 @@ namespace CryptoProfiteer
             throw new Exception($"CSV line {lineNumber} has non-date/time field {createdAtIndex + 1} \"{fields[createdAtIndex]}\"; expected date/time such as \"{DateTimeOffset.Now.ToString("o")}\"");
           }
 
-          if (!Decimal.TryParse(fields[coinCountIndex], out var coinCount))
+          if (!Decimal.TryParse(fields[coinCountIndex], System.Globalization.NumberStyles.Float, null, out var coinCount))
           {
             throw new Exception($"CSV line {lineNumber} has non-numeric field {coinCountIndex + 1} \"{fields[coinCountIndex]}\"; expected numeric value such as \"3.17\"");
           }
 
-          if (!Decimal.TryParse(fields[perCoinPriceIndex], out var perCoinPrice))
+          if (!Decimal.TryParse(fields[perCoinPriceIndex], System.Globalization.NumberStyles.Float, null, out var perCoinPrice))
           {
             throw new Exception($"CSV line {lineNumber} has non-numeric field {perCoinPriceIndex + 1} \"{fields[perCoinPriceIndex]}\"; expected numeric value such as \"3.17\"");
           }
 
-          if (!Decimal.TryParse(fields[feeIndex], out var fee))
+          if (!Decimal.TryParse(fields[feeIndex], System.Globalization.NumberStyles.Float, null, out var fee))
           {
             throw new Exception($"CSV line {lineNumber} has non-numeric field {feeIndex + 1} \"{fields[feeIndex]}\"; expected numeric value such as \"3.17\"");
           }
 
-          if (!Decimal.TryParse(fields[totalCostIndex], out var totalCost))
+          if (!Decimal.TryParse(fields[totalCostIndex], System.Globalization.NumberStyles.Float, null, out var totalCost))
           {
             throw new Exception($"CSV line {lineNumber} has non-numeric field {totalCostIndex + 1} \"{fields[totalCostIndex]}\"; expected numeric value such as \"3.17\"");
           }

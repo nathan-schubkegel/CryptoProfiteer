@@ -7,7 +7,31 @@
   @ViewData["Title"]
 </h1>
 
-<table class="table table-sm ">
+<script>
+let filteredBy = '';
+function filterBy(coinType)
+{
+  let body = document.getElementById('order-rows');
+  for (var row of Array.from(body.children)) {
+    let cell = row.children.namedItem('coin-type');
+    let button = cell.children.namedItem('coin-type-filter-button');
+    if (filteredBy) {
+      row.style.display = '';
+      button.className = button.className.replace('btn-primary', 'btn-secondary');
+    }
+    else if (button.value === coinType) {
+      row.style.display = '';
+      button.className = button.className.replace('btn-secondary', 'btn-primary');
+    }
+    else {
+      row.style.display = 'none';
+    }
+  }
+  filteredBy = filteredBy ? '' : coinType;
+}
+</script>
+
+<table class="table table-sm">
   <thead>
     <tr>
       <th scope="col"></th>
@@ -19,18 +43,25 @@
       <th scope="col">Total</th>
     </tr>
   </thead>
+  <tbody id='order-rows'>
 @foreach (var t in Model.OrderedOrders) 
 {
-  <tbody>
     <tr>
       <td>@t.Time.LocalDateTime.ToString("g")</td>
       <td>@t.TransactionType</td>
-      <td>@t.CoinType</td>
+      <td id='coin-type'>
+        <button id='coin-type-filter-button' type="button" class="btn btn-secondary btn-sm"
+          onclick='filterBy("@t.CoinType")'
+          value='@t.CoinType'
+        >
+          @t.CoinType
+        </button>
+      </td>
       <td>@t.CoinCount</td>
       <td>$@t.PerCoinCost.ToString()</td>
       <td>@t.Fee.ToString("c")</td>
       <td>@t.TotalCost.ToString("c")</td>
     </tr>
-  </tbody>
 }
+  </tbody>
 </table>
