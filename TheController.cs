@@ -29,10 +29,10 @@ namespace CryptoProfiteer
       var data = _provider.GetRequiredService<IPersistenceService>().Data;
       lock (data)
       {
-        return data.Transactions.ToList();
+        return data.Transactions.Values;
       }
     }
-    
+
     [HttpPost("fillsCsv")]
     public async Task<IActionResult> PostFillsCsv(IFormFile file)
     {
@@ -136,10 +136,7 @@ namespace CryptoProfiteer
         var service = _provider.GetRequiredService<IPersistenceService>();
         lock (service.Data)
         {
-          var knownTradeIds = new HashSet<string>(service.Data.Transactions.Select(x => x.TradeId));
-          service.Data.Transactions = service.Data.Transactions
-            .Concat(transactions.Where(t => !knownTradeIds.Contains(t.TradeId)))
-            .ToArray();
+          service.Data.AddTransactions(transactions);
           service.MarkDirty();
         }
       }

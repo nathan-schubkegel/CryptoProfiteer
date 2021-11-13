@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -8,19 +8,19 @@ using Microsoft.Extensions.Logging;
 
 namespace CryptoProfiteer.Pages
 {
-  public class TransactionsModel : PageModel
+  public class OrdersModel : PageModel
   {
-    private readonly ILogger<TransactionsModel> _logger;
+    private readonly ILogger<OrdersModel> _logger;
     private readonly IPersistenceService _p;
 
-    public TransactionsModel(ILogger<TransactionsModel> logger, IPersistenceService p)
+    public OrdersModel(ILogger<OrdersModel> logger, IPersistenceService p)
     {
       _logger = logger;
       _p = p;
     }
 
-    public IEnumerable<Transaction> OrderedTransactions =>  _p.Data.Transactions.Values
-      .OrderByDescending(x => x.Time).ThenBy(x => x.TradeId);
+    public IEnumerable<Order> OrderedOrders =>  _p.Data.Orders.Values
+      .OrderByDescending(x => x.Time).ThenBy(x => x.Id);
 
     public void OnGet()
     {

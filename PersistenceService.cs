@@ -9,17 +9,6 @@ using Newtonsoft.Json;
 
 namespace CryptoProfiteer
 {
-  public class PersistenceData
-  {
-    // array because that's easier to feel like it's immutable
-    public Transaction[] Transactions { get; set; } = new Transaction[0];
-
-    public void TakeFrom(PersistenceData other)
-    {
-      Transactions = other.Transactions;
-    }
-  }
-
   public interface IPersistenceService
   {
     PersistenceData Data { get; }
@@ -83,6 +72,7 @@ namespace CryptoProfiteer
           newData = (PersistenceData)_serializer.Deserialize(file, typeof(PersistenceData));
         }
       }
+      newData.Cleanse();
       lock (Data) Data.TakeFrom(newData);
     }
 

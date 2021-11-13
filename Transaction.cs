@@ -14,10 +14,5 @@ namespace CryptoProfiteer
     public Decimal PerCoinCost { get; set; }
     public Decimal Fee { get; set; }
     public Decimal TotalCost { get; set; }
-
-    public void Cleanse()
-    {
-      // shrug - shoulda been right from the start
-    }
   }
 }
