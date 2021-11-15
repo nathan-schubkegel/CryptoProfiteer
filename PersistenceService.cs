@@ -2,6 +2,7 @@ using Microsoft.Extensions.Hosting;
 using System.Threading;
 using System.Threading.Tasks;
 using System.IO;
+using System.Linq;
 using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
@@ -9,37 +10,37 @@ using Newtonsoft.Json;
 
 namespace CryptoProfiteer
 {
-  public interface IPersistenceService
-  {
-    PersistenceData Data { get; }
-    void MarkDirty();
-  }
-
-  public class PersistenceService : BackgroundService, IPersistenceService
+  public class PersistenceService : BackgroundService
   {
     private readonly ILogger<PersistenceService> _logger;
-    private readonly JsonSerializer _serializer = new JsonSerializer();
-    private volatile bool _dirty;
+    private readonly JsonSerializer _serializer = new JsonSerializer() { Formatting = Formatting.Indented };
+    private readonly IDataService _dataService;
+    private readonly string _dataFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data.json");
+    private IReadOnlyDictionary<string, Transaction> _lastObservedTransactions;
 
-    public PersistenceData Data { get; } = new PersistenceData();
-    
-    public PersistenceService(ILogger<PersistenceService> logger)
+    public PersistenceService(ILogger<PersistenceService> logger, IDataService dataService)
     {
       _logger = logger;
+      _dataService = dataService;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-      // no other services may continue until ExecuteAsync() awaits
-      // so use that to sanity-guard loading data
-      Load();
+      var newData = PersistenceData.LoadFrom(_dataFilePath);
+      _dataService.ImportTransactions(newData.Transactions);
+      _lastObservedTransactions = _dataService.Transactions;
       
+      // NOTE: other services don't continue loading until this method awaits
+      // and that is leveraged for:
+      // 1.) defeat the race condition of missing changes between ImportTransactions() and reading _dataService.Transactions
+      // 2.) make the application not start if it fails to load
       await Task.Yield();
+      
       try
       {
         while (!stoppingToken.IsCancellationRequested)
         {
-          if (_dirty)
+          if (_lastObservedTransactions != _dataService.Transactions)
           {
             Save();
           }
@@ -48,47 +49,35 @@ namespace CryptoProfiteer
       }
       finally
       {
-        if (_dirty)
+        if (_lastObservedTransactions != _dataService.Transactions)
         {
           Save();
         }
       }
     }
 
-    public void MarkDirty()
-    {
-      _dirty = true;
-    }
-
-    private string DataFilePath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data.json");
-
-    private void Load()
-    {
-      var newData = new PersistenceData();
-      if (File.Exists(DataFilePath))
-      {
-        using (StreamReader file = File.OpenText(DataFilePath))
-        {
-          newData = (PersistenceData)_serializer.Deserialize(file, typeof(PersistenceData));
-        }
-      }
-      newData.Cleanse();
-      lock (Data) Data.TakeFrom(newData);
-    }
-
     private void Save()
     {
-      PersistenceData toSave = new PersistenceData();
-      lock (Data)
+      // NOTE: overwriting _lastObservedTransactions here (before saving) means that
+      // this class only makes 1 attempt to save for a given change
+      _lastObservedTransactions = _dataService.Transactions;
+      
+      PersistenceData toSave = new PersistenceData
       {
-        toSave.TakeFrom(Data);
-      }
+        Transactions = _lastObservedTransactions.Values.OrderBy(x => x.Time).ThenBy(x => x.TradeId).ToList(),
+      };
 
-      _dirty = false;
-      _logger.LogInformation("Saving " + DataFilePath);
-      using (StreamWriter file = File.CreateText(DataFilePath))
+      _logger.LogInformation("Saving " + _dataFilePath);
+      try
       {
-        _serializer.Serialize(file, toSave);
+        using (StreamWriter file = File.CreateText(_dataFilePath))
+        {
+          _serializer.Serialize(file, toSave);
+        }
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, "Failed to save " + _dataFilePath);
       }
     }
   }

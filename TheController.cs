@@ -14,23 +14,13 @@ namespace CryptoProfiteer
   [Route("api")]
   public class TheController : ControllerBase
   {
-    private readonly IServiceProvider _provider;
+    private readonly IDataService _dataService;
     private readonly ILogger<TheController> _logger;
 
-    public TheController(IServiceProvider provider, ILogger<TheController> logger)
+    public TheController(IDataService dataService, ILogger<TheController> logger)
     {
-      _provider = provider;
+      _dataService = dataService;
       _logger = logger;
-    }
-
-    [HttpGet("transactions")]
-    public IEnumerable<Transaction> GetTransactions()
-    {
-      var data = _provider.GetRequiredService<IPersistenceService>().Data;
-      lock (data)
-      {
-        return data.Transactions.Values;
-      }
     }
 
     [HttpPost("fillsCsv")]
@@ -133,12 +123,7 @@ namespace CryptoProfiteer
 
       if (transactions.Count > 0)
       {
-        var service = _provider.GetRequiredService<IPersistenceService>();
-        lock (service.Data)
-        {
-          service.Data.AddTransactions(transactions);
-          service.MarkDirty();
-        }
+        _dataService.ImportTransactions(transactions);
       }
 
       return Ok();

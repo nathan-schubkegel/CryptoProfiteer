@@ -6,36 +6,34 @@ namespace CryptoProfiteer
 {
   public class Order
   {
-    public string Id { get; set; } = Guid.NewGuid().ToString();
-    public string[] TradeIds { get; set; }
-    public TransactionType TransactionType { get; set; }
-    public DateTimeOffset Time { get; set; }
-    public string CoinType { get; set; }
-    public Decimal CoinCount { get; set; }
-    public Decimal PerCoinCost { get; set; }
-    public Decimal Fee { get; set; }
-    public Decimal TotalCost { get; set; }
-    
-    public static Order Create(List<Transaction> transactions)
+    public string Id { get; }
+    public string[] TradeIds { get; }
+    public TransactionType TransactionType { get; }
+    public DateTimeOffset Time { get; }
+    public string CoinType { get; }
+    public Decimal CoinCount { get; }
+    public Decimal PerCoinCost { get; }
+    public Decimal Fee { get; }
+    public Decimal TotalCost { get; }
+
+    public Order(List<Transaction> transactions)
     {
-      var order = new Order();
-      order.TradeIds = transactions.Select(x => x.TradeId).ToArray();
+      TradeIds = transactions.Select(x => x.TradeId).ToArray();
+      Id = TradeIds.OrderBy(x => x).First();
       foreach (var t in transactions)
       {
         // FUTURE: could be sanity-checking that all transactions have these fields the same enough
-        order.TransactionType = t.TransactionType;
-        order.Time = t.Time;
-        order.CoinType = t.CoinType;
-        
-        // TODO: average this
-        order.PerCoinCost = t.PerCoinCost;
+        TransactionType = t.TransactionType;
+        Time = t.Time;
+        CoinType = t.CoinType;
 
-        order.CoinCount += t.CoinCount;
-        order.Fee += t.Fee;
-        order.TotalCost += t.TotalCost;
+        // TODO: average this
+        PerCoinCost = t.PerCoinCost;
+
+        CoinCount += t.CoinCount;
+        Fee += t.Fee;
+        TotalCost += t.TotalCost;
       }
-      
-      return order;
     }
   }
 }

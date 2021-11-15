@@ -26,9 +26,9 @@ namespace CryptoProfiteer
       services.AddRazorPages();
       services.AddControllersWithViews();
 
-      services.AddSingleton<PersistenceService>();
-      services.AddSingleton<IPersistenceService>(sp => sp.GetRequiredService<PersistenceService>());
-      services.AddHostedService(sp => sp.GetRequiredService<PersistenceService>());
+      services.AddHostedService<PersistenceService>();
+      
+      services.AddSingleton<IDataService, DataService>();
     }
 
     // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

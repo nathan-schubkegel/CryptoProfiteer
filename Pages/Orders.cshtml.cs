@@ -11,15 +11,15 @@ namespace CryptoProfiteer.Pages
   public class OrdersModel : PageModel
   {
     private readonly ILogger<OrdersModel> _logger;
-    private readonly IPersistenceService _p;
+    private readonly IDataService _data;
 
-    public OrdersModel(ILogger<OrdersModel> logger, IPersistenceService p)
+    public OrdersModel(ILogger<OrdersModel> logger, IDataService data)
     {
       _logger = logger;
-      _p = p;
+      _data = data;
     }
 
-    public IEnumerable<Order> OrderedOrders =>  _p.Data.Orders.Values
+    public IEnumerable<Order> OrderedOrders =>  _data.Orders.Values
       .OrderByDescending(x => x.Time).ThenBy(x => x.Id);
 
     public void OnGet()

@@ -11,15 +11,15 @@ namespace CryptoProfiteer.Pages
   public class TransactionsModel : PageModel
   {
     private readonly ILogger<TransactionsModel> _logger;
-    private readonly IPersistenceService _p;
+    private readonly IDataService _data;
 
-    public TransactionsModel(ILogger<TransactionsModel> logger, IPersistenceService p)
+    public TransactionsModel(ILogger<TransactionsModel> logger, IDataService data)
     {
       _logger = logger;
-      _p = p;
+      _data = data;
     }
 
-    public IEnumerable<Transaction> OrderedTransactions =>  _p.Data.Transactions.Values
+    public IEnumerable<Transaction> OrderedTransactions =>  _data.Transactions.Values
       .OrderByDescending(x => x.Time).ThenBy(x => x.TradeId);
 
     public void OnGet()
