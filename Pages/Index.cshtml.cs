@@ -11,11 +11,16 @@ namespace CryptoProfiteer.Pages
   public class IndexModel : PageModel
   {
     private readonly ILogger<IndexModel> _logger;
+    private readonly IDataService _data;
 
-    public IndexModel(ILogger<IndexModel> logger)
+    public IndexModel(ILogger<IndexModel> logger, IDataService data)
     {
       _logger = logger;
+      _data = data;
     }
+
+    public IEnumerable<CoinSummary> OrderedSummaries =>  _data.CoinSummaries.Values
+      .OrderBy(x => x.CoinType);
 
     public void OnGet()
     {
