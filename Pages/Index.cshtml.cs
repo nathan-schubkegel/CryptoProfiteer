@@ -19,8 +19,8 @@ namespace CryptoProfiteer.Pages
       _data = data;
     }
 
-    public IEnumerable<CoinSummary> OrderedSummaries =>  _data.CoinSummaries.Values
-      .OrderBy(x => x.CoinType);
+    public IEnumerable<(CoinSummary summary, CoinPrice price)> OrderedSummaries =>  _data.CoinSummaries.Values
+      .OrderBy(x => x.CoinType).Select(x => (x, _data.CoinPrices.TryGetValue(x.CoinType, out var p) ? p : null));
 
     public void OnGet()
     {

@@ -15,7 +15,9 @@ namespace CryptoProfiteer
     IReadOnlyDictionary<string, Transaction> Transactions { get; }
     IReadOnlyDictionary<string, Order> Orders { get; }
     IReadOnlyDictionary<string, CoinSummary> CoinSummaries { get; }
+    IReadOnlyDictionary<string, CoinPrice> CoinPrices { get; }
     void ImportTransactions(IEnumerable<Transaction> transactions);
+    void UpdateCoinPrices(IEnumerable<CoinPrice> prices);
   }
 
   public class DataService : IDataService
@@ -24,6 +26,7 @@ namespace CryptoProfiteer
     public IReadOnlyDictionary<string, Transaction> Transactions { get; private set; } = new Dictionary<string, Transaction>();
     public IReadOnlyDictionary<string, Order> Orders { get; private set; } = new Dictionary<string, Order>();
     public IReadOnlyDictionary<string, CoinSummary> CoinSummaries { get; private set; } = new Dictionary<string, CoinSummary>();
+    public IReadOnlyDictionary<string, CoinPrice> CoinPrices { get; private set; } = new Dictionary<string, CoinPrice>();
 
     public void ImportTransactions(IEnumerable<Transaction> transactions)
     {
@@ -74,6 +77,19 @@ namespace CryptoProfiteer
         Transactions = newTransactions;
         Orders = newOrders;
         CoinSummaries = newCoinSummaries;
+      }
+    }
+    
+    public void UpdateCoinPrices(IEnumerable<CoinPrice> prices)
+    {
+      lock (_lock)
+      {
+        var newPrices = new Dictionary<string, CoinPrice>(CoinPrices);
+        foreach (var price in prices)
+        {
+          newPrices[price.CoinType] = price;
+        }
+        CoinPrices = newPrices;
       }
     }
   }

@@ -13,20 +13,22 @@
     <tr>
       <th scope="col">Name</th>
       <th scope="col">Count</th>
+      <th scope="col">Price per coin</th>
     </tr>
   </thead>
   <tbody id='coin-summary-rows'>
-@foreach (var t in Model.OrderedSummaries) 
+@foreach ((var s, var p) in Model.OrderedSummaries) 
 {
     <tr>
       <td id='coin-type'>
         <button id='coin-type-filter-button' type="button" class="btn btn-secondary btn-sm"
-          value='@t.CoinType'
+          value='@s.CoinType'
         >
-          @t.CoinType
+          @s.CoinType
         </button>
       </td>
-      <td>@t.CoinCount</td>
+      <td>@s.CoinCount</td>
+      <td>@p?.PerCoinCost</td>
     </tr>
 }
   </tbody>

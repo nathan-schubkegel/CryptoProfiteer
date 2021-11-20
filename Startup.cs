@@ -27,6 +27,7 @@ namespace CryptoProfiteer
       services.AddControllersWithViews();
 
       services.AddHostedService<PersistenceService>();
+      services.AddHostedService<PriceService>();
       
       services.AddSingleton<IDataService, DataService>();
     }
