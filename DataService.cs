@@ -23,10 +23,16 @@ namespace CryptoProfiteer
   public class DataService : IDataService
   {
     private readonly object _lock = new object();
+    private readonly ILogger<DataService> _logger;
     public IReadOnlyDictionary<string, Transaction> Transactions { get; private set; } = new Dictionary<string, Transaction>();
     public IReadOnlyDictionary<string, Order> Orders { get; private set; } = new Dictionary<string, Order>();
     public IReadOnlyDictionary<string, CoinSummary> CoinSummaries { get; private set; } = new Dictionary<string, CoinSummary>();
     public IReadOnlyDictionary<string, CoinPrice> CoinPrices { get; private set; } = new Dictionary<string, CoinPrice>();
+    
+    public DataService(ILogger<DataService> logger)
+    {
+      _logger = logger;
+    }
 
     public void ImportTransactions(IEnumerable<Transaction> transactions)
     {
@@ -84,12 +90,15 @@ namespace CryptoProfiteer
     {
       lock (_lock)
       {
+        int newCount = 0;
         var newPrices = new Dictionary<string, CoinPrice>(CoinPrices);
         foreach (var price in prices)
         {
           newPrices[price.CoinType] = price;
+          newCount++;
         }
         CoinPrices = newPrices;
+        _logger.LogInformation($"{newCount} new CoinPrices updated.");
       }
     }
   }

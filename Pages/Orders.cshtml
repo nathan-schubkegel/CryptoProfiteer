@@ -57,7 +57,7 @@ function filterBy(coinType)
           @t.CoinType
         </button>
       </td>
-      <td>@t.CoinCount</td>
+      <td>@t.CoinCount.ToString("G29")</td>
       <td>$@t.PerCoinCost.ToString()</td>
       <td>@t.Fee.ToString("c")</td>
       <td>@t.TotalCost.ToString("c")</td>

@@ -14,6 +14,7 @@
       <th scope="col">Name</th>
       <th scope="col">Count</th>
       <th scope="col">Price per coin</th>
+      <th scope="col">Total Value</th>
     </tr>
   </thead>
   <tbody id='coin-summary-rows'>
@@ -27,8 +28,9 @@
           @s.CoinType
         </button>
       </td>
-      <td>@s.CoinCount</td>
-      <td>@p?.PerCoinCost</td>
+      <td>@s.CoinCount.ToString("G29")</td>
+      <td>@p?.PerCoinCost.ToString("c")</td>
+      <td>@(p?.PerCoinCost != null ? (p.PerCoinCost * s.CoinCount).ToString("c") : "")
     </tr>
 }
   </tbody>

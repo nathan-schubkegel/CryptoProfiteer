@@ -16,7 +16,6 @@ namespace CryptoProfiteer
 {
   public class PriceService : BackgroundService
   {
-    // polygon.io
     private readonly ILogger<PriceService> _logger;
     private readonly IDataService _dataService;
 
@@ -35,7 +34,7 @@ namespace CryptoProfiteer
       var key = lines[0];
 
       using var http = new HttpClient();
-      http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(key);
+      http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", key);
 
       while (!stoppingToken.IsCancellationRequested)
       {
@@ -48,9 +47,9 @@ namespace CryptoProfiteer
           {
             throw new HttpRequestException($"polygon server returned {response.StatusCode}: {responseBody}");
           }
-          var result = JArray.Parse(responseBody);
+          var json = JObject.Parse(responseBody);
           var now = DateTime.Now;
-          var newPrices = result.OfType<JObject>().Select(o =>
+          var newPrices = (json["results"] as JArray).OfType<JObject>().Select(o =>
           {
             // name typically looks like "X:BTCUSD"
             var id = o["T"].Value<string>();
@@ -60,6 +59,7 @@ namespace CryptoProfiteer
             var price = o["c"].Value<Decimal>();
             return new CoinPrice(name, price, now);
           }).Where(x => x != null).ToList();
+ 
           _dataService.UpdateCoinPrices(newPrices);
         }
         catch (Exception ex)
