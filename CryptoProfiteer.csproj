@@ -8,8 +8,4 @@
     <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Content Include="polygonApiKey.txt" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
-
 </Project>

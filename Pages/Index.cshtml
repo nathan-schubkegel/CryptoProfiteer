@@ -5,7 +5,17 @@
 }
 
 <div class="text-center">
-  <h1 class="display-4">Welcome</h1>
+@{
+  int nullCount = 0;
+  Decimal total = 0m;
+  foreach (var coinSummary in Model.Summaries())
+  {
+    if (coinSummary.CashValue == null) nullCount++;
+    else total += coinSummary.CashValue.Value;
+  }
+  string totalValue = total.ToString("c") + (nullCount == 0 ? "" : $" ({nullCount} coin types pending...)");
+  <h1 class="display-4">@totalValue</h1>
+}
 </div>
 
 <script>

@@ -27,45 +27,34 @@ namespace CryptoProfiteer
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+      // Other services can't start until this service awaits, so await now!
       await Task.Yield();
 
-      var path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "polygonApiKey.txt");
-      if (!File.Exists(path))
-      {
-        _logger.LogWarning($"crypto prices will not be available because file does not exist: {path}");
-        return;
-      }
-      var lines = File.ReadAllLines(path);
-      var key = lines[0];
-
       using var http = new HttpClient();
-      http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", key);
-
       while (!stoppingToken.IsCancellationRequested)
       {
         try
         {
-          var today = DateTime.UtcNow.ToString("yyyy-MM-dd");
-          var response = await http.GetAsync($"https://api.polygon.io/v2/aggs/grouped/locale/global/market/crypto/{today}?adjusted=false");
-          string responseBody = await response.Content.ReadAsStringAsync();
-          if (!response.IsSuccessStatusCode)
+          foreach (var coinSummary in _dataService.CoinSummaries.Values)
           {
-            throw new HttpRequestException($"polygon server returned {response.StatusCode}: {responseBody}");
+            var url = $"https://api.coinbase.com/v2/prices/{coinSummary.CoinType}-USD/spot";
+            var response = await http.GetAsync(url);
+            string responseBody = await response.Content.ReadAsStringAsync();
+            if (!response.IsSuccessStatusCode)
+            {
+              throw new HttpRequestException($"coinbase returned {response.StatusCode}: {responseBody}");
+            }
+            var json = JObject.Parse(responseBody);
+            var perCoinCost = Decimal.Parse(json.SelectToken("data.amount").Value<string>(), System.Globalization.NumberStyles.Float);
+            var newPrice = new CoinPrice(coinSummary.CoinType, perCoinCost, DateTime.Now);
+            _dataService.UpdateCoinPrices(new[]{newPrice});
+            await Task.Delay(1000, stoppingToken);
           }
-          var json = JObject.Parse(responseBody);
-          var now = DateTime.Now;
-          var newPrices = (json["results"] as JArray).OfType<JObject>().Select(o =>
-          {
-            // name typically looks like "X:BTCUSD"
-            var id = o["T"].Value<string>();
-            var match = Regex.Match(id, "^X:(.*)USD$");
-            if (!match.Success) return null;
-            var name = match.Groups[1].Value;
-            var price = o["c"].Value<Decimal>();
-            return new CoinPrice(name, price, now);
-          }).Where(x => x != null).ToList();
- 
-          _dataService.UpdateCoinPrices(newPrices);
+        }
+        catch (OperationCanceledException ex)
+        {
+          // this is our fault for shutting down. Don't bother logging it.
+          throw;
         }
         catch (Exception ex)
         {
