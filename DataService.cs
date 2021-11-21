@@ -72,18 +72,26 @@ namespace CryptoProfiteer
           newOrders[order.Id] = order;
         }
         
-        var newCoinSummaries = newTransactions.Values.GroupBy(x => x.CoinType).ToDictionary(
-          x => x.Key,
-          x => new CoinSummary(
-            coinType: x.Key,
-            coinCount: x.Where(y => y.TransactionType == TransactionType.Buy).Select(y => y.CoinCount).Sum()
-              - x.Where(y => y.TransactionType == TransactionType.Sell).Select(y => y.CoinCount).Sum())
-        );
+        var newCoinSummaries = BuildCoinSummaries(newTransactions, CoinPrices);
         
         Transactions = newTransactions;
         Orders = newOrders;
         CoinSummaries = newCoinSummaries;
       }
+    }
+    
+    private Dictionary<string, CoinSummary> BuildCoinSummaries(
+      IReadOnlyDictionary<string, Transaction> transactions,
+      IReadOnlyDictionary<string, CoinPrice> coinPrices)
+    {
+      return transactions.Values.GroupBy(x => x.CoinType).ToDictionary(
+        x => x.Key,
+        x => new CoinSummary(
+          coinType: x.Key,
+          coinCount: x.Where(y => y.TransactionType == TransactionType.Buy).Select(y => y.CoinCount).Sum()
+            - x.Where(y => y.TransactionType == TransactionType.Sell).Select(y => y.CoinCount).Sum(),
+          coinPrice: coinPrices.GetValueOrDefault(x.Key))
+      );
     }
     
     public void UpdateCoinPrices(IEnumerable<CoinPrice> prices)
@@ -97,8 +105,11 @@ namespace CryptoProfiteer
           newPrices[price.CoinType] = price;
           newCount++;
         }
+        
+        var newCoinSummaries = BuildCoinSummaries(Transactions, newPrices);
+        
         CoinPrices = newPrices;
-        _logger.LogInformation($"{newCount} new CoinPrices updated.");
+        CoinSummaries = newCoinSummaries;
       }
     }
   }

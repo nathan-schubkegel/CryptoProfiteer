@@ -30,6 +30,11 @@ namespace CryptoProfiteer
       await Task.Yield();
 
       var path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "polygonApiKey.txt");
+      if (!File.Exists(path))
+      {
+        _logger.LogWarning($"crypto prices will not be available because file does not exist: {path}");
+        return;
+      }
       var lines = File.ReadAllLines(path);
       var key = lines[0];
 
@@ -64,7 +69,7 @@ namespace CryptoProfiteer
         }
         catch (Exception ex)
         {
-          Console.WriteLine($"{ex.GetType().Name} while fetching crypto prices: {ex.Message}");
+          _logger.LogError(ex, $"{ex.GetType().Name} while fetching crypto prices: {ex.Message}");
         }
         await Task.Delay(30000, stoppingToken);
       }

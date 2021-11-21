@@ -8,30 +8,53 @@
   <h1 class="display-4">Welcome</h1>
 </div>
 
+<script>
+// from the outstanding stackoverflow answer https://stackoverflow.com/a/901144
+function getParameterByName(name, url = window.location.href) {
+    name = name.replace(/[\[\]]/g, '\\$&');
+    var regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)'),
+        results = regex.exec(url);
+    if (!results) return null;
+    if (!results[2]) return '';
+    return decodeURIComponent(results[2].replace(/\+/g, ' '));
+}
+
+const sortBy = getParameterByName('sortBy') || 'coinType';
+const nextSortByCoinType = sortBy.toUpperCase() === 'coinType'.toUpperCase() ? 'coinTypeDescending' : 'coinType';
+const nextSortByTotalValue = sortBy.toUpperCase() === 'totalValue'.toUpperCase() ? 'totalValueAscending' : 'totalValue';
+</script>
+
 <table class="table table-sm ">
   <thead>
     <tr>
-      <th scope="col">Name</th>
+      <th scope="col">
+        <button id='coin-type-sort-button' type="button" class="btn btn-secondary btn-sm"
+          onClick="window.location = location.pathname + '?sortBy=' + nextSortByCoinType">
+          Name
+        </button>
+      </th>
       <th scope="col">Count</th>
       <th scope="col">Price per coin</th>
-      <th scope="col">Total Value</th>
+      <th scope="col">
+        <button id='total-value-sort-button' type="button" class="btn btn-secondary btn-sm"
+          onClick="window.location = location.pathname + '?sortBy=' + nextSortByTotalValue">
+          Total Value
+        </button>
+      </th>
     </tr>
   </thead>
   <tbody id='coin-summary-rows'>
-@foreach ((var s, var p) in Model.OrderedSummaries) 
-{
+@{
+  string sortBy = HttpContext.Request.Query.TryGetValue("sortBy", out var sortByValues) ? sortByValues[0] : null;
+  foreach (var s in Model.Summaries(sortBy))
+  {
     <tr>
-      <td id='coin-type'>
-        <button id='coin-type-filter-button' type="button" class="btn btn-secondary btn-sm"
-          value='@s.CoinType'
-        >
-          @s.CoinType
-        </button>
-      </td>
+      <td id='coin-type' value='@s.CoinType'>@s.CoinType</td>
       <td>@s.CoinCount.ToString("G29")</td>
-      <td>@p?.PerCoinCost.ToString("c")</td>
-      <td>@(p?.PerCoinCost != null ? (p.PerCoinCost * s.CoinCount).ToString("c") : "")
+      <td>@s.CoinPrice?.PerCoinCost.ToString("c")</td>
+      <td id='total-value' value='@s.TotalValue?.ToString()'>@s.TotalValue?.ToString("c")</td>
     </tr>
+  }
 }
   </tbody>
 </table>
