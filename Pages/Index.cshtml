@@ -19,9 +19,9 @@ function getParameterByName(name, url = window.location.href) {
     return decodeURIComponent(results[2].replace(/\+/g, ' '));
 }
 
-const sortBy = getParameterByName('sortBy') || 'coinType';
-const nextSortByCoinType = sortBy.toUpperCase() === 'coinType'.toUpperCase() ? 'coinTypeDescending' : 'coinType';
-const nextSortByTotalValue = sortBy.toUpperCase() === 'totalValue'.toUpperCase() ? 'totalValueAscending' : 'totalValue';
+const sortBy = getParameterByName('sortBy') || 'cashValue';
+const nextSortByCoinType = sortBy === 'coinType' ? 'coinTypeDescending' : 'coinType';
+const nextSortByCashValue = sortBy === 'cashValue' ? 'cashValueAscending' : 'cashValue';
 </script>
 
 <table class="table table-sm ">
@@ -36,9 +36,9 @@ const nextSortByTotalValue = sortBy.toUpperCase() === 'totalValue'.toUpperCase()
       <th scope="col">Count</th>
       <th scope="col">Price per coin</th>
       <th scope="col">
-        <button id='total-value-sort-button' type="button" class="btn btn-secondary btn-sm"
-          onClick="window.location = location.pathname + '?sortBy=' + nextSortByTotalValue">
-          Total Value
+        <button id='cash-value-sort-button' type="button" class="btn btn-secondary btn-sm"
+          onClick="window.location = location.pathname + '?sortBy=' + nextSortByCashValue">
+          Cash Value
         </button>
       </th>
     </tr>
@@ -52,7 +52,7 @@ const nextSortByTotalValue = sortBy.toUpperCase() === 'totalValue'.toUpperCase()
       <td id='coin-type' value='@s.CoinType'>@s.CoinType</td>
       <td>@s.CoinCount.ToString("G29")</td>
       <td>@s.CoinPrice?.PerCoinCost.ToString("c")</td>
-      <td id='total-value' value='@s.TotalValue?.ToString()'>@s.TotalValue?.ToString("c")</td>
+      <td id='cash-value' value='@s.CashValue?.ToString()'>@s.CashValue?.ToString("c")</td>
     </tr>
   }
 }

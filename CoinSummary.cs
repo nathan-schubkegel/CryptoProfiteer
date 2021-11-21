@@ -13,14 +13,14 @@ namespace CryptoProfiteer
     public CoinPrice CoinPrice { get; }
     
     // may be null if not known
-    public Decimal? TotalValue { get; }
+    public Decimal? CashValue { get; }
     
     public CoinSummary(string coinType, Decimal coinCount, CoinPrice coinPrice)
     {
       CoinType = coinType;
       CoinCount = coinCount;
       CoinPrice = coinPrice;
-      TotalValue = coinPrice == null ? (Decimal?)null : coinPrice.PerCoinCost * CoinCount;
+      CashValue = coinPrice == null ? (Decimal?)null : coinPrice.PerCoinCost * CoinCount;
     }
   }
 }

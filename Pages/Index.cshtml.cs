@@ -25,8 +25,8 @@ namespace CryptoProfiteer.Pages
       switch (sortBy)
       {
         default:
-        case "totalValue": return values.OrderByDescending(x => x.TotalValue).ThenBy(x => x.CoinType);
-        case "totalValueAscending": return values.OrderBy(x => x.TotalValue).ThenBy(x => x.CoinType);
+        case "cashValue": return values.OrderByDescending(x => x.CashValue).ThenBy(x => x.CoinType);
+        case "cashValueAscending": return values.OrderBy(x => x.CashValue).ThenBy(x => x.CoinType);
         case "coinTypeDescending": return values.OrderByDescending(x => x.CoinType);
         case "coinType": return values.OrderBy(x => x.CoinType);
       }
