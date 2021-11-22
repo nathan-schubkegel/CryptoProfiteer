@@ -7,7 +7,7 @@ namespace CryptoProfiteer
   // NOTE: this type is JSON serialized/deserialized
   public class PersistenceData
   {
-    public List<Transaction> Transactions { get; set; } = new List<Transaction>();
+    public List<PersistedTransaction> Transactions { get; set; } = new List<PersistedTransaction>();
     
     public static PersistenceData LoadFrom(string dataFilePath)
     {

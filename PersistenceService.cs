@@ -13,10 +13,9 @@ namespace CryptoProfiteer
   public class PersistenceService : BackgroundService
   {
     private readonly ILogger<PersistenceService> _logger;
-    private readonly JsonSerializer _serializer = new JsonSerializer() { Formatting = Formatting.Indented };
     private readonly IDataService _dataService;
     private readonly string _dataFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data.json");
-    private IReadOnlyDictionary<string, Transaction> _lastObservedTransactions;
+    private string _lastSavedData;
 
     public PersistenceService(ILogger<PersistenceService> logger, IDataService dataService)
     {
@@ -28,11 +27,13 @@ namespace CryptoProfiteer
     {
       var newData = PersistenceData.LoadFrom(_dataFilePath);
       _dataService.ImportTransactions(newData.Transactions);
-      _lastObservedTransactions = _dataService.Transactions;
-      
-      // NOTE: other services don't continue loading until this method awaits
-      // and that is leveraged for:
-      // 1.) defeat the race condition of missing changes between ImportTransactions() and reading _dataService.Transactions
+
+      // update _lastSavedData from loaded data
+      TrySave(noTouchieFileSystem: true, newData.Transactions);
+
+      // NOTE: other services don't start until this method awaits
+      // and that is leveraged to 
+      // 1.) defeat race condition of missing _dataService changes
       // 2.) make the application not start if it fails to load
       await Task.Yield();
       
@@ -40,40 +41,42 @@ namespace CryptoProfiteer
       {
         while (!stoppingToken.IsCancellationRequested)
         {
-          if (_lastObservedTransactions != _dataService.Transactions)
-          {
-            Save();
-          }
+          TrySave(
+            noTouchieFileSystem: false,
+            transactions: _dataService.Transactions.Values.Select(x => x.GetPersistedData()));
+
           await Task.Delay(1000, stoppingToken);
         }
       }
       finally
       {
-        if (_lastObservedTransactions != _dataService.Transactions)
-        {
-          Save();
-        }
+        TrySave(
+          noTouchieFileSystem: false,
+          transactions: _dataService.Transactions.Values.Select(x => x.GetPersistedData()));
       }
     }
 
-    private void Save()
+    private void TrySave(bool noTouchieFileSystem, IEnumerable<PersistedTransaction> transactions)
     {
-      // NOTE: overwriting _lastObservedTransactions here (before saving) means that
-      // this class only makes 1 attempt to save for a given change
-      _lastObservedTransactions = _dataService.Transactions;
-      
-      PersistenceData toSave = new PersistenceData
+      var toSave = new PersistenceData
       {
-        Transactions = _lastObservedTransactions.Values.OrderBy(x => x.Time).ThenBy(x => x.TradeId).ToList(),
+        Transactions = transactions
+          .OrderBy(x => x.Time)
+          .ThenBy(x => x.TradeId)
+          .ToList(),
       };
+      
+      var newData = JsonConvert.SerializeObject(toSave);
+      if (newData == _lastSavedData) return;
+      
+      _lastSavedData = newData;
+      
+      if (noTouchieFileSystem) return;
 
       _logger.LogInformation("Saving " + _dataFilePath);
       try
       {
-        using (StreamWriter file = File.CreateText(_dataFilePath))
-        {
-          _serializer.Serialize(file, toSave);
-        }
+        File.WriteAllText(_dataFilePath, newData);
       }
       catch (Exception ex)
       {

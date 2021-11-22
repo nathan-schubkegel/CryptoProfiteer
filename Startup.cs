@@ -28,6 +28,7 @@ namespace CryptoProfiteer
 
       services.AddHostedService<PersistenceService>();
       services.AddHostedService<PriceService>();
+      services.AddHostedService<FriendlyNameService>();
       
       services.AddSingleton<IDataService, DataService>();
     }

@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using System.Globalization;
 
 namespace CryptoProfiteer
 {
@@ -30,38 +31,11 @@ namespace CryptoProfiteer
       // Other services can't start until this service awaits, so await now!
       await Task.Yield();
 
-      var coinFriendlyNames = new Dictionary<string, string>();
-      var friendlyNamesLastFetchedTime = (DateTime?)null;
-      
       using var http = new HttpClient();
       while (!stoppingToken.IsCancellationRequested)
       {
         try
         {
-          if (friendlyNamesLastFetchedTime == null)
-          {
-            friendlyNamesLastFetchedTime = DateTime.Now;
-            var url = $"https://api.pro.coinbase.com/currencies";
-            var response = await http.GetAsync(url);
-            string responseBody = await response.Content.ReadAsStringAsync();
-            if (!response.IsSuccessStatusCode)
-            {
-              throw new HttpRequestException($"coinbase currencies api returned {response.StatusCode}: {responseBody}");
-            }
-            var data = JArray.Parse(responseBody);
-            foreach (var currency in data)
-            {
-              var type = currency.SelectToken("details.type").Value<string>();
-              if (type == "crypto")
-              {
-                var coinType = currency["id"].Value<string>();
-                var friendlyName = currency["name"].Value<string>();
-                coinFriendlyNames[coinType] = friendlyName;
-              }
-            }
-            await Task.Delay(1000, stoppingToken);
-          }
-
           foreach (var coinSummary in _dataService.CoinSummaries.Values)
           {
             var url = $"https://api.coinbase.com/v2/prices/{coinSummary.CoinType}-USD/spot";
@@ -69,11 +43,11 @@ namespace CryptoProfiteer
             string responseBody = await response.Content.ReadAsStringAsync();
             if (!response.IsSuccessStatusCode)
             {
-              throw new HttpRequestException($"coinbase returned {response.StatusCode}: {responseBody}");
+              throw new HttpRequestException($"coinbase price api for {coinSummary.CoinType} returned {response.StatusCode}: {responseBody}");
             }
             var json = JObject.Parse(responseBody);
-            var perCoinCost = Decimal.Parse(json.SelectToken("data.amount").Value<string>(), System.Globalization.NumberStyles.Float);
-            var newPrice = new CoinPrice(coinSummary.CoinType, perCoinCost, DateTime.Now, coinFriendlyNames.GetValueOrDefault(coinSummary.CoinType));
+            var perCoinCost = Decimal.Parse(json.SelectToken("data.amount").Value<string>(), NumberStyles.Float, CultureInfo.InvariantCulture);
+            var newPrice = new CoinbaseCoinPrice { CoinType = coinSummary.CoinType, PerCoinCost = perCoinCost };
             _dataService.UpdateCoinPrices(new[]{newPrice});
             await Task.Delay(1000, stoppingToken);
           }
@@ -85,7 +59,7 @@ namespace CryptoProfiteer
         }
         catch (Exception ex)
         {
-          _logger.LogError(ex, $"{ex.GetType().Name} while fetching crypto prices: {ex.Message}");
+          _logger.LogError(ex, $"{ex.GetType().Name} while fetching coin prices: {ex.Message}");
         }
         await Task.Delay(30000, stoppingToken);
       }

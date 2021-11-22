@@ -58,9 +58,8 @@ const nextSortByCashValue = sortBy === 'cashValue' ? 'cashValueAscending' : 'cas
   string sortBy = HttpContext.Request.Query.TryGetValue("sortBy", out var sortByValues) ? sortByValues[0] : null;
   foreach (var s in Model.Summaries(sortBy))
   {
-    string name = s.CoinPrice?.FriendlyName == null ? s.CoinType : $"{s.CoinPrice.FriendlyName} ({s.CoinType})";
     <tr>
-      <td id='coin-type' value='@s.CoinType'>@name</td>
+      <td id='coin-type' value='@s.CoinType'>@s.FriendlyName</td>
       <td>@s.CoinCount.ToString("G29")</td>
       <td>@s.CoinPrice?.PerCoinCost.ToString("c")</td>
       <td id='cash-value' value='@s.CashValue?.ToString()'>@s.CashValue?.ToString("c")</td>
