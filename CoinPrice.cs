@@ -8,11 +8,15 @@ namespace CryptoProfiteer
     public Decimal PerCoinCost { get; }
     public DateTime LastUpdatedTime { get; }
     
-    public CoinPrice(string coinType, Decimal perCoinCost, DateTime lastUpdated)
+    // may be null if not known
+    public string FriendlyName { get; }
+    
+    public CoinPrice(string coinType, Decimal perCoinCost, DateTime lastUpdated, string friendlyName)
     {
       CoinType = coinType;
       PerCoinCost = perCoinCost;
       LastUpdatedTime = lastUpdated;
+      FriendlyName = friendlyName;
     }
   }
 }

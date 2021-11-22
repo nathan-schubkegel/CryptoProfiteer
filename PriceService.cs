@@ -30,11 +30,38 @@ namespace CryptoProfiteer
       // Other services can't start until this service awaits, so await now!
       await Task.Yield();
 
+      var coinFriendlyNames = new Dictionary<string, string>();
+      var friendlyNamesLastFetchedTime = (DateTime?)null;
+      
       using var http = new HttpClient();
       while (!stoppingToken.IsCancellationRequested)
       {
         try
         {
+          if (friendlyNamesLastFetchedTime == null)
+          {
+            friendlyNamesLastFetchedTime = DateTime.Now;
+            var url = $"https://api.pro.coinbase.com/currencies";
+            var response = await http.GetAsync(url);
+            string responseBody = await response.Content.ReadAsStringAsync();
+            if (!response.IsSuccessStatusCode)
+            {
+              throw new HttpRequestException($"coinbase currencies api returned {response.StatusCode}: {responseBody}");
+            }
+            var data = JArray.Parse(responseBody);
+            foreach (var currency in data)
+            {
+              var type = currency.SelectToken("details.type").Value<string>();
+              if (type == "crypto")
+              {
+                var coinType = currency["id"].Value<string>();
+                var friendlyName = currency["name"].Value<string>();
+                coinFriendlyNames[coinType] = friendlyName;
+              }
+            }
+            await Task.Delay(1000, stoppingToken);
+          }
+
           foreach (var coinSummary in _dataService.CoinSummaries.Values)
           {
             var url = $"https://api.coinbase.com/v2/prices/{coinSummary.CoinType}-USD/spot";
@@ -46,12 +73,12 @@ namespace CryptoProfiteer
             }
             var json = JObject.Parse(responseBody);
             var perCoinCost = Decimal.Parse(json.SelectToken("data.amount").Value<string>(), System.Globalization.NumberStyles.Float);
-            var newPrice = new CoinPrice(coinSummary.CoinType, perCoinCost, DateTime.Now);
+            var newPrice = new CoinPrice(coinSummary.CoinType, perCoinCost, DateTime.Now, coinFriendlyNames.GetValueOrDefault(coinSummary.CoinType));
             _dataService.UpdateCoinPrices(new[]{newPrice});
             await Task.Delay(1000, stoppingToken);
           }
         }
-        catch (OperationCanceledException ex)
+        catch (OperationCanceledException)
         {
           // this is our fault for shutting down. Don't bother logging it.
           throw;
