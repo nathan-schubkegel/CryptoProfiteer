@@ -31,12 +31,38 @@ function filterBy(coinType)
 }
 </script>
 
+<script>
+// from the outstanding stackoverflow answer https://stackoverflow.com/a/901144
+function getParameterByName(name, url = window.location.href) {
+    name = name.replace(/[\[\]]/g, '\\$&');
+    var regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)'),
+        results = regex.exec(url);
+    if (!results) return null;
+    if (!results[2]) return '';
+    return decodeURIComponent(results[2].replace(/\+/g, ' '));
+}
+
+const sortBy = getParameterByName('sortBy') || 'date';
+const nextSortByDate = sortBy === 'date' ? 'dateAscending' : 'date';
+const nextSortByCoinType = sortBy === 'coinType' ? 'coinTypeDescending' : 'coinType';
+</script>
+
 <table class="table table-sm">
   <thead>
     <tr>
+      <th scope="col">
+        <button id='date-sort-button' type="button" class="btn btn-secondary btn-sm"
+          onClick="window.location = location.pathname + '?sortBy=' + nextSortByDate">
+          Date
+        </button>
+      </th>
       <th scope="col"></th>
-      <th scope="col"></th>
-      <th scope="col">Name</th>
+      <th scope="col">
+        <button id='coin-type-sort-button' type="button" class="btn btn-secondary btn-sm"
+          onClick="window.location = location.pathname + '?sortBy=' + nextSortByCoinType">
+          Name
+        </button>
+      </th>
       <th scope="col">Count</th>
       <th scope="col">Per Coin</th>
       <th scope="col">Fee</th>
@@ -44,8 +70,10 @@ function filterBy(coinType)
     </tr>
   </thead>
   <tbody id='order-rows'>
-@foreach (var t in Model.OrderedOrders) 
-{
+@{
+  string sortBy = HttpContext.Request.Query.TryGetValue("sortBy", out var sortByValues) ? sortByValues[0] : null;
+  foreach (var t in Model.Orders(sortBy)) 
+  {
     <tr>
       <td>@t.Time.LocalDateTime.ToString("g")</td>
       <td>@t.TransactionType</td>
@@ -62,6 +90,7 @@ function filterBy(coinType)
       <td>@t.Fee.ToString("c")</td>
       <td>@t.TotalCost.ToString("c")</td>
     </tr>
+  }
 }
   </tbody>
 </table>

@@ -19,8 +19,18 @@ namespace CryptoProfiteer.Pages
       _data = data;
     }
 
-    public IEnumerable<Order> OrderedOrders =>  _data.Orders.Values
-      .OrderByDescending(x => x.Time).ThenBy(x => x.Id);
+    public IEnumerable<Order> Orders(string sortBy = null)
+    {
+      var values = _data.Orders.Values;
+      switch (sortBy)
+      {
+        default:
+        case "coinTypeDescending": return values.OrderByDescending(x => x.CoinType).ThenByDescending(x => x.Time);
+        case "coinType": return values.OrderBy(x => x.CoinType).ThenByDescending(x => x.Time);
+        case "date": return values.OrderByDescending(x => x.Time).ThenBy(x => x.CoinType);
+        case "dateAscending": return values.OrderBy(x => x.Time).ThenBy(x => x.CoinType);
+      }
+    }
 
     public void OnGet()
     {
