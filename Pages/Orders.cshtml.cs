@@ -31,6 +31,9 @@ namespace CryptoProfiteer.Pages
         case "dateAscending": return values.OrderBy(x => x.Time).ThenBy(x => x.CoinType);
       }
     }
+    
+    public IEnumerable<CoinPrice> CoinPrices => _data.Orders.Values.Select(x => x.CoinType).Distinct()
+      .Select(x => _data.CoinPrices.TryGetValue(x, out var price) ? price : null).Where(x => x != null);
 
     public void OnGet()
     {

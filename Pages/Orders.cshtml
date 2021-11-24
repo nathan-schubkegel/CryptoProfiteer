@@ -3,9 +3,6 @@
 @{
   ViewData["Title"] = "Orders";
 }
-<h1>
-  @ViewData["Title"]
-</h1>
 
 <script>
 let filteredBy = '';
@@ -30,6 +27,13 @@ function filterBy(coinType)
   filteredBy = filteredBy ? '' : coinType;
 }
 </script>
+
+<h1>
+  @ViewData["Title"]
+  @foreach (var price in Model.CoinPrices) {
+    <span style="display: none" id="coin-price-for-@price.CoinType">- @price.FriendlyName @@ $@price.PerCoinCost.ToString()</span>
+  }
+</h1>
 
 <script>
 // from the outstanding stackoverflow answer https://stackoverflow.com/a/901144
