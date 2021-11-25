@@ -29,6 +29,7 @@ function filterBy(coinType)
   }
   
   body = document.getElementById('summary-coin-prices');
+  body.style.display = coinType ? '' : 'none';
   for (var row of Array.from(body.children)) {
     if (filteredBy) {
       row.style.display = 'none';
@@ -44,12 +45,6 @@ function filterBy(coinType)
   filteredBy = filteredBy ? '' : coinType;
 }
 </script>
-
-<div id="summary-coin-prices">
-  @foreach (var price in Model.CoinPrices) {
-    <div style="display: none" id="summary-coin-price-for-@price.CoinType">@price.FriendlyName currently at $@price.PerCoinCost.ToString()</div>
-  }
-</div>
 
 <script>
 // from the outstanding stackoverflow answer https://stackoverflow.com/a/901144
@@ -89,6 +84,19 @@ const nextSortByCoinType = sortBy === 'coinType' ? 'coinTypeDescending' : 'coinT
       <th scope="col">Total</th>
     </tr>
   </thead>
+  <tbody id="summary-coin-prices" style="display: none">
+  @foreach (var price in Model.CoinPrices) {
+    <tr style="display: none" id="summary-coin-price-for-@price.CoinType">
+      <td></td>
+      <td></td>
+      <td>Current Price</td>
+      <td></td>
+      <td>$@price.PerCoinCost.ToString()</td>
+      <td></td>
+      <td></td>
+    </tr>
+  }
+  </tbody>
   <tbody id='order-rows'>
 @{
   string sortBy = HttpContext.Request.Query.TryGetValue("sortBy", out var sortByValues) ? sortByValues[0] : null;
