@@ -3,6 +3,9 @@
 @{
   ViewData["Title"] = "Orders";
 }
+<h1>
+  @ViewData["Title"]
+</h1>
 
 <script>
 let filteredBy = '';
@@ -24,16 +27,29 @@ function filterBy(coinType)
       row.style.display = 'none';
     }
   }
+  
+  body = document.getElementById('summary-coin-prices');
+  for (var row of Array.from(body.children)) {
+    if (filteredBy) {
+      row.style.display = 'none';
+    }
+    else if (row.id === 'summary-coin-price-for-' + coinType) {
+      row.style.display = '';
+    }
+    else {
+      row.style.display = 'none';
+    }
+  }
+
   filteredBy = filteredBy ? '' : coinType;
 }
 </script>
 
-<h1>
-  @ViewData["Title"]
+<div id="summary-coin-prices">
   @foreach (var price in Model.CoinPrices) {
-    <span style="display: none" id="coin-price-for-@price.CoinType">- @price.FriendlyName @@ $@price.PerCoinCost.ToString()</span>
+    <div style="display: none" id="summary-coin-price-for-@price.CoinType">@price.FriendlyName currently at $@price.PerCoinCost.ToString()</div>
   }
-</h1>
+</div>
 
 <script>
 // from the outstanding stackoverflow answer https://stackoverflow.com/a/901144
