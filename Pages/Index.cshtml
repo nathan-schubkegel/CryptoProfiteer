@@ -55,14 +55,50 @@ const nextSortByCashValue = sortBy === 'cashValue' ? 'cashValueAscending' : 'cas
   </thead>
   <tbody id='coin-summary-rows'>
 @{
+  var ordersByCoinType = Model.OrdersByCoinType("date");
+
   string sortBy = HttpContext.Request.Query.TryGetValue("sortBy", out var sortByValues) ? sortByValues[0] : null;
   foreach (var s in Model.Summaries(sortBy))
   {
     <tr>
-      <td id='coin-type' value='@s.CoinType'>@s.FriendlyName</td>
+      <td id='coin-type' value='@s.CoinType'>
+        <a data-toggle="collapse" href="#collapse-@s.CoinType" role="button" aria-expanded="false" aria-controls="collapse-@s.CoinType">
+          @s.FriendlyName
+        </a>
+      </td>
       <td>@s.CoinCount.ToString("G29")</td>
       <td>@s.CoinPrice?.PerCoinCost.ToString("c")</td>
       <td id='cash-value' value='@s.CashValue?.ToString()'>@s.CashValue?.ToString("c")</td>
+    </tr>
+    <tr class="collapse" id="collapse-@s.CoinType">
+      <td colspan="4">
+        <div class="card card-body">
+          <table class="table table-sm">
+            <thead>
+              <tr>
+                <td scope="col">Date</td>
+                <td scope="col">Count</td>
+                <td scope="col">Per Coin</td>
+                <td scope="col">Total</td>
+              </tr>
+            </thead>
+            <tbody>
+@{
+    var orders = ordersByCoinType[s.CoinType];
+    foreach (var o in orders)
+    {
+              <tr>
+                <td>@o.Time.LocalDateTime.ToString("g")</td>
+                <td>@o.CoinCount.ToString("G29")</td>
+                <td>$@o.PerCoinCost.ToString()</td>
+                <td>@o.TotalCost.ToString("c")</td>
+              </tr>
+    }
+}
+            </tbody>
+          </table>
+        </div>
+      </td>
     </tr>
   }
 }

@@ -31,6 +31,34 @@ namespace CryptoProfiteer.Pages
         case "coinType": return values.OrderBy(x => x.CoinType);
       }
     }
+    
+    public Dictionary<string, List<Order>> OrdersByCoinType(string sortBy = null)
+    {
+      var result = new Dictionary<string, List<Order>>();
+      var orders = _data.Orders;
+      foreach (var o in orders.Values)
+      {
+        if (!result.TryGetValue(o.CoinType, out var bucket))
+        {
+          bucket = new List<Order>();
+          result[o.CoinType] = bucket;
+        }
+        bucket.Add(o);
+      }
+      
+      foreach (var coinType in result.Keys.ToList())
+      {
+        var values = result[coinType];
+        switch (sortBy)
+        {
+          default:
+          case "date": result[coinType] = values.OrderByDescending(x => x.Time).ThenBy(x => x.CoinType).ToList(); break;
+          case "dateAscending": result[coinType] = values.OrderBy(x => x.Time).ThenBy(x => x.CoinType).ToList(); break;
+        }
+      }
+      
+      return result;
+    }
 
     public void OnGet()
     {
