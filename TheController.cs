@@ -65,6 +65,8 @@ namespace CryptoProfiteer
         var perCoinPriceIndex = IndexOrBust("price");
         var feeIndex = IndexOrBust("fee");
         var totalCostIndex = IndexOrBust("total");
+        var paymentTypeIndex = IndexOrBust("price/fee/total unit");
+        var product = IndexOrBust("product");
         
         int lineNumber = 1;
         foreach (var line in lines.Skip(1))
@@ -106,11 +108,22 @@ namespace CryptoProfiteer
           {
             throw new Exception($"CSV line {lineNumber} has non-numeric field {totalCostIndex + 1} \"{fields[totalCostIndex]}\"; expected numeric value such as \"3.17\"");
           }
+          
+          if (fields[paymentTypeIndex] != "USD")
+          {
+            throw new Exception($"CSV line {lineNumber} has unexpected field {paymentTypeIndex + 1} \"{fields[paymentTypeIndex]}\"; only USD is currently supported");
+          }
+
+          if (!fields[product].EndsWith("-USD"))
+          {
+            throw new Exception($"CSV line {lineNumber} has unexpected field {product + 1} \"{fields[product]}\"; only values ending in \"-USD\" are currently supported");
+          }
 
           var transaction = new PersistedTransaction
           {
             TradeId = fields[tradeIdIndex],
             TransactionType = transactionType,
+            Exchange = CryptoExchange.Coinbase,
             Time = createdAtTime,
             CoinType = fields[coinTypeIndex],
             CoinCount = coinCount,
@@ -248,6 +261,7 @@ namespace CryptoProfiteer
           {
             TradeId = fields[tradeIdIndex],
             TransactionType = transactionType,
+            Exchange = CryptoExchange.Kucoin,
             Time = createdAtTime,
             CoinType = coinType,
             CoinCount = coinCount,
