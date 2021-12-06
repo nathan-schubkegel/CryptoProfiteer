@@ -73,7 +73,7 @@ namespace CryptoProfiteer
 
             var oldSummaries = _dataService.CoinSummaries;
             var newPrices = kucoinPrices.Where(p => oldSummaries.ContainsKey(p.Key))
-              .Select(p => new CoinbaseCoinPrice { CoinType = p.Key, PerCoinCost = p.Value })
+              .Select(p => new CoinPriceFromExchange { CoinType = p.Key, PerCoinCost = p.Value })
               .ToArray();
             _dataService.UpdateCoinPrices(newPrices);
           }
@@ -98,7 +98,7 @@ namespace CryptoProfiteer
               }
               var json = JObject.Parse(responseBody);
               var perCoinCost = Decimal.Parse(json.SelectToken("data.amount").Value<string>(), NumberStyles.Float, CultureInfo.InvariantCulture);
-              var newPrice = new CoinbaseCoinPrice { CoinType = coinSummary.CoinType, PerCoinCost = perCoinCost };
+              var newPrice = new CoinPriceFromExchange { CoinType = coinSummary.CoinType, PerCoinCost = perCoinCost };
               _dataService.UpdateCoinPrices(new[]{newPrice});
               await Task.Delay(1000, stoppingToken);
             }

@@ -17,7 +17,7 @@ namespace CryptoProfiteer
     IReadOnlyDictionary<string, CoinSummary> CoinSummaries { get; }
     IReadOnlyDictionary<string, CoinPrice> CoinPrices { get; }
     void ImportTransactions(IEnumerable<PersistedTransaction> transactions);
-    void UpdateCoinPrices(IEnumerable<CoinbaseCoinPrice> prices);
+    void UpdateCoinPrices(IEnumerable<CoinPriceFromExchange> prices);
     void UpdateFriendlyNames(Dictionary<string, string> newFriendlyNames);
   }
 
@@ -128,7 +128,7 @@ namespace CryptoProfiteer
       );
     }
     
-    public void UpdateCoinPrices(IEnumerable<CoinbaseCoinPrice> prices)
+    public void UpdateCoinPrices(IEnumerable<CoinPriceFromExchange> prices)
     {
       lock (_lock)
       {
