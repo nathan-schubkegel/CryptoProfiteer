@@ -23,7 +23,7 @@ namespace CryptoProfiteer
     public Order(List<Transaction> transactions, FriendlyName friendlyName)
     {
       TradeIds = transactions.Select(x => x.TradeId).ToArray();
-      Id = TradeIds.OrderBy(x => x).First();
+      Id = TradeIds.OrderBy(x => x).First(); // NOTE: PersistedTaxAssociation depends on this ID strategy
       _friendlyName = friendlyName;
       int maxDecimalDigits = 0;
       foreach (var t in transactions)
