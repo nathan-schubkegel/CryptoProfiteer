@@ -237,9 +237,9 @@ namespace CryptoProfiteer
           }
           coinType = coinType.Substring(0, coinType.Length - "-USDT".Length);
           
-          if (fields[tradeTypeIndex] != "market")
+          if (fields[tradeTypeIndex] != "market" && fields[tradeTypeIndex] != "limit")
           {
-            throw new Exception($"CSV line {lineNumber} has unexpected field {tradeTypeIndex + 1} \"{fields[tradeTypeIndex]}\"; currently only \"market\" is supported");
+            throw new Exception($"CSV line {lineNumber} has unexpected field {tradeTypeIndex + 1} \"{fields[tradeTypeIndex]}\"; currently only \"market\" or \"limit\" is supported");
           }
           
           if (fields[feeCurrencyIndex] != "USDT")
