@@ -253,9 +253,13 @@ namespace CryptoProfiteer
           }
           
           // kucoin reporting is weird because total price is not strictly reported
-          // for "sell" transactions, total price = dealFundsIndex, and that minus fee is added to your value
+          // for "sell" transactions, total price = dealFunds, and that minus fee is added to your value
           // for "buy" transactions, total price = dealFunds + fee
           var totalCost = transactionType == TransactionType.Sell ? dealFunds : dealFunds + fee;
+          
+          // kucoin reports postive values for both buys and sells
+          // (but CryptoProfiteer is built assuming negative values for buys, like coinbase reports)
+          if (transactionType == TransactionType.Buy) totalCost = -Math.Abs(totalCost);
 
           var transaction = new PersistedTransaction
           {
