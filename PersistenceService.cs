@@ -27,9 +27,10 @@ namespace CryptoProfiteer
     {
       var newData = PersistenceData.LoadFrom(_dataFilePath);
       _dataService.ImportTransactions(newData.Transactions);
+      _dataService.ImportTaxAssociations(newData.TaxAssociations);
 
       // update _lastSavedData from loaded data
-      TrySave(noTouchieFileSystem: true, newData.Transactions);
+      TrySave(noTouchieFileSystem: true, (newData.Transactions, newData.TaxAssociations));
 
       // NOTE: other services don't start until this method awaits
       // and that is leveraged to 
@@ -41,31 +42,34 @@ namespace CryptoProfiteer
       {
         while (!stoppingToken.IsCancellationRequested)
         {
-          TrySave(
-            noTouchieFileSystem: false,
-            transactions: _dataService.Transactions.Values.Select(x => x.GetPersistedData()));
+          TrySave(noTouchieFileSystem: false, _dataService.GetPersistedData());
 
           await Task.Delay(1000, stoppingToken);
         }
       }
       finally
       {
-        TrySave(
-          noTouchieFileSystem: false,
-          transactions: _dataService.Transactions.Values.Select(x => x.GetPersistedData()));
+        TrySave(noTouchieFileSystem: false, _dataService.GetPersistedData());
       }
     }
 
-    private void TrySave(bool noTouchieFileSystem, IEnumerable<PersistedTransaction> transactions)
+    private void TrySave(bool noTouchieFileSystem, 
+      (IEnumerable<PersistedTransaction> Transactions, IEnumerable<PersistedTaxAssociation> TaxAssociations) dataToSave)
     {
       var toSave = new PersistenceData
       {
-        Transactions = transactions
+        Transactions = dataToSave.Transactions
           .OrderBy(x => x.Time)
           .ThenBy(x => x.TradeId)
           .ToList(),
+          
+        TaxAssociations = dataToSave.TaxAssociations
+          .OrderBy(x => x.Id)
+          .ToList(),
       };
       
+      // TODO: I'd really love to NOT be serializing all of my system state every second
+      // just to see if it needs to be saved... but this works...
       var newData = JsonConvert.SerializeObject(toSave);
       if (newData == _lastSavedData) return;
       

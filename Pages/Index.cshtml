@@ -4,6 +4,12 @@
     ViewData["Title"] = "Home page";
 }
 
+<style>
+.table > thead > tr:first-child > th {
+    border: none;
+}
+</style>
+
 <div class="text-center">
 @{
   int nullCount = 0;
@@ -88,7 +94,7 @@ const nextSortByCashValue = sortBy === 'cashValue' ? 'cashValueAscending' : 'cas
     foreach (var o in orders)
     {
               <tr>
-                <td>@o.Time.LocalDateTime.ToString("g")</td>
+                <td>@o.Time.ToLocalTime().ToString("g")</td>
                 <td>@o.CoinCount.ToString("G29")</td>
                 <td>$@o.PerCoinCost.ToString()</td>
                 <td>@o.TotalCost.ToString("c")</td>

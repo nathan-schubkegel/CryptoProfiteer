@@ -3,6 +3,13 @@
 @{
   ViewData["Title"] = "Transactions";
 }
+
+<style>
+.table > thead > tr:first-child > th {
+    border: none;
+}
+</style>
+
 <h1>
   @ViewData["Title"]
   <button type="button" class="btn btn-secondary" style="margin-left:20px;" 
@@ -128,7 +135,7 @@ function filterBy(coinType)
 @foreach (var t in Model.OrderedTransactions) 
 {
     <tr>
-      <td>@t.Time.LocalDateTime.ToString("g")</td>
+      <td>@t.Time.ToLocalTime().ToString("g")</td>
       <td>@t.TransactionType</td>
       <td id='coin-type'>
         <button id='coin-type-filter-button' type="button" class="btn btn-secondary btn-sm"

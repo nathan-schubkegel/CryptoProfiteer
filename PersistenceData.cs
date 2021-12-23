@@ -9,6 +9,8 @@ namespace CryptoProfiteer
   {
     public List<PersistedTransaction> Transactions { get; set; } = new List<PersistedTransaction>();
     
+    public List<PersistedTaxAssociation> TaxAssociations { get; set; } = new List<PersistedTaxAssociation>();
+
     public static PersistenceData LoadFrom(string dataFilePath)
     {
       var newData = new PersistenceData();

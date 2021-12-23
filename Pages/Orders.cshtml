@@ -3,6 +3,13 @@
 @{
   ViewData["Title"] = "Orders";
 }
+
+<style>
+.table > thead > tr:first-child > th {
+    border: none;
+}
+</style>
+
 <h1>
   @ViewData["Title"]
 </h1>
@@ -95,7 +102,7 @@ const nextSortByCoinType = sortBy === 'coinType' ? 'coinTypeDescending' : 'coinT
   foreach (var t in Model.Orders(sortBy)) 
   {
     <tr>
-      <td>@t.Time.LocalDateTime.ToString("g")</td>
+      <td>@t.Time.ToLocalTime().ToString("g")</td>
       <td>@t.TransactionType</td>
       <td id='coin-type'>
         <button id='coin-type-filter-button' type="button" class="btn btn-secondary btn-sm"

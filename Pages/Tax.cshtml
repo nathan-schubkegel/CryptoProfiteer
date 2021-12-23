@@ -1,0 +1,237 @@
+@page
+@model TaxModel
+@{
+  ViewData["Title"] = "Tax";
+}
+
+<style>
+.table > thead > tr:first-child > th {
+    border: none;
+}
+</style>
+
+<div id='orders-needing-tax-association'>
+  <h1>
+    Sales Needing Tax Association
+  </h1>
+  <table class="table table-sm">
+    <thead>
+      <tr>
+        <th scope="col">Name</th>
+        <th scope="col">Date</th>
+        <th scope="col"></th>
+        <th scope="col">Count</th>
+        <th scope="col">Per Coin</th>
+        <th scope="col">Fee</th>
+        <th scope="col">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+  @{
+    bool hadOrdersNeedingTaxAssociation = false;
+    foreach (var t in Model.OrdersNeedingTaxAssociation(null))
+    {
+      hadOrdersNeedingTaxAssociation = true;
+      <tr>
+        <td>@t.FriendlyName</td>
+        <td>@t.Time.ToLocalTime().ToString("g")</td>
+        <td>
+          <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#modalToAssociateOrder"
+            onclick="onResolveOrderNeedingTaxAssociationClick('@(t.Id)', 
+              '@(t.TotalCost.ToString("c"))',
+              '@(t.CoinCount.ToString("G29"))', 
+              '@(t.FriendlyName)', 
+              '@(t.CoinType)', 
+              '@(t.Time.ToLocalTime().ToString("g"))', 
+              new Date('@(t.Time.ToString("o"))'))"
+          >
+            Resolve
+          </button>
+        </td>
+        <td>@t.CoinCount.ToString("G29")</td>
+        <td>$@t.PerCoinCost.ToString()</td>
+        <td>@t.Fee.ToString("c")</td>
+        <td>@t.TotalCost.ToString("c")</td>
+      </tr>
+    }
+  }
+    </tbody>
+  </table>
+</div>
+
+<script>
+function onResolveOrderNeedingTaxAssociationClick(orderId, totalCost, coinCount, prettyCoinType, machineCoinType, prettyOrderTime, machineOrderTime)
+{
+  let totalCostSpan = document.getElementById('modalToAssociateOrder-TotalCost');
+  totalCostSpan.textContent = totalCost;
+
+  let coinCountSpan = document.getElementById('modalToAssociateOrder-CoinCount');
+  coinCountSpan.textContent = coinCount;
+
+  let coinTypeSpan = document.getElementById('modalToAssociateOrder-CoinType');
+  coinTypeSpan.textContent = prettyCoinType;
+
+  let timeSpan = document.getElementById('modalToAssociateOrder-Time');
+  timeSpan.textContent = prettyOrderTime;
+
+  let tableBody = document.getElementById('modalToAssociateOrder-tableBody');
+  for (var row of Array.from(tableBody.children)) {
+    // hide any with coinType != CoinType
+    // hide any with purchaseTime > order time
+    let rowCoinType = row.getAttribute('data-coinType');
+    let rowPurchaseTime = new Date(row.getAttribute('data-purchaseTime'));
+    if (rowCoinType != machineCoinType || rowPurchaseTime > machineOrderTime) {
+      row.style.display = 'none';
+    }
+    else {
+      row.style.display = '';
+    }
+  }
+}
+</script>
+
+@{
+  if (!hadOrdersNeedingTaxAssociation) {
+<script>
+  let body = document.getElementById('orders-needing-tax-association');
+  body.style.display = 'none';
+</script>
+  }
+}
+
+<!-- A modal dialog for associating a "buy" order with a "sell" order -->
+<div class="modal fade" id="modalToAssociateOrder" tabindex="-1" role="dialog" aria-labelledby="modalToAssociateOrder-Title" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalToAssociateOrder-Title">
+          You sold
+          <span id='modalToAssociateOrder-CoinCount'>9000</span>
+          <span id='modalToAssociateOrder-CoinType'>BARFTH (barfthereum)</span>
+          for
+          <span id='modalToAssociateOrder-TotalCost'>$100,000,000</span>
+          <br>
+          How was it purchased?
+          <span id='modalToAssociateOrder-Time' style='display: none;'>last Tuesday</span>
+        </h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <table class="table table-sm">
+          <thead>
+            <tr>
+              <th scope="col">Purchase Date</th>
+              <th scope="col"></th>
+              <th scope="col">Count</th>
+              <th scope="col">Per Coin</th>
+              <th scope="col">Fee</th>
+              <th scope="col">Total</th>
+            </tr>
+          </thead>
+          <tbody id='modalToAssociateOrder-tableBody'>
+        @{
+          foreach (var t in Model.UnassociatedPurchaseOrders(null))
+          {
+            <tr data-coinType='@t.CoinType' data-purchaseTime='@t.Time.ToString("o")'>
+              <td>@t.Time.ToLocalTime().ToString("g")</td>
+              <td>
+                <input type="checkbox" autocomplete="off"
+                  class="btn-check button-for-selecting-purchase-orders"
+                  id="btn-check-order-@(t.Id)"
+                  data-orderId="@(t.Id)">
+                <label class="btn btn-outline-primary btn-sm" for="btn-check-order-@(t.Id)">Select</label>
+              </td>
+              <td>@t.CoinCount.ToString("G29")</td>
+              <td>$@t.PerCoinCost.ToString()</td>
+              <td>@t.Fee.ToString("c")</td>
+              <td>@t.TotalCost.ToString("c")</td>
+            </tr>
+          }
+        }
+          </tbody>
+        </table>
+      </div>
+      <div class="modal-footer">
+        <img id="modalToAssociateOrder-okSpinny" src="/spinny-arrows.gif" style="display: none;" />
+        <button type="button" class="btn btn-primary" onclick="
+    {
+      let orderIds = [];
+      for (var e of document.getElementsByClassName('button-for-selecting-purchase-orders')) {
+        if (e.checked) {
+          orderIds.push(e.getAttribute('data-orderId'));
+        }
+      }
+
+      let spinny = document.getElementById('modalToAssociateOrder-okSpinny');
+      spinny.style = '';
+      try {
+        // TODO: left off here --nate
+        let r = await fetch('/api/updateTaxAssociation', {method: 'POST', body: orderIds});
+        if (r.ok) {
+          location.reload();
+        }
+        else {
+          let t = await r.text();
+          alert(t);
+        }
+      }
+      catch (e) {
+        alert(e);
+      }
+      finally {
+        spinny.style = 'display: none;';
+      }
+    }">OK</button>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h1>
+  Tax Associations
+</h1>
+<table class="table table-sm">
+  <thead>
+    <tr>
+      <th scope="col">Name</th>
+      <th scope="col">Date</th>
+      <th scope="col"></th>
+      <th scope="col">Count</th>
+      <th scope="col">Per Coin</th>
+      <th scope="col">Fee</th>
+      <th scope="col">Total</th>
+    </tr>
+  </thead>
+  <tbody>
+@{
+  foreach (var a in Model.TaxAssociations(null))
+  {
+    <tr>
+      <td>@a.FriendlyName</td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+      <td></td>
+    </tr>
+    
+    foreach (var p in a.Parts)
+    {
+    <tr>
+      <td></td>
+      <td>@p.Order?.Time.ToLocalTime().ToString("g")</td>
+      <td>@p.Order?.TransactionType</td>
+      <td>@p.CoinCount.ToString("G29")</td>
+      <td>$@p.Order?.PerCoinCost.ToString()</td>
+      <td></td>
+      <td>@p.PartCost.ToString("c")</td>
+    </tr>
+    }
+  }
+}
+  </tbody>
+</table>

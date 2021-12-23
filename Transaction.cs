@@ -18,7 +18,7 @@ namespace CryptoProfiteer
     public string TradeId { get; set; }
     public TransactionType TransactionType { get; set; }
     public CryptoExchange Exchange { get; set; }
-    public DateTimeOffset Time { get; set; }
+    public DateTime Time { get; set; }
     public string CoinType { get; set; }
     public Decimal CoinCount { get; set; }
     public Decimal PerCoinCost { get; set; }
@@ -40,7 +40,7 @@ namespace CryptoProfiteer
     public string TradeId => _data.TradeId;
     public TransactionType TransactionType => _data.TransactionType;
     public CryptoExchange Exchange => _data.Exchange;
-    public DateTimeOffset Time => _data.Time;
+    public DateTime Time => _data.Time;
     public string CoinType => _data.CoinType;
     public string FriendlyName => _friendlyName.Value;
     public Decimal CoinCount => _data.CoinCount;
