@@ -29,7 +29,7 @@ namespace CryptoProfiteer
       services.AddHostedService<PersistenceService>();
       services.AddHostedService<PriceService>();
       services.AddHostedService<FriendlyNameService>();
-      services.AddHostedService<ChromeService>();
+      services.AddHostedService<BrowserLauncherService>();
       
       services.AddSingleton<IDataService, DataService>();
     }
