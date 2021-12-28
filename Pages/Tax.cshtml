@@ -213,6 +213,7 @@ async function modalToAssociateOrderOkButtonClick()
       <th scope="col">Count</th>
       <th scope="col">Per Coin</th>
       <th scope="col">Total</th>
+      <th scope="col">Loss/Gain</th>
     </tr>
   </thead>
   <tbody>
@@ -226,19 +227,44 @@ async function modalToAssociateOrderOkButtonClick()
       <td></td>
       <td></td>
       <td></td>
+      <td></td>
     </tr>
-    
+
     foreach (var p in a.Parts)
     {
     <tr>
       <td></td>
-      <td>@p.Order?.Time.ToLocalTime().ToString("g")</td>
-      <td>@p.Order?.TransactionType</td>
+      <td>@p.Order.Time.ToLocalTime().ToString("g")</td>
+      <td>@p.Order.TransactionType</td>
       <td>@p.ContributingCoinCount.ToString("G29")</td>
-      <td>$@p.Order?.PerCoinCost.ToString()</td>
+      <td>$@p.Order.PerCoinCost.ToString()</td>
       <td>@p.ContributingCost.ToString("c")</td>
+      <td></td>
     </tr>
     }
+    <tr>
+      <td></td>
+      <td colspan="4">
+      @{
+        if (a.CoinCountBought != a.CoinCountSold)
+        {
+          <img src="/red-x.svg" style="width:50px;height:50px;"/>
+        }
+
+        var coinCountNeeded = Math.Abs(Math.Abs(a.CoinCountBought) - Math.Abs(a.CoinCountSold));
+        if (a.CoinCountBought > a.CoinCountSold)
+        {
+          <span>Has @coinCountNeeded.ToString("G29") too many coins purchased!</span>
+        }
+        else if (a.CoinCountBought < a.CoinCountSold)
+        {
+          <span>Has @coinCountNeeded.ToString("G29") more coins sold than purchased!</span>
+        }
+      }
+      </td>
+      <td><span style="@(a.IsNetGain ? "color:#008126;" : "color:#ff0000;") font-weight:bold; ">@((a.TotalCostBought + a.TotalCostSold).ToString("c"))</span></td>
+      <td><span style="@(a.IsNetGain ? "color:#008126;" : "color:#ff0000;") font-weight:bold; ">@(((int)a.PercentNetGainLoss).ToString("D"))% @(a.IsNetGain ? "gain" : "loss")</span></td>
+    </tr>
   }
 }
   </tbody>

@@ -52,6 +52,7 @@ namespace CryptoProfiteer
       // else, they both stay zero
       
       CoinCountBought = Parts.Where(p => p.Order?.TransactionType == TransactionType.Buy).Sum(p => p.Order.CoinCount);
+      CoinCountSold = Parts.Where(p => p.Order?.TransactionType == TransactionType.Sell).Sum(p => p.Order.CoinCount);
       AveragePerCoinCost = TotalCostBought / CoinCountBought;
     }
 
@@ -62,9 +63,25 @@ namespace CryptoProfiteer
     public IReadOnlyList<TaxAssociationPart> Parts { get; }
     public Decimal TotalCostBought { get; }
     public Decimal TotalCostSold { get; }
+    public bool IsNetGain => TotalCostBought + TotalCostSold >= 0;
+    public Decimal PercentNetGainLoss
+    {
+      get
+      {
+        try
+        {
+          return (Math.Abs((TotalCostBought + TotalCostSold) / TotalCostBought) * 100);
+        }
+        catch
+        {
+          return 0m;
+        }
+      }
+    }
     public Decimal MoreBuysNeeded { get; }
     public Decimal MoreSalesNeeded { get; }
     public Decimal CoinCountBought { get; }
+    public Decimal CoinCountSold { get; }
     public Decimal AveragePerCoinCost { get; }
 
     public PersistedTaxAssociation GetPersistedData() => _data;
