@@ -38,8 +38,8 @@ namespace CryptoProfiteer
       }
       Parts = parts;
       
-      TotalCostBought = Parts.Where(p => p.Order?.TransactionType == TransactionType.Buy).Sum(p => p.Order.TotalCost);
-      TotalCostSold = Parts.Where(p => p.Order?.TransactionType == TransactionType.Sell).Sum(p => p.Order.TotalCost);
+      TotalCostBought = Parts.Where(p => p.Order.TransactionType == TransactionType.Buy).Sum(p => p.ContributingCost);
+      TotalCostSold = Parts.Where(p => p.Order.TransactionType == TransactionType.Sell).Sum(p => p.ContributingCost);
       var difference = TotalCostBought + TotalCostSold;
       if (difference > 0)
       {
@@ -51,8 +51,8 @@ namespace CryptoProfiteer
       }
       // else, they both stay zero
       
-      CoinCountBought = Parts.Where(p => p.Order?.TransactionType == TransactionType.Buy).Sum(p => p.Order.CoinCount);
-      CoinCountSold = Parts.Where(p => p.Order?.TransactionType == TransactionType.Sell).Sum(p => p.Order.CoinCount);
+      CoinCountBought = Parts.Where(p => p.Order.TransactionType == TransactionType.Buy).Sum(p => p.ContributingCoinCount);
+      CoinCountSold = Parts.Where(p => p.Order.TransactionType == TransactionType.Sell).Sum(p => p.ContributingCoinCount);
       AveragePerCoinCost = TotalCostBought / CoinCountBought;
     }
 
