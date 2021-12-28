@@ -37,6 +37,7 @@ namespace CryptoProfiteer
     
     private async Task LaunchBrowser(CancellationToken stoppingToken)
     {
+      stoppingToken.ThrowIfCancellationRequested();
       try
       {
         var args = $"{GetServerAddress()} --new-window";
@@ -108,6 +109,9 @@ namespace CryptoProfiteer
           var result = await Task.WhenAny(tcs.Task, readLine);
           if (result == readLine)
           {
+            // the application interprets Ctrl+C as a request to shut down
+            // so wait 500ms to see if stoppingToken becomes signaled before launching another browser
+            await Task.Delay(500, stoppingToken);
             await LaunchBrowser(stoppingToken);
           }
         }

@@ -284,5 +284,35 @@ namespace CryptoProfiteer
 
       return Ok();
     }
+    
+    public class CreateTaxAssociationInputs
+    {
+      public string[] OrderIds { get; set; }
+    }
+    
+    [HttpPost("createTaxAssociation")]
+    public IActionResult CreateTaxAssociation([FromBody]CreateTaxAssociationInputs inputs)
+    {
+      foreach (var orderId in inputs.OrderIds)
+      {
+        var order = _dataService.Orders.GetValueOrDefault(orderId) ?? throw new Exception("Unrecognized order ID: " + orderId);
+      }
+
+      string taxAssociationId = null;
+      foreach (var orderId in inputs.OrderIds)
+      {
+        var order = _dataService.Orders.GetValueOrDefault(orderId) ?? throw new Exception("Unrecognized order ID: " + orderId);
+        taxAssociationId = _dataService.UpdateTaxAssociation(taxAssociationId, orderId, order.CoinCount, order.TotalCost);
+      }
+      
+      if (taxAssociationId != null)
+      {
+        return Ok(new { taxAssociationId });
+      }
+      else
+      {
+        throw new Exception("No order IDs probivided maybe?");
+      }
+    }
   }
 }

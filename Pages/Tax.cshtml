@@ -155,40 +155,50 @@ function onResolveOrderNeedingTaxAssociationClick(orderId, totalCost, coinCount,
       </div>
       <div class="modal-footer">
         <img id="modalToAssociateOrder-okSpinny" src="/spinny-arrows.gif" style="display: none;" />
-        <button type="button" class="btn btn-primary" onclick="
-    {
-      let orderIds = [];
-      for (var e of document.getElementsByClassName('button-for-selecting-purchase-orders')) {
-        if (e.checked) {
-          orderIds.push(e.getAttribute('data-orderId'));
-        }
-      }
-
-      let spinny = document.getElementById('modalToAssociateOrder-okSpinny');
-      spinny.style = '';
-      try {
-        // TODO: left off here --nate
-        let r = await fetch('/api/updateTaxAssociation', {method: 'POST', body: orderIds});
-        if (r.ok) {
-          location.reload();
-        }
-        else {
-          let t = await r.text();
-          alert(t);
-        }
-      }
-      catch (e) {
-        alert(e);
-      }
-      finally {
-        spinny.style = 'display: none;';
-      }
-    }">OK</button>
+        <button type="button" class="btn btn-primary" onclick="modalToAssociateOrderOkButtonClick()">OK</button>
         <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
       </div>
     </div>
   </div>
 </div>
+
+<script>
+async function modalToAssociateOrderOkButtonClick()
+{
+  let orderIds = [];
+  for (var e of document.getElementsByClassName('button-for-selecting-purchase-orders')) {
+    if (e.checked) {
+      orderIds.push(e.getAttribute('data-orderId'));
+    }
+  }
+
+  let spinny = document.getElementById('modalToAssociateOrder-okSpinny');
+  spinny.style = '';
+  try {
+    let r = await fetch('/api/createTaxAssociation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({orderIds})
+    });
+
+    if (r.ok) {
+      //location.reload();
+      let t = await r.text();
+      alert('ok: ' + t);
+    }
+    else {
+      let t = await r.text();
+      alert('!ok: ' + t);
+    }
+  }
+  catch (e) {
+    alert(e);
+  }
+  finally {
+    spinny.style = 'display: none;';
+  }
+}
+</script>
 
 <h1>
   Tax Associations

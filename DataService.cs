@@ -23,8 +23,9 @@ namespace CryptoProfiteer
     void UpdateCoinPrices(IEnumerable<CoinPriceFromExchange> prices);
     void UpdateFriendlyNames(Dictionary<string, string> newFriendlyNames);
 
-    // 'taxAssociationId' may be null or empty string to add the order to a new tax association
-    void UpdateTaxAssociation(string taxAssociationId, string orderId, Decimal coinCount, Decimal partCost);
+    // 'taxAssociationId' may be null or empty string to add order to a new tax association
+    // Returns the new/modified TaxAssociation ID
+    string UpdateTaxAssociation(string taxAssociationId, string orderId, Decimal coinCount, Decimal partCost);
     
     (IEnumerable<PersistedTransaction> Transactions, IEnumerable<PersistedTaxAssociation> TaxAssociations) GetPersistedData();
   }
@@ -239,7 +240,7 @@ namespace CryptoProfiteer
       }
     }
     
-    public void UpdateTaxAssociation(string taxAssociationId, string orderId, Decimal coinCount, Decimal partCost)
+    public string UpdateTaxAssociation(string taxAssociationId, string orderId, Decimal coinCount, Decimal partCost)
     {
       lock (_lock)
       {
@@ -286,6 +287,7 @@ namespace CryptoProfiteer
             : data.Parts.Select((x, i2) => i == i2 ? newPart : x).ToList(), // replace
         };
         ImportTaxAssociations(new[]{newData});
+        return newData.Id;
       }
     }
     
