@@ -298,12 +298,10 @@ namespace CryptoProfiteer
         var order = _dataService.Orders.GetValueOrDefault(orderId) ?? throw new Exception("Unrecognized order ID: " + orderId);
       }
 
-      string taxAssociationId = null;
-      foreach (var orderId in inputs.OrderIds)
-      {
-        var order = _dataService.Orders.GetValueOrDefault(orderId) ?? throw new Exception("Unrecognized order ID: " + orderId);
-        taxAssociationId = _dataService.UpdateTaxAssociation(taxAssociationId, orderId, order.CoinCount, order.TotalCost);
-      }
+      var taxAssociationId = _dataService.UpdateTaxAssociation(null, inputs.OrderIds
+        .Select(id => _dataService.Orders[id])
+        .Select(order => (order.Id, order.CoinCount, order.TotalCost))
+        .ToArray());
       
       if (taxAssociationId != null)
       {
@@ -311,7 +309,7 @@ namespace CryptoProfiteer
       }
       else
       {
-        throw new Exception("No order IDs probivided maybe?");
+        throw new Exception("No order IDs provided maybe?");
       }
     }
   }

@@ -60,8 +60,11 @@
 </div>
 
 <script>
+let resolveOrderNeedingTaxAssociation_orderId = '';
 function onResolveOrderNeedingTaxAssociationClick(orderId, totalCost, coinCount, prettyCoinType, machineCoinType, prettyOrderTime, machineOrderTime)
 {
+  resolveOrderNeedingTaxAssociation_orderId = orderId;
+
   let totalCostSpan = document.getElementById('modalToAssociateOrder-TotalCost');
   totalCostSpan.textContent = totalCost;
 
@@ -165,7 +168,7 @@ function onResolveOrderNeedingTaxAssociationClick(orderId, totalCost, coinCount,
 <script>
 async function modalToAssociateOrderOkButtonClick()
 {
-  let orderIds = [];
+  let orderIds = [resolveOrderNeedingTaxAssociation_orderId];
   for (var e of document.getElementsByClassName('button-for-selecting-purchase-orders')) {
     if (e.checked) {
       orderIds.push(e.getAttribute('data-orderId'));
@@ -182,9 +185,7 @@ async function modalToAssociateOrderOkButtonClick()
     });
 
     if (r.ok) {
-      //location.reload();
-      let t = await r.text();
-      alert('ok: ' + t);
+      location.reload();
     }
     else {
       let t = await r.text();
@@ -211,7 +212,6 @@ async function modalToAssociateOrderOkButtonClick()
       <th scope="col"></th>
       <th scope="col">Count</th>
       <th scope="col">Per Coin</th>
-      <th scope="col">Fee</th>
       <th scope="col">Total</th>
     </tr>
   </thead>
@@ -226,7 +226,6 @@ async function modalToAssociateOrderOkButtonClick()
       <td></td>
       <td></td>
       <td></td>
-      <td></td>
     </tr>
     
     foreach (var p in a.Parts)
@@ -235,10 +234,9 @@ async function modalToAssociateOrderOkButtonClick()
       <td></td>
       <td>@p.Order?.Time.ToLocalTime().ToString("g")</td>
       <td>@p.Order?.TransactionType</td>
-      <td>@p.CoinCount.ToString("G29")</td>
+      <td>@p.ContributingCoinCount.ToString("G29")</td>
       <td>$@p.Order?.PerCoinCost.ToString()</td>
-      <td></td>
-      <td>@p.PartCost.ToString("c")</td>
+      <td>@p.ContributingCost.ToString("c")</td>
     </tr>
     }
   }

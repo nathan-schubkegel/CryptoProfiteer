@@ -17,16 +17,15 @@ namespace CryptoProfiteer
   public class PersistedTaxAssociationPart
   {
     public string OrderId { get; set; }
-    public Decimal CoinCount { get; set; }
-    public Decimal PartCost { get; set; }
+    public Decimal ContributingCoinCount { get; set; }
+    public Decimal ContributingCost { get; set; }
   }
 
   public class TaxAssociation
   {
     private readonly PersistedTaxAssociation _data;
 
-    public TaxAssociation(PersistedTaxAssociation data, IReadOnlyDictionary<string, Order> allOrders
-      /*IEnumerable<string> doubleBookedOrders*/)
+    public TaxAssociation(PersistedTaxAssociation data, IReadOnlyDictionary<string, Order> allOrders)
     {
       _data = data;
       
@@ -77,13 +76,12 @@ namespace CryptoProfiteer
     
     public TaxAssociationPart(PersistedTaxAssociationPart data, Order order)
     {
-      _data = data;
-      Order = order;
+      _data = data ?? throw new Exception("nope. gotta have some backing data.");
+      Order = order ?? throw new Exception("nope. gotta have an associated order.");
     }
     
-    // NOTE: null if transaction data was deleted w/out maintaining tax association stuff
     public Order Order { get; }
-    public Decimal CoinCount => _data.CoinCount;
-    public Decimal PartCost => _data.PartCost;
+    public Decimal ContributingCoinCount => _data.ContributingCoinCount;
+    public Decimal ContributingCost => _data.ContributingCost;
   }
 }

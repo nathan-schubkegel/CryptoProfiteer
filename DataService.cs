@@ -25,7 +25,8 @@ namespace CryptoProfiteer
 
     // 'taxAssociationId' may be null or empty string to add order to a new tax association
     // Returns the new/modified TaxAssociation ID
-    string UpdateTaxAssociation(string taxAssociationId, string orderId, Decimal coinCount, Decimal partCost);
+    string UpdateTaxAssociation(string taxAssociationId,
+      (string orderId, Decimal contributingCoinCount, Decimal contributingCost)[] updates);
     
     (IEnumerable<PersistedTransaction> Transactions, IEnumerable<PersistedTaxAssociation> TaxAssociations) GetPersistedData();
   }
@@ -153,22 +154,22 @@ namespace CryptoProfiteer
       IEnumerable<PersistedTaxAssociation> importedTaxAssociations, 
       IReadOnlyDictionary<string, Order> orders)
     {
-      // combine all persisted data into 1 collection
-      var combinedData = new Dictionary<string, PersistedTaxAssociation>();
+      // combine all existing and proposed tax association data into 1 collection
+      var persistedTaxAssociations = new Dictionary<string, PersistedTaxAssociation>();
       foreach ((var id, var a) in TaxAssociations)
       {
-        combinedData[a.Id] = a.GetPersistedData();
+        persistedTaxAssociations[a.Id] = a.GetPersistedData();
       }
       foreach (var a in importedTaxAssociations)
       {
-        combinedData[a.Id] = a ?? throw new Exception("invalid null tax association input");
+        persistedTaxAssociations[a.Id] = a ?? throw new Exception("invalid null tax association input");
       }
       
       // remove tax association parts for orders that no longer exist for whatever reason.
       // remove tax associations that are empty.
       var taxAssociationIdsToRemove = new HashSet<string>();
       var orderIdsToRemove = new HashSet<string>();
-      foreach (var t in combinedData.Values)
+      foreach (var t in persistedTaxAssociations.Values)
       {
         orderIdsToRemove.Clear();
         foreach (var p in t.Parts)
@@ -189,33 +190,13 @@ namespace CryptoProfiteer
       }
       foreach (var id in taxAssociationIdsToRemove)
       {
-        combinedData.Remove(id);
+        persistedTaxAssociations.Remove(id);
       }
-
-/*
-      // TODO: why?
-      // record which orders are used in multiple tax associations
-      var orderIdToTaxAssociations = new Dictionary<string, List<PersistedTaxAssociation>>();
-      foreach (var t in combinedData.Values)
-      {
-        foreach (var p in t.Parts)
-        {
-          if (!orderIdToTaxAssociations.TryGetValue(p.OrderId, out var bucket))
-          {
-            bucket = new List<PersistedTaxAssociation>(1);
-            orderIdToTaxAssociations[p.OrderId] = bucket;
-          }
-          bucket.Add(t);
-        }
-      }
-      */
-      
-      // TODO: how to complain about 0.01 rounding errors?
 
       // produce public-facing objects
-      var newTaxAssociations = combinedData.Values.ToDictionary(
+      var newTaxAssociations = persistedTaxAssociations.Values.ToDictionary(
         t => t.Id, 
-        t => new TaxAssociation(t, orders)); /* TODO pass this in t.Parts.Select(p => p.OrderId).Where(orderIdToTaxAssociations.shows.it.double.booked)*/
+        t => new TaxAssociation(t, orders));
 
       return newTaxAssociations;
     }
@@ -240,17 +221,11 @@ namespace CryptoProfiteer
       }
     }
     
-    public string UpdateTaxAssociation(string taxAssociationId, string orderId, Decimal coinCount, Decimal partCost)
+    public string UpdateTaxAssociation(string taxAssociationId, 
+      (string orderId, Decimal contributingCoinCount, Decimal contributingCost)[] updates)
     {
       lock (_lock)
       {
-        // find order
-        orderId = orderId ?? string.Empty;
-        if (!Orders.TryGetValue(orderId, out var order))
-        {
-          throw new Exception("Cannot add unrecognized order id \"" + orderId + "\" to tax association");
-        }
-        
         // find or create tax association
         taxAssociationId ??= string.Empty;
         PersistedTaxAssociation data;
@@ -271,22 +246,37 @@ namespace CryptoProfiteer
           data = thing.GetPersistedData();
         }
 
-        // add or update part in tax association
-        int i = data.Parts.FindIndex(x => x.OrderId == orderId);
-        var newPart = new PersistedTaxAssociationPart
+        var revisedParts = new List<PersistedTaxAssociationPart>(data.Parts);
+        foreach ((var orderId, var contributingCoinCount, var contributingCost) in updates)
         {
-          OrderId = orderId,
-          CoinCount = coinCount,
-          PartCost = partCost,
-        };
-        var newData = new PersistedTaxAssociation
-        {
-          Id = data.Id,
-          Parts = i < 0 
-            ? data.Parts.Concat(new[]{newPart}).ToList() // add
-            : data.Parts.Select((x, i2) => i == i2 ? newPart : x).ToList(), // replace
-        };
-        ImportTaxAssociations(new[]{newData});
+          // find order
+          if (!Orders.TryGetValue(orderId ?? string.Empty, out var order))
+          {
+            throw new Exception("Cannot add unrecognized order id \"" + orderId + "\" to tax association");
+          }
+
+          // make new part data
+          var newPart = new PersistedTaxAssociationPart
+          {
+            OrderId = orderId,
+            ContributingCoinCount = contributingCoinCount,
+            ContributingCost = contributingCost,
+          };
+
+          // add or replace part in list
+          int i = revisedParts.FindIndex(x => x.OrderId == orderId);
+          if (i < 0)
+          {
+            revisedParts.Add(newPart);
+          }
+          else
+          {
+            revisedParts[i] = newPart;
+          }
+        }
+        
+        var newData = new PersistedTaxAssociation { Id = data.Id, Parts = revisedParts };
+        ImportTaxAssociations(new[] { newData });
         return newData.Id;
       }
     }
