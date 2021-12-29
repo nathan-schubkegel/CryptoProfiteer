@@ -287,22 +287,35 @@ namespace CryptoProfiteer
     
     public class CreateTaxAssociationInputs
     {
-      public string[] OrderIds { get; set; }
+      public Part[] Parts { get; set; }
+      
+      public class Part
+      {
+        public string OrderId { get; set; }
+        public Decimal ContributingCoinCount { get; set; }
+        public Decimal ContributingCost { get; set; }
+      }
     }
     
     [HttpPost("createTaxAssociation")]
     public IActionResult CreateTaxAssociation([FromBody]CreateTaxAssociationInputs inputs)
     {
-      foreach (var orderId in inputs.OrderIds)
+      var orders = new Dictionary<string, Order>();
+      foreach (var part in inputs.Parts)
       {
-        var order = _dataService.Orders.GetValueOrDefault(orderId) ?? throw new Exception("Unrecognized order ID: " + orderId);
+        var order = _dataService.Orders.GetValueOrDefault(part.OrderId) ?? throw new Exception("Unrecognized order ID: " + part.OrderId);
+        orders[order.Id] = order;
       }
 
-      var taxAssociationId = _dataService.UpdateTaxAssociation(null, inputs.OrderIds
-        .Select(id => _dataService.Orders[id])
-        .Select(order => (order.Id, order.CoinCount, order.TotalCost))
-        .ToArray());
-      
+      var taxAssociationId = _dataService.UpdateTaxAssociation(null,
+        inputs.Parts.Select(p => 
+        (
+          p.OrderId,
+          Math.Abs(p.ContributingCoinCount),
+          // iron out negativity because it's easier to do it here than in the front-end
+          orders[p.OrderId].TransactionType == TransactionType.Buy ? -Math.Abs(p.ContributingCost) : Math.Abs(p.ContributingCost)
+        )).ToArray());
+
       if (taxAssociationId != null)
       {
         return Ok(new { taxAssociationId });

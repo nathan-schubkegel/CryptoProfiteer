@@ -39,6 +39,7 @@
           <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#modalToAssociateOrder"
             onclick="onResolveOrderNeedingTaxAssociationClick('@(t.Id)', 
               '@(t.TotalCost.ToString("c"))',
+              '@(t.TotalCost.ToString("F2"))',
               '@(t.CoinCount.ToString("G29"))', 
               '@(t.FriendlyName)', 
               '@(t.CoinType)', 
@@ -61,12 +62,16 @@
 
 <script>
 let resolveOrderNeedingTaxAssociation_orderId = '';
-function onResolveOrderNeedingTaxAssociationClick(orderId, totalCost, coinCount, prettyCoinType, machineCoinType, prettyOrderTime, machineOrderTime)
+let resolveOrderNeedingTaxAssociation_coinCount = '';
+let resolveOrderNeedingTaxAssociation_cost = '';
+function onResolveOrderNeedingTaxAssociationClick(orderId, prettyTotalCost, machineTotalCost, coinCount, prettyCoinType, machineCoinType, prettyOrderTime, machineOrderTime)
 {
   resolveOrderNeedingTaxAssociation_orderId = orderId;
+  resolveOrderNeedingTaxAssociation_coinCount = coinCount;
+  resolveOrderNeedingTaxAssociation_cost = machineTotalCost;
 
   let totalCostSpan = document.getElementById('modalToAssociateOrder-TotalCost');
-  totalCostSpan.textContent = totalCost;
+  totalCostSpan.textContent = prettyTotalCost;
 
   let coinCountSpan = document.getElementById('modalToAssociateOrder-CoinCount');
   coinCountSpan.textContent = coinCount;
@@ -102,12 +107,14 @@ function onResolveOrderNeedingTaxAssociationClick(orderId, totalCost, coinCount,
   }
 }
 
-<!-- A modal dialog for associating a "buy" order with a "sell" order -->
+<!-- A modal dialog for associating a "sell" order with one or more "buy" orders -->
 <div class="modal fade" id="modalToAssociateOrder" tabindex="-1" role="dialog" aria-labelledby="modalToAssociateOrder-Title" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="modalToAssociateOrder-Title">
+          Date: <span id='modalToAssociateOrder-Time'>last Tuesday</span>
+          <br>
           You sold
           <span id='modalToAssociateOrder-CoinCount'>9000</span>
           <span id='modalToAssociateOrder-CoinType'>BARFTH (barfthereum)</span>
@@ -115,7 +122,6 @@ function onResolveOrderNeedingTaxAssociationClick(orderId, totalCost, coinCount,
           <span id='modalToAssociateOrder-TotalCost'>$100,000,000</span>
           <br>
           How was it purchased?
-          <span id='modalToAssociateOrder-Time' style='display: none;'>last Tuesday</span>
         </h5>
         <button type="button" class="close" data-dismiss="modal" aria-label="Close">
           <span aria-hidden="true">&times;</span>
@@ -143,13 +149,43 @@ function onResolveOrderNeedingTaxAssociationClick(orderId, totalCost, coinCount,
                 <input type="checkbox" autocomplete="off"
                   class="btn-check button-for-selecting-purchase-orders"
                   id="btn-check-order-@(t.Id)"
-                  data-orderId="@(t.Id)">
+                  data-orderId="@(t.Id)"
+                  data-orderCoinCount="@t.CoinCount"
+                  data-orderTotalCost="@Math.Abs(t.TotalCost).ToString("F2")"
+                  onclick='modalToAssociateOrderCheckBoxClick("@t.Id");'>
                 <label class="btn btn-outline-primary btn-sm" for="btn-check-order-@(t.Id)">Select</label>
               </td>
               <td>@t.CoinCount.ToString("G29")</td>
               <td>$@t.PerCoinCost.ToString()</td>
               <td>@t.Fee.ToString("c")</td>
               <td>@t.TotalCost.ToString("c")</td>
+            </tr>
+            <tr style="display:none" id="modalToAssociateOrder-inputsForOrder-@t.Id">
+              <td></td>
+              <td colspan="2">
+                <div class="input-group input-group-sm">
+                  <div class="input-group-prepend">
+                    <span class="input-group-text" id="inputGroupPrepend-1">@t.CoinType</span>
+                  </div>
+                  <input type="text" class="form-control input-for-contributing-coin-count"
+                    id="input-contributing-coin-count-for-order-@(t.Id)"
+                    placeholder="Contributing Coin Count" 
+                    aria-describedby="inputGroupPrepend-1"
+                    value="555555555.55">
+                </div>
+              </td>
+              <td colspan="3">
+                <div class="input-group input-group-sm">
+                  <div class="input-group-prepend">
+                    <span class="input-group-text" id="inputGroupPrepend-2">$</span>
+                  </div>
+                  <input type="text" class="form-control input-for-contributing-cost"
+                    id="input-contributing-cost-for-order-@(t.Id)"
+                    placeholder="Contributing Cost" 
+                    aria-describedby="inputGroupPrepend-2"
+                    value="$555555555.55">
+                </div>
+              </td>
             </tr>
           }
         }
@@ -166,12 +202,105 @@ function onResolveOrderNeedingTaxAssociationClick(orderId, totalCost, coinCount,
 </div>
 
 <script>
+
+let isProgrammaticallyChangingStuff = false;
+
+function modalToAssociateOrderCheckBoxClick(orderId)
+{
+  const checkbox = document.getElementById('btn-check-order-' + orderId);
+
+  const row = document.getElementById('modalToAssociateOrder-inputsForOrder-' + orderId);
+  row.style.display = checkbox.checked ? '' : 'none';
+
+  let oldValue = isProgrammaticallyChangingStuff;
+  isProgrammaticallyChangingStuff = true;
+  try {
+    const coinCountInput = document.getElementById('input-contributing-coin-count-for-order-' + orderId);
+    coinCountInput.value = checkbox.getAttribute("data-orderCoinCount");
+
+    const costInput = document.getElementById('input-contributing-cost-for-order-' + orderId);
+    costInput.value = checkbox.getAttribute("data-orderTotalCost");
+  }
+  finally {
+    isProgrammaticallyChangingStuff = oldValue;
+  }
+}
+
+function modalToAssociateOrderContributingCoinCountChanged(orderId)
+{
+  if (isProgrammaticallyChangingStuff) return;
+  
+  const checkbox = document.getElementById('btn-check-order-' + orderId);
+  const orderTotalCost = checkbox.getAttribute("data-orderTotalCost");
+  const orderCoinCount = checkbox.getAttribute("data-orderCoinCount");
+
+  const coinCountInput = document.getElementById('input-contributing-coin-count-for-order-' + orderId);
+  const costInput = document.getElementById('input-contributing-cost-for-order-' + orderId);
+  try {
+    costInput.value = (Number(coinCountInput.value) * Number(orderTotalCost) / Number(orderCoinCount)).toFixed(2);
+  }
+  catch {
+    costInput.value = '<unknown>';
+  }
+}
+
+function modalToAssociateOrderContributingCostChanged(orderId)
+{
+  if (isProgrammaticallyChangingStuff) return;
+  
+  const checkbox = document.getElementById('btn-check-order-' + orderId);
+  const orderTotalCost = checkbox.getAttribute("data-orderTotalCost");
+  const orderCoinCount = checkbox.getAttribute("data-orderCoinCount");
+
+  const costInput = document.getElementById('input-contributing-cost-for-order-' + orderId);
+  const coinCountInput = document.getElementById('input-contributing-coin-count-for-order-' + orderId);
+  try {
+    coinCountInput.value = (Number(orderCoinCount) * Number(costInput.value) / Number(orderTotalCost)).toString().substring(0, orderCoinCount.length);
+  }
+  catch {
+    coinCountInput.value = '<unknown>';
+  }
+}
+
+for (var input of document.getElementsByClassName('input-for-contributing-coin-count')) {
+  let orderId = input.getAttribute('id').substring('input-contributing-coin-count-for-order-'.length, 5000);
+  input.oninput = () => modalToAssociateOrderContributingCoinCountChanged(orderId);
+}
+
+for (var input of document.getElementsByClassName('input-for-contributing-cost')) {
+  let orderId = input.getAttribute('id').substring('input-contributing-cost-for-order-'.length, 5000);
+  input.oninput = () => modalToAssociateOrderContributingCostChanged(orderId);
+}
+
 async function modalToAssociateOrderOkButtonClick()
 {
-  let orderIds = [resolveOrderNeedingTaxAssociation_orderId];
-  for (var e of document.getElementsByClassName('button-for-selecting-purchase-orders')) {
-    if (e.checked) {
-      orderIds.push(e.getAttribute('data-orderId'));
+  let parts = [];
+  
+  try
+  {
+    parts.push({
+      orderId: resolveOrderNeedingTaxAssociation_orderId,
+      contributingCoinCount: Number(resolveOrderNeedingTaxAssociation_coinCount),
+      contributingCost: Number(resolveOrderNeedingTaxAssociation_cost),
+    });
+  }
+  catch (e) {
+    alert('failed to generate request for given sale data: ' + e);
+    return;
+  }
+  
+  for (var checkbox of document.getElementsByClassName('button-for-selecting-purchase-orders')) {
+    if (checkbox.checked) {
+      try {
+        let orderId = checkbox.getAttribute('data-orderId');
+        let contributingCoinCount = Number(document.getElementById('input-contributing-coin-count-for-order-' + orderId).value);
+        let contributingCost = Number(document.getElementById('input-contributing-cost-for-order-' + orderId).value);
+        parts.push({ orderId, contributingCoinCount, contributingCost });
+      }
+      catch (e) {
+        alert('failed to generate request for given purcahse data. Are all inputs numeric? ' + e);
+        return;
+      }
     }
   }
 
@@ -181,7 +310,7 @@ async function modalToAssociateOrderOkButtonClick()
     let r = await fetch('/api/createTaxAssociation', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({orderIds})
+      body: JSON.stringify({parts})
     });
 
     if (r.ok) {
