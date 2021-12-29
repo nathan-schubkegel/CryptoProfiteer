@@ -33,10 +33,28 @@ namespace CryptoProfiteer.Pages
       }
     }
     
-    public IEnumerable<Order> UnassociatedPurchaseOrders(string sortBy = null)
+    public IEnumerable<(Order order, Decimal coinCountRemaining, Decimal costRemaining)> UnassociatedPurchaseOrders(string sortBy = null)
     {
-      var coveredOrders = new HashSet<string>(_data.TaxAssociations.Values.SelectMany(t => t.Parts).Select(p => p.Order.Id));
-      var values = _data.Orders.Values.Where(o => o.TransactionType == TransactionType.Buy && !coveredOrders.Contains(o.Id));
+      var coinCountUsedPerPurchase = new Dictionary<string, Decimal>();
+      var costUsedPerPurchase = new Dictionary<string, Decimal>();
+      foreach (var taxAssociation in _data.TaxAssociations.Values)
+      {
+        foreach (var purchase in taxAssociation.Purchases)
+        {
+          var coinCount = coinCountUsedPerPurchase.GetValueOrDefault(purchase.Order.Id, 0m);
+          coinCountUsedPerPurchase[purchase.Order.Id] = coinCount + purchase.ContributingCoinCount;
+          
+          var cost = costUsedPerPurchase.GetValueOrDefault(purchase.Order.Id, 0m);
+          costUsedPerPurchase[purchase.Order.Id] = cost + purchase.ContributingCost;
+        }
+      }
+
+      var values = _data.Orders.Values.Where(
+        o => o.TransactionType == TransactionType.Buy && 
+            (!coinCountUsedPerPurchase.TryGetValue(o.Id, out var coinCountUsed) ||
+             !costUsedPerPurchase.TryGetValue(o.Id, out var costUsed) ||
+             coinCountUsed != order.CoinCount ||
+             costUsed != order.TotalCost));
       switch (sortBy)
       {
         default:

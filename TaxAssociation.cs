@@ -10,11 +10,13 @@ namespace CryptoProfiteer
   public class PersistedTaxAssociation
   {
     public string Id { get; set; }
-    public List<PersistedTaxAssociationPart> Parts { get; set; }
+    public string SaleOrderId { get; set; }
+    public List<PersistedTaxAssociationPurchase> Purchases { get; set; }
+    public Decimal CostFudge { get; set; }
   }
 
   // NOTE: this type is JSON serialized/deserialized
-  public class PersistedTaxAssociationPart
+  public class PersistedTaxAssociationPurchase
   {
     public string OrderId { get; set; }
     public Decimal ContributingCoinCount { get; set; }
@@ -28,41 +30,34 @@ namespace CryptoProfiteer
     public TaxAssociation(PersistedTaxAssociation data, IReadOnlyDictionary<string, Order> allOrders)
     {
       _data = data;
+
+      var saleOrder = allOrders.GetValueOrDefault(data.SaleOrderId) ?? throw new Exception("Tax association sale data refers to order that does not exist");      
+      Sale = new TaxAssociationSale(this, saleOrder);
       
-      var parts = new List<TaxAssociationPart>();
-      data.Parts ??= new List<PersistedTaxAssociationPart>();
-      foreach (var part in data.Parts)
+      var purchases = new List<TaxAssociationPurchase>();
+      data.Purchases ??= new List<PersistedTaxAssociationPurchase>();
+      foreach (var purchase in data.Purchases)
       {
-        allOrders.TryGetValue(part.OrderId, out var order);
-        parts.Add(new TaxAssociationPart(part, order));
+        var order = allOrders.GetValueOrDefault(purchase.OrderId) ?? throw new Exception("Tax association purchase data refers to order that does not exist");
+        purchases.Add(new TaxAssociationPurchase(purchase, order));
       }
-      Parts = parts;
+      Purchases = purchases;
       
-      TotalCostBought = Parts.Where(p => p.Order.TransactionType == TransactionType.Buy).Sum(p => p.ContributingCost);
-      TotalCostSold = Parts.Where(p => p.Order.TransactionType == TransactionType.Sell).Sum(p => p.ContributingCost);
-      var difference = TotalCostBought + TotalCostSold;
-      if (difference > 0)
-      {
-        MoreBuysNeeded = difference;
-      }
-      else if (difference < 0)
-      {
-        MoreSalesNeeded = -difference;
-      }
-      // else, they both stay zero
+      // TODO: somebody should make sure these contributing costs are all negative
+      TotalCostBought = Purchases.Sum(p => p.ContributingCost);
       
-      CoinCountBought = Parts.Where(p => p.Order.TransactionType == TransactionType.Buy).Sum(p => p.ContributingCoinCount);
-      CoinCountSold = Parts.Where(p => p.Order.TransactionType == TransactionType.Sell).Sum(p => p.ContributingCoinCount);
-      AveragePerCoinCost = TotalCostBought / CoinCountBought;
+      // TODO: somebody shoud make sure these contributing coin counts are all positive
+      CoinCountBought = Purchases.Sum(p => p.ContributingCoinCount);
     }
 
     public string Id => _data.Id;
-    public string CoinType => Parts.FirstOrDefault(p => p.Order != null)?.Order.CoinType ?? "<unknown>";
-    public DateTime Time => Parts.FirstOrDefault( p => p.Order != null)?.Order.Time ?? default;
-    public string FriendlyName => Parts.FirstOrDefault(p => p.Order != null)?.Order.FriendlyName ?? "<unknown>";
-    public IReadOnlyList<TaxAssociationPart> Parts { get; }
+    public string CoinType => PurchaseParts.FirstOrDefault(p => p.Order != null)?.Order.CoinType ?? "<unknown>";
+    public DateTime Time => PurchaseParts.FirstOrDefault( p => p.Order != null)?.Order.Time ?? default;
+    public string FriendlyName => PurchaseParts.FirstOrDefault(p => p.Order != null)?.Order.FriendlyName ?? "<unknown>";
+    public IReadOnlyList<TaxAssociationPart> Purchases { get; }
+    public TaxAssociationSale Sale { get; }
     public Decimal TotalCostBought { get; }
-    public Decimal TotalCostSold { get; }
+    public Decimal TotalCostSold => Sale.Order.TotalCost;
     public bool IsNetGain => TotalCostBought + TotalCostSold >= 0;
     public Decimal PercentNetGainLoss
     {
@@ -78,27 +73,42 @@ namespace CryptoProfiteer
         }
       }
     }
-    public Decimal MoreBuysNeeded { get; }
-    public Decimal MoreSalesNeeded { get; }
     public Decimal CoinCountBought { get; }
-    public Decimal CoinCountSold { get; }
-    public Decimal AveragePerCoinCost { get; }
+    public Decimal CoinCountSold => Sale.Order.CoinCount;
+    public Decimal CostFudge => _data.CostFudge;
 
     public PersistedTaxAssociation GetPersistedData() => _data;
   }
   
-  public class TaxAssociationPart
+  public class TaxAssociationPurchase
   {
     private readonly PersistedTaxAssociationPart _data;
     
-    public TaxAssociationPart(PersistedTaxAssociationPart data, Order order)
+    public TaxAssociationPart(PersistedTaxAssociationPurchase data, Order order)
     {
       _data = data ?? throw new Exception("nope. gotta have some backing data.");
       Order = order ?? throw new Exception("nope. gotta have an associated order.");
+      
+      if (order.TransactionType != TransactionType.Buy) throw new Exception("Tax association purchase data refers to order that is not a purchase");
     }
     
     public Order Order { get; }
     public Decimal ContributingCoinCount => _data.ContributingCoinCount;
     public Decimal ContributingCost => _data.ContributingCost;
+  }
+  
+  public class TaxAssociationSale
+  {
+    private TaxAssociation _association;
+    
+    public TaxAssociationSale(TaxAssociation association, Order order)
+    {
+      _association = association ?? throw new Exception("nope. gotta have some backing data.");
+      Order = order ?? throw new Exception("nope. gotta have an associated order.");
+      
+      if (order.TransactionType != TransactionType.Sell) throw new Exception("Tax association sale data refers to order that is not a sale");
+    }
+    
+    public Order Order { get; }
   }
 }
