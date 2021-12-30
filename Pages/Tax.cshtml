@@ -10,7 +10,7 @@
 }
 </style>
 
-<div id='orders-needing-tax-association'>
+<div id='sales-needing-tax-association'>
   <h1>
     Sales Needing Tax Association
   </h1>
@@ -28,18 +28,18 @@
     </thead>
     <tbody>
   @{
-    bool hadOrdersNeedingTaxAssociation = false;
-    foreach (var t in Model.OrdersNeedingTaxAssociation(null))
+    bool hadSalesNeedingTaxAssociation = false;
+    foreach (var t in Model.SalesNeedingTaxAssociation(null))
     {
-      hadOrdersNeedingTaxAssociation = true;
+      hadSalesNeedingTaxAssociation = true;
       <tr>
         <td>@t.FriendlyName</td>
         <td>@t.Time.ToLocalTime().ToString("g")</td>
         <td>
           <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#modalToAssociateOrder"
             onclick="onResolveOrderNeedingTaxAssociationClick('@(t.Id)', 
+              '$@(t.PerCoinCost.ToString())',
               '@(t.TotalCost.ToString("c"))',
-              '@(t.TotalCost.ToString("F2"))',
               '@(t.CoinCount.ToString("G29"))', 
               '@(t.FriendlyName)', 
               '@(t.CoinType)', 
@@ -62,16 +62,15 @@
 
 <script>
 let resolveOrderNeedingTaxAssociation_orderId = '';
-let resolveOrderNeedingTaxAssociation_coinCount = '';
-let resolveOrderNeedingTaxAssociation_cost = '';
-function onResolveOrderNeedingTaxAssociationClick(orderId, prettyTotalCost, machineTotalCost, coinCount, prettyCoinType, machineCoinType, prettyOrderTime, machineOrderTime)
+function onResolveOrderNeedingTaxAssociationClick(orderId, perCoinCost, prettyTotalCost, coinCount, prettyCoinType, machineCoinType, prettyOrderTime, machineOrderTime)
 {
   resolveOrderNeedingTaxAssociation_orderId = orderId;
-  resolveOrderNeedingTaxAssociation_coinCount = coinCount;
-  resolveOrderNeedingTaxAssociation_cost = machineTotalCost;
 
   let totalCostSpan = document.getElementById('modalToAssociateOrder-TotalCost');
   totalCostSpan.textContent = prettyTotalCost;
+  
+  let perCoinCostSpan = document.getElementById('modalToAssociateOrder-PerCoinCost');
+  perCoinCostSpan.textContent = perCoinCost;
 
   let coinCountSpan = document.getElementById('modalToAssociateOrder-CoinCount');
   coinCountSpan.textContent = coinCount;
@@ -95,13 +94,17 @@ function onResolveOrderNeedingTaxAssociationClick(orderId, prettyTotalCost, mach
       row.style.display = '';
     }
   }
+
+  for (var checkbox of document.getElementsByClassName('button-for-selecting-purchase-orders')) {
+    checkbox.checked = false;
+  }
 }
 </script>
 
 @{
-  if (!hadOrdersNeedingTaxAssociation) {
+  if (!hadSalesNeedingTaxAssociation) {
 <script>
-  let body = document.getElementById('orders-needing-tax-association');
+  let body = document.getElementById('sales-needing-tax-association');
   body.style.display = 'none';
 </script>
   }
@@ -120,6 +123,8 @@ function onResolveOrderNeedingTaxAssociationClick(orderId, prettyTotalCost, mach
           <span id='modalToAssociateOrder-CoinType'>BARFTH (barfthereum)</span>
           for
           <span id='modalToAssociateOrder-TotalCost'>$100,000,000</span>
+          <br>
+          Cost Per Coin: <span id='modalToAssociateOrder-PerCoinCost'>$100,000</span>
           <br>
           How was it purchased?
         </h5>
@@ -141,7 +146,7 @@ function onResolveOrderNeedingTaxAssociationClick(orderId, prettyTotalCost, mach
           </thead>
           <tbody id='modalToAssociateOrder-tableBody'>
         @{
-          foreach (var t in Model.UnassociatedPurchaseOrders(null))
+          foreach ((var t, var coinCountRemaining, var costRemaining) in Model.PurchasesNeedingTaxAssociation(null))
           {
             <tr data-coinType='@t.CoinType' data-purchaseTime='@t.Time.ToString("o")'>
               <td>@t.Time.ToLocalTime().ToString("g")</td>
@@ -151,14 +156,16 @@ function onResolveOrderNeedingTaxAssociationClick(orderId, prettyTotalCost, mach
                   id="btn-check-order-@(t.Id)"
                   data-orderId="@(t.Id)"
                   data-orderCoinCount="@t.CoinCount"
+                  data-orderCoinCountRemaining="@coinCountRemaining"
                   data-orderTotalCost="@Math.Abs(t.TotalCost).ToString("F2")"
+                  data-orderCostRemaining="@costRemaining.ToString("F2")"
                   onclick='modalToAssociateOrderCheckBoxClick("@t.Id");'>
                 <label class="btn btn-outline-primary btn-sm" for="btn-check-order-@(t.Id)">Select</label>
               </td>
-              <td>@t.CoinCount.ToString("G29")</td>
+              <td>@t.CoinCount.ToString("G29") @{if (coinCountRemaining != t.CoinCount) { <span>(@coinCountRemaining.ToString("G29") unassociated)</span> } }</td>
               <td>$@t.PerCoinCost.ToString()</td>
               <td>@t.Fee.ToString("c")</td>
-              <td>@t.TotalCost.ToString("c")</td>
+              <td>@t.TotalCost.ToString("c") @{if (coinCountRemaining != t.CoinCount) { <span>(@costRemaining.ToString("c") unassociated)</span> } }</td>
             </tr>
             <tr style="display:none" id="modalToAssociateOrder-inputsForOrder-@t.Id">
               <td></td>
@@ -216,10 +223,10 @@ function modalToAssociateOrderCheckBoxClick(orderId)
   isProgrammaticallyChangingStuff = true;
   try {
     const coinCountInput = document.getElementById('input-contributing-coin-count-for-order-' + orderId);
-    coinCountInput.value = checkbox.getAttribute("data-orderCoinCount");
+    coinCountInput.value = checkbox.getAttribute("data-orderCoinCountRemaining");
 
     const costInput = document.getElementById('input-contributing-cost-for-order-' + orderId);
-    costInput.value = checkbox.getAttribute("data-orderTotalCost");
+    costInput.value = checkbox.getAttribute("data-orderCostRemaining");
   }
   finally {
     isProgrammaticallyChangingStuff = oldValue;
@@ -274,28 +281,15 @@ for (var input of document.getElementsByClassName('input-for-contributing-cost')
 
 async function modalToAssociateOrderOkButtonClick()
 {
-  let parts = [];
-  
-  try
-  {
-    parts.push({
-      orderId: resolveOrderNeedingTaxAssociation_orderId,
-      contributingCoinCount: Number(resolveOrderNeedingTaxAssociation_coinCount),
-      contributingCost: Number(resolveOrderNeedingTaxAssociation_cost),
-    });
-  }
-  catch (e) {
-    alert('failed to generate request for given sale data: ' + e);
-    return;
-  }
-  
+  let purchases = [];
+
   for (var checkbox of document.getElementsByClassName('button-for-selecting-purchase-orders')) {
     if (checkbox.checked) {
       try {
         let orderId = checkbox.getAttribute('data-orderId');
         let contributingCoinCount = Number(document.getElementById('input-contributing-coin-count-for-order-' + orderId).value);
         let contributingCost = Number(document.getElementById('input-contributing-cost-for-order-' + orderId).value);
-        parts.push({ orderId, contributingCoinCount, contributingCost });
+        purchases.push({ orderId, contributingCoinCount, contributingCost });
       }
       catch (e) {
         alert('failed to generate request for given purcahse data. Are all inputs numeric? ' + e);
@@ -310,7 +304,11 @@ async function modalToAssociateOrderOkButtonClick()
     let r = await fetch('/api/createTaxAssociation', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({parts})
+      body: JSON.stringify({
+        saleOrderId: resolveOrderNeedingTaxAssociation_orderId,
+        purchases
+        // FUTURE: can specify costFudge here
+      })
     });
 
     if (r.ok) {
@@ -359,7 +357,7 @@ async function modalToAssociateOrderOkButtonClick()
       <td></td>
     </tr>
 
-    foreach (var p in a.Parts)
+    foreach (var p in a.Purchases)
     {
     <tr>
       <td></td>

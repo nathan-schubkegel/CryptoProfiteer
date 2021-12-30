@@ -34,8 +34,8 @@ namespace CryptoProfiteer
       var saleOrder = allOrders.GetValueOrDefault(data.SaleOrderId) ?? throw new Exception("Tax association sale data refers to order that does not exist");      
       Sale = new TaxAssociationSale(this, saleOrder);
       
+      if (data.Purchases == null || data.Purchases.Count == 0) throw new Exception("Tax association had empty purchase data");
       var purchases = new List<TaxAssociationPurchase>();
-      data.Purchases ??= new List<PersistedTaxAssociationPurchase>();
       foreach (var purchase in data.Purchases)
       {
         var order = allOrders.GetValueOrDefault(purchase.OrderId) ?? throw new Exception("Tax association purchase data refers to order that does not exist");
@@ -51,10 +51,10 @@ namespace CryptoProfiteer
     }
 
     public string Id => _data.Id;
-    public string CoinType => PurchaseParts.FirstOrDefault(p => p.Order != null)?.Order.CoinType ?? "<unknown>";
-    public DateTime Time => PurchaseParts.FirstOrDefault( p => p.Order != null)?.Order.Time ?? default;
-    public string FriendlyName => PurchaseParts.FirstOrDefault(p => p.Order != null)?.Order.FriendlyName ?? "<unknown>";
-    public IReadOnlyList<TaxAssociationPart> Purchases { get; }
+    public string CoinType => Sale.Order.CoinType;
+    public DateTime Time => Sale.Order.Time;
+    public string FriendlyName => Sale.Order.FriendlyName;
+    public IReadOnlyList<TaxAssociationPurchase> Purchases { get; }
     public TaxAssociationSale Sale { get; }
     public Decimal TotalCostBought { get; }
     public Decimal TotalCostSold => Sale.Order.TotalCost;
@@ -82,9 +82,9 @@ namespace CryptoProfiteer
   
   public class TaxAssociationPurchase
   {
-    private readonly PersistedTaxAssociationPart _data;
+    private readonly PersistedTaxAssociationPurchase _data;
     
-    public TaxAssociationPart(PersistedTaxAssociationPurchase data, Order order)
+    public TaxAssociationPurchase(PersistedTaxAssociationPurchase data, Order order)
     {
       _data = data ?? throw new Exception("nope. gotta have some backing data.");
       Order = order ?? throw new Exception("nope. gotta have an associated order.");

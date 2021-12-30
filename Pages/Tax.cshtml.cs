@@ -19,10 +19,10 @@ namespace CryptoProfiteer.Pages
       _data = data;
     }
     
-    public IEnumerable<Order> OrdersNeedingTaxAssociation(string sortBy = null)
+    public IEnumerable<Order> SalesNeedingTaxAssociation(string sortBy = null)
     {
-      var coveredOrders = new HashSet<string>(_data.TaxAssociations.Values.SelectMany(t => t.Parts).Select(p => p.Order.Id));
-      var values = _data.Orders.Values.Where(o => o.TransactionType == TransactionType.Sell && !coveredOrders.Contains(o.Id));
+      var coveredPurchases = new HashSet<string>(_data.TaxAssociations.Values.Select(t => t.Sale.Order.Id));
+      var values = _data.Orders.Values.Where(o => o.TransactionType == TransactionType.Sell && !coveredPurchases.Contains(o.Id));
       switch (sortBy)
       {
         default:
@@ -33,7 +33,7 @@ namespace CryptoProfiteer.Pages
       }
     }
     
-    public IEnumerable<(Order order, Decimal coinCountRemaining, Decimal costRemaining)> UnassociatedPurchaseOrders(string sortBy = null)
+    public IEnumerable<(Order order, Decimal coinCountRemaining, Decimal costRemaining)> PurchasesNeedingTaxAssociation(string sortBy = null)
     {
       var coinCountUsedPerPurchase = new Dictionary<string, Decimal>();
       var costUsedPerPurchase = new Dictionary<string, Decimal>();
@@ -49,19 +49,24 @@ namespace CryptoProfiteer.Pages
         }
       }
 
-      var values = _data.Orders.Values.Where(
-        o => o.TransactionType == TransactionType.Buy && 
-            (!coinCountUsedPerPurchase.TryGetValue(o.Id, out var coinCountUsed) ||
-             !costUsedPerPurchase.TryGetValue(o.Id, out var costUsed) ||
-             coinCountUsed != order.CoinCount ||
-             costUsed != order.TotalCost));
+      var values = _data.Orders.Values
+        .Where(o => o.TransactionType == TransactionType.Buy)
+        .Where(o => !coinCountUsedPerPurchase.TryGetValue(o.Id, out var coinCountUsed) ||
+                    coinCountUsed != o.CoinCount)
+        .Select(o => 
+          (
+            order: o,
+            coinCountRemaining: o.CoinCount - coinCountUsedPerPurchase.GetValueOrDefault(o.Id, 0m),
+            costRemaining: o.TotalCost - costUsedPerPurchase.GetValueOrDefault(o.Id, 0m)
+          ));
+
       switch (sortBy)
       {
         default:
-        case "date": return values.OrderByDescending(x => x.Time).ThenBy(x => x.CoinType);
-        case "dateAscending": return values.OrderBy(x => x.Time).ThenBy(x => x.CoinType);
-        case "coinType": return values.OrderBy(x => x.CoinType).ThenByDescending(x => x.Time);
-        case "coinTypeDescending": return values.OrderByDescending(x => x.CoinType).ThenByDescending(x => x.Time);
+        case "date": return values.OrderByDescending(x => x.order.Time).ThenBy(x => x.order.CoinType);
+        case "dateAscending": return values.OrderBy(x => x.order.Time).ThenBy(x => x.order.CoinType);
+        case "coinType": return values.OrderBy(x => x.order.CoinType).ThenByDescending(x => x.order.Time);
+        case "coinTypeDescending": return values.OrderByDescending(x => x.order.CoinType).ThenByDescending(x => x.order.Time);
       }
     }
 
@@ -77,9 +82,6 @@ namespace CryptoProfiteer.Pages
         case "coinTypeDescending": return values.OrderByDescending(x => x.CoinType).ThenByDescending(x => x.Time);
       }
     }
-    
-    //public IEnumerable<CoinPrice> CoinPrices => _data.Orders.Values.Select(x => x.CoinType).Distinct()
-//      .Select(x => _data.CoinPrices.TryGetValue(x, out var price) ? price : null).Where(x => x != null);
 
     public void OnGet()
     {

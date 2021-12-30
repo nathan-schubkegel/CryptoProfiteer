@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
@@ -23,10 +24,12 @@ namespace CryptoProfiteer
     void UpdateCoinPrices(IEnumerable<CoinPriceFromExchange> prices);
     void UpdateFriendlyNames(Dictionary<string, string> newFriendlyNames);
 
-    // 'taxAssociationId' may be null or empty string to add order to a new tax association
+    // 'taxAssociationId' may be null/empty when creating a new tax association
+    // 'saleOrderId' may be null/empty when modifying an existing tax association to not change that aspect
+    // 'costFudge' may be null if it doesn't need to be assigned or changed
     // Returns the new/modified TaxAssociation ID
-    string UpdateTaxAssociation(string taxAssociationId,
-      (string orderId, Decimal contributingCoinCount, Decimal contributingCost)[] updates);
+    string UpdateTaxAssociation(string taxAssociationId, string saleOrderId, Decimal? costFudge,
+      (string orderId, Decimal contributingCoinCount, Decimal contributingCost)[] purchaseOrderUpdates);
     
     (IEnumerable<PersistedTransaction> Transactions, IEnumerable<PersistedTaxAssociation> TaxAssociations) GetPersistedData();
   }
@@ -164,26 +167,31 @@ namespace CryptoProfiteer
       {
         persistedTaxAssociations[a.Id] = a ?? throw new Exception("invalid null tax association input");
       }
-      
-      // remove tax association parts for orders that no longer exist for whatever reason.
+
+      // remove tax association data for orders that no longer exist for whatever reason.
       // remove tax associations that are empty.
       var taxAssociationIdsToRemove = new HashSet<string>();
       var orderIdsToRemove = new HashSet<string>();
       foreach (var t in persistedTaxAssociations.Values)
       {
         orderIdsToRemove.Clear();
-        foreach (var p in t.Parts)
+        foreach (var p in t.Purchases)
         {
-          if (!orders.TryGetValue(p.OrderId, out var order))
+          if (!orders.ContainsKey(p.OrderId))
           {
             orderIdsToRemove.Add(p.OrderId);
           }
         }
         if (orderIdsToRemove.Count > 0)
         {
-          t.Parts = t.Parts.Where(x => !orderIdsToRemove.Contains(x.OrderId)).ToList();
+          // TODO: this would feel like a "changed some state that was supposed to be immutable" fault
+          //t.Purchases = t.Purchases.Where(x => !orderIdsToRemove.Contains(x.OrderId)).ToList();
+          
+          // so... I'm going with the safer but more drastic move "just gonna drop the tax association"
+          taxAssociationIdsToRemove.Add(t.Id);
         }
-        if (t.Parts.Count == 0)
+        if (!orders.ContainsKey(t.SaleOrderId) ||
+            t.Purchases.Count == 0)
         {
           taxAssociationIdsToRemove.Add(t.Id);
         }
@@ -221,8 +229,8 @@ namespace CryptoProfiteer
       }
     }
     
-    public string UpdateTaxAssociation(string taxAssociationId, 
-      (string orderId, Decimal contributingCoinCount, Decimal contributingCost)[] updates)
+    public string UpdateTaxAssociation(string taxAssociationId, string saleOrderId, Decimal? costFudge,
+      (string orderId, Decimal contributingCoinCount, Decimal contributingCost)[] purchaseOrderUpdates)
     {
       lock (_lock)
       {
@@ -231,10 +239,23 @@ namespace CryptoProfiteer
         PersistedTaxAssociation data;
         if (string.IsNullOrEmpty(taxAssociationId))
         {
+          if (!Orders.ContainsKey(saleOrderId ?? string.Empty))
+          {
+            throw new Exception("saleOrderId is empty or refers to unrecognized order, but it is required when creating a new tax association");
+          }
+          
+          var existingTaxAssociation = TaxAssociations.Values.FirstOrDefault(t => t.Sale.Order.Id == saleOrderId);
+          if (existingTaxAssociation != null)
+          {
+            throw new Exception("saleOrderId \"" + saleOrderId + "\" is already tax-associated, see tax association \"" + existingTaxAssociation.Id + "\"");
+          }
+
           data = new PersistedTaxAssociation
           {
             Id = Guid.NewGuid().ToString(),
-            Parts = new List<PersistedTaxAssociationPart>(0),
+            SaleOrderId = saleOrderId,
+            Purchases = new List<PersistedTaxAssociationPurchase>(0),
+            CostFudge = costFudge ?? 0m,
           };
         }
         else
@@ -244,38 +265,65 @@ namespace CryptoProfiteer
             throw new Exception("Cannot add to unrecognized TaxAssociation id \"" + taxAssociationId + "\"");
           }
           data = thing.GetPersistedData();
+          
+          if (string.IsNullOrEmpty(saleOrderId))
+          {
+            saleOrderId = data.SaleOrderId;
+          }
+          else if (!Orders.ContainsKey(saleOrderId))
+          {
+            throw new Exception("SaleOrderId refers to unrecognized order");
+          }
+
+          var existingTaxAssociation = TaxAssociations.Values.FirstOrDefault(t => t.Sale.Order.Id == saleOrderId);
+          if (existingTaxAssociation != thing)
+          {
+            throw new Exception("saleOrderId \"" + saleOrderId + "\" is already tax-associated, see tax association \"" + existingTaxAssociation.Id + "\"");
+          }
         }
 
-        var revisedParts = new List<PersistedTaxAssociationPart>(data.Parts);
-        foreach ((var orderId, var contributingCoinCount, var contributingCost) in updates)
+        var revisedPurchases = new List<PersistedTaxAssociationPurchase>(data.Purchases);
+        foreach ((var orderId, var contributingCoinCount, var contributingCost) in purchaseOrderUpdates)
         {
           // find order
           if (!Orders.TryGetValue(orderId ?? string.Empty, out var order))
           {
-            throw new Exception("Cannot add unrecognized order id \"" + orderId + "\" to tax association");
+            throw new Exception("Cannot add unrecognized purchase order id \"" + orderId + "\" to tax association");
           }
-
-          // make new part data
-          var newPart = new PersistedTaxAssociationPart
+          
+          if (order.TransactionType != TransactionType.Buy)
+          {
+            throw new Exception("cannot add 'sell' order id \"" + orderId + "\" to tax association purchase orders");
+          }
+          
+          // make new purchase data
+          var newPurchase = new PersistedTaxAssociationPurchase
           {
             OrderId = orderId,
-            ContributingCoinCount = contributingCoinCount,
-            ContributingCost = contributingCost,
+            // fix polarity because it's easier here than in the front-end
+            ContributingCoinCount = Math.Abs(contributingCoinCount),
+            ContributingCost = -Math.Abs(contributingCost),
           };
 
-          // add or replace part in list
-          int i = revisedParts.FindIndex(x => x.OrderId == orderId);
+          // add or replace purchase in list
+          int i = revisedPurchases.FindIndex(x => x.OrderId == orderId);
           if (i < 0)
           {
-            revisedParts.Add(newPart);
+            revisedPurchases.Add(newPurchase);
           }
           else
           {
-            revisedParts[i] = newPart;
+            revisedPurchases[i] = newPurchase;
           }
         }
-        
-        var newData = new PersistedTaxAssociation { Id = data.Id, Parts = revisedParts };
+
+        var newData = new PersistedTaxAssociation
+        {
+          Id = data.Id,
+          Purchases = revisedPurchases,
+          SaleOrderId = saleOrderId,
+          CostFudge = costFudge ?? data.CostFudge,
+        };
         ImportTaxAssociations(new[] { newData });
         return newData.Id;
       }
