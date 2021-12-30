@@ -12,7 +12,6 @@ namespace CryptoProfiteer
     public string Id { get; set; }
     public string SaleOrderId { get; set; }
     public List<PersistedTaxAssociationPurchase> Purchases { get; set; }
-    public Decimal CostFudge { get; set; }
   }
 
   // NOTE: this type is JSON serialized/deserialized
@@ -20,7 +19,7 @@ namespace CryptoProfiteer
   {
     public string OrderId { get; set; }
     public Decimal ContributingCoinCount { get; set; }
-    public Decimal ContributingCost { get; set; }
+    public int ContributingCost { get; set; }
   }
 
   public class TaxAssociation
@@ -56,26 +55,25 @@ namespace CryptoProfiteer
     public string FriendlyName => Sale.Order.FriendlyName;
     public IReadOnlyList<TaxAssociationPurchase> Purchases { get; }
     public TaxAssociationSale Sale { get; }
-    public Decimal TotalCostBought { get; }
-    public Decimal TotalCostSold => Sale.Order.TotalCost;
+    public int TotalCostBought { get; }
+    public int TotalCostSold => Sale.Order.TaxableTotalCost;
     public bool IsNetGain => TotalCostBought + TotalCostSold >= 0;
-    public Decimal PercentNetGainLoss
+    public int PercentNetGainLoss
     {
       get
       {
         try
         {
-          return (Math.Abs((TotalCostBought + TotalCostSold) / TotalCostBought) * 100);
+          return (int)(Math.Abs(((double)TotalCostBought + TotalCostSold) / TotalCostBought) * 100);
         }
         catch
         {
-          return 0m;
+          return 0;
         }
       }
     }
     public Decimal CoinCountBought { get; }
     public Decimal CoinCountSold => Sale.Order.CoinCount;
-    public Decimal CostFudge => _data.CostFudge;
 
     public PersistedTaxAssociation GetPersistedData() => _data;
   }
@@ -88,13 +86,13 @@ namespace CryptoProfiteer
     {
       _data = data ?? throw new Exception("nope. gotta have some backing data.");
       Order = order ?? throw new Exception("nope. gotta have an associated order.");
-      
+
       if (order.TransactionType != TransactionType.Buy) throw new Exception("Tax association purchase data refers to order that is not a purchase");
     }
     
     public Order Order { get; }
     public Decimal ContributingCoinCount => _data.ContributingCoinCount;
-    public Decimal ContributingCost => _data.ContributingCost;
+    public int ContributingCost => _data.ContributingCost;
   }
   
   public class TaxAssociationSale
@@ -105,7 +103,7 @@ namespace CryptoProfiteer
     {
       _association = association ?? throw new Exception("nope. gotta have some backing data.");
       Order = order ?? throw new Exception("nope. gotta have an associated order.");
-      
+
       if (order.TransactionType != TransactionType.Sell) throw new Exception("Tax association sale data refers to order that is not a sale");
     }
     

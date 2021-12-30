@@ -26,10 +26,9 @@ namespace CryptoProfiteer
 
     // 'taxAssociationId' may be null/empty when creating a new tax association
     // 'saleOrderId' may be null/empty when modifying an existing tax association to not change that aspect
-    // 'costFudge' may be null if it doesn't need to be assigned or changed
     // Returns the new/modified TaxAssociation ID
-    string UpdateTaxAssociation(string taxAssociationId, string saleOrderId, Decimal? costFudge,
-      (string orderId, Decimal contributingCoinCount, Decimal contributingCost)[] purchaseOrderUpdates);
+    string UpdateTaxAssociation(string taxAssociationId, string saleOrderId,
+      (string orderId, Decimal contributingCoinCount, int contributingCost)[] purchaseOrderUpdates);
     
     (IEnumerable<PersistedTransaction> Transactions, IEnumerable<PersistedTaxAssociation> TaxAssociations) GetPersistedData();
   }
@@ -229,8 +228,8 @@ namespace CryptoProfiteer
       }
     }
     
-    public string UpdateTaxAssociation(string taxAssociationId, string saleOrderId, Decimal? costFudge,
-      (string orderId, Decimal contributingCoinCount, Decimal contributingCost)[] purchaseOrderUpdates)
+    public string UpdateTaxAssociation(string taxAssociationId, string saleOrderId,
+      (string orderId, Decimal contributingCoinCount, int contributingCost)[] purchaseOrderUpdates)
     {
       lock (_lock)
       {
@@ -255,7 +254,6 @@ namespace CryptoProfiteer
             Id = Guid.NewGuid().ToString(),
             SaleOrderId = saleOrderId,
             Purchases = new List<PersistedTaxAssociationPurchase>(0),
-            CostFudge = costFudge ?? 0m,
           };
         }
         else
@@ -322,7 +320,6 @@ namespace CryptoProfiteer
           Id = data.Id,
           Purchases = revisedPurchases,
           SaleOrderId = saleOrderId,
-          CostFudge = costFudge ?? data.CostFudge,
         };
         ImportTaxAssociations(new[] { newData });
         return newData.Id;

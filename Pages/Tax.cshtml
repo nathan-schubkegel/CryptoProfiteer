@@ -40,6 +40,7 @@
             onclick="onResolveOrderNeedingTaxAssociationClick('@(t.Id)', 
               '$@(t.PerCoinCost.ToString())',
               '@(t.TotalCost.ToString("c"))',
+              '@(t.TaxableTotalCost)',
               '@(t.CoinCount.ToString("G29"))', 
               '@(t.FriendlyName)', 
               '@(t.CoinType)', 
@@ -62,9 +63,11 @@
 
 <script>
 let resolveOrderNeedingTaxAssociation_orderId = '';
-function onResolveOrderNeedingTaxAssociationClick(orderId, perCoinCost, prettyTotalCost, coinCount, prettyCoinType, machineCoinType, prettyOrderTime, machineOrderTime)
+let resolveOrderNeedingTaxAssociation_taxableOrderCost = '';
+function onResolveOrderNeedingTaxAssociationClick(orderId, perCoinCost, prettyTotalCost, taxableOrderCost, coinCount, prettyCoinType, machineCoinType, prettyOrderTime, machineOrderTime)
 {
   resolveOrderNeedingTaxAssociation_orderId = orderId;
+  resolveOrderNeedingTaxAssociation_taxableOrderCost = taxableOrderCost;
 
   let totalCostSpan = document.getElementById('modalToAssociateOrder-TotalCost');
   totalCostSpan.textContent = prettyTotalCost;
@@ -158,14 +161,14 @@ function onResolveOrderNeedingTaxAssociationClick(orderId, perCoinCost, prettyTo
                   data-orderCoinCount="@t.CoinCount"
                   data-orderCoinCountRemaining="@coinCountRemaining"
                   data-orderTotalCost="@Math.Abs(t.TotalCost).ToString("F2")"
-                  data-orderCostRemaining="@costRemaining.ToString("F2")"
+                  data-orderCostRemaining="@costRemaining"
                   onclick='modalToAssociateOrderCheckBoxClick("@t.Id");'>
                 <label class="btn btn-outline-primary btn-sm" for="btn-check-order-@(t.Id)">Select</label>
               </td>
               <td>@t.CoinCount.ToString("G29") @{if (coinCountRemaining != t.CoinCount) { <span>(@coinCountRemaining.ToString("G29") unassociated)</span> } }</td>
               <td>$@t.PerCoinCost.ToString()</td>
               <td>@t.Fee.ToString("c")</td>
-              <td>@t.TotalCost.ToString("c") @{if (coinCountRemaining != t.CoinCount) { <span>(@costRemaining.ToString("c") unassociated)</span> } }</td>
+              <td>@t.TotalCost.ToString("c") @{if (coinCountRemaining != t.CoinCount) { <span>($@costRemaining unassociated)</span> } }</td>
             </tr>
             <tr style="display:none" id="modalToAssociateOrder-inputsForOrder-@t.Id">
               <td></td>
@@ -244,7 +247,7 @@ function modalToAssociateOrderContributingCoinCountChanged(orderId)
   const coinCountInput = document.getElementById('input-contributing-coin-count-for-order-' + orderId);
   const costInput = document.getElementById('input-contributing-cost-for-order-' + orderId);
   try {
-    costInput.value = (Number(coinCountInput.value) * Number(orderTotalCost) / Number(orderCoinCount)).toFixed(2);
+    costInput.value = (Number(coinCountInput.value) * Number(orderTotalCost) / Number(orderCoinCount)).toFixed();
   }
   catch {
     costInput.value = '<unknown>';
@@ -307,7 +310,6 @@ async function modalToAssociateOrderOkButtonClick()
       body: JSON.stringify({
         saleOrderId: resolveOrderNeedingTaxAssociation_orderId,
         purchases
-        // FUTURE: can specify costFudge here
       })
     });
 
@@ -349,12 +351,11 @@ async function modalToAssociateOrderOkButtonClick()
   {
     <tr>
       <td>@a.FriendlyName</td>
-      <td></td>
-      <td></td>
-      <td></td>
-      <td></td>
-      <td></td>
-      <td></td>
+      <td>@a.Sale.Order.Time.ToLocalTime().ToString("g")</td>
+      <td>@a.Sale.Order.TransactionType</td>
+      <td>@a.Sale.Order.CoinCount.ToString("G29")</td>
+      <td>$@a.Sale.Order.PerCoinCost.ToString()</td>
+      <td>@a.Sale.Order.TaxableTotalCost.ToString("c0")</td>
     </tr>
 
     foreach (var p in a.Purchases)
@@ -365,7 +366,7 @@ async function modalToAssociateOrderOkButtonClick()
       <td>@p.Order.TransactionType</td>
       <td>@p.ContributingCoinCount.ToString("G29")</td>
       <td>$@p.Order.PerCoinCost.ToString()</td>
-      <td>@p.ContributingCost.ToString("c")</td>
+      <td>@p.ContributingCost.ToString("c0")</td>
       <td></td>
     </tr>
     }
@@ -389,7 +390,7 @@ async function modalToAssociateOrderOkButtonClick()
         }
       }
       </td>
-      <td><span style="@(a.IsNetGain ? "color:#008126;" : "color:#ff0000;") font-weight:bold; ">@((a.TotalCostBought + a.TotalCostSold).ToString("c"))</span></td>
+      <td><span style="@(a.IsNetGain ? "color:#008126;" : "color:#ff0000;") font-weight:bold; ">@((a.TotalCostBought + a.TotalCostSold).ToString("c0"))</span></td>
       <td><span style="@(a.IsNetGain ? "color:#008126;" : "color:#ff0000;") font-weight:bold; ">@(((int)a.PercentNetGainLoss).ToString("D"))% @(a.IsNetGain ? "gain" : "loss")</span></td>
     </tr>
   }

@@ -288,14 +288,13 @@ namespace CryptoProfiteer
     public class CreateTaxAssociationInputs
     {
       public string SaleOrderId { get; set; }
-      public Decimal? CostFudge { get; set; }
       public Purchase[] Purchases { get; set; }
       
       public class Purchase
       {
         public string OrderId { get; set; }
         public Decimal ContributingCoinCount { get; set; }
-        public Decimal ContributingCost { get; set; }
+        public int ContributingCost { get; set; }
       }
     }
     
@@ -304,7 +303,6 @@ namespace CryptoProfiteer
     {
       var taxAssociationId = _dataService.UpdateTaxAssociation(null,
         inputs.SaleOrderId,
-        inputs.CostFudge,
         inputs.Purchases.Select(p => 
         (
           p.OrderId,

@@ -33,10 +33,10 @@ namespace CryptoProfiteer.Pages
       }
     }
     
-    public IEnumerable<(Order order, Decimal coinCountRemaining, Decimal costRemaining)> PurchasesNeedingTaxAssociation(string sortBy = null)
+    public IEnumerable<(Order order, Decimal coinCountRemaining, int costRemaining)> PurchasesNeedingTaxAssociation(string sortBy = null)
     {
       var coinCountUsedPerPurchase = new Dictionary<string, Decimal>();
-      var costUsedPerPurchase = new Dictionary<string, Decimal>();
+      var costUsedPerPurchase = new Dictionary<string, int>();
       foreach (var taxAssociation in _data.TaxAssociations.Values)
       {
         foreach (var purchase in taxAssociation.Purchases)
@@ -44,7 +44,7 @@ namespace CryptoProfiteer.Pages
           var coinCount = coinCountUsedPerPurchase.GetValueOrDefault(purchase.Order.Id, 0m);
           coinCountUsedPerPurchase[purchase.Order.Id] = coinCount + purchase.ContributingCoinCount;
           
-          var cost = costUsedPerPurchase.GetValueOrDefault(purchase.Order.Id, 0m);
+          var cost = costUsedPerPurchase.GetValueOrDefault(purchase.Order.Id, 0);
           costUsedPerPurchase[purchase.Order.Id] = cost + purchase.ContributingCost;
         }
       }
@@ -57,7 +57,7 @@ namespace CryptoProfiteer.Pages
           (
             order: o,
             coinCountRemaining: o.CoinCount - coinCountUsedPerPurchase.GetValueOrDefault(o.Id, 0m),
-            costRemaining: o.TotalCost - costUsedPerPurchase.GetValueOrDefault(o.Id, 0m)
+            costRemaining: o.TaxableTotalCost - costUsedPerPurchase.GetValueOrDefault(o.Id, 0)
           ));
 
       switch (sortBy)
