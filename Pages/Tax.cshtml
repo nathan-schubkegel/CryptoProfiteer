@@ -347,7 +347,15 @@ async function modalToAssociateOrderOkButtonClick()
   </thead>
   <tbody>
 @{
-  foreach (var a in Model.TaxAssociations(null))
+foreach (var yearOfAssociations in Model.TaxAssociations(null).GroupBy(x => x.Time.Year).OrderByDescending(x => x.Key))
+{
+  var yearNetGainLoss = yearOfAssociations.Sum(x => x.TotalCostBought + x.TotalCostSold);
+  
+  <tr style="font-weight: bold;">
+    <td colspan="6">For the year @yearOfAssociations.Key: <span style="@(yearNetGainLoss > 0 ? "color:#008126;" : "color:#ff0000;") font-weight:bold; ">@yearNetGainLoss.ToString("c0")</span></td>
+  </tr>
+  
+  foreach (var a in yearOfAssociations)
   {
     <tr>
       <td>@a.FriendlyName</td>
@@ -405,6 +413,7 @@ async function modalToAssociateOrderOkButtonClick()
       <td><span style="@(a.IsNetGain ? "color:#008126;" : "color:#ff0000;") font-weight:bold; ">@(((int)a.PercentNetGainLoss).ToString("D"))% @(a.IsNetGain ? "gain" : "loss")</span></td>
     </tr>
   }
+}
 }
   </tbody>
 </table>
