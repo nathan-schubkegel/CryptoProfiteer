@@ -312,5 +312,17 @@ namespace CryptoProfiteer
 
       return Ok(new { taxAssociationId });
     }
+    
+    public class DeleteTaxAssociationInputs
+    {
+      public string TaxAssociationId { get; set; }
+    }
+    
+    [HttpPost("deleteTaxAssociation")]
+    public IActionResult DeleteTaxAssociation([FromBody]DeleteTaxAssociationInputs inputs)
+    {
+      _dataService.DeleteTaxAssociation(inputs.TaxAssociationId);
+      return Ok();
+    }
   }
 }

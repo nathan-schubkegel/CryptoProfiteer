@@ -29,6 +29,8 @@ namespace CryptoProfiteer
     // Returns the new/modified TaxAssociation ID
     string UpdateTaxAssociation(string taxAssociationId, string saleOrderId,
       (string orderId, Decimal contributingCoinCount, int contributingCost)[] purchaseOrderUpdates);
+      
+    void DeleteTaxAssociation(string taxAssociationId);
     
     (IEnumerable<PersistedTransaction> Transactions, IEnumerable<PersistedTaxAssociation> TaxAssociations) GetPersistedData();
   }
@@ -323,6 +325,21 @@ namespace CryptoProfiteer
         };
         ImportTaxAssociations(new[] { newData });
         return newData.Id;
+      }
+    }
+    
+    public void DeleteTaxAssociation(string taxAssociationId)
+    {
+      lock (_lock)
+      {
+        taxAssociationId ??= string.Empty;
+        if (!TaxAssociations.TryGetValue(taxAssociationId, out var thing))
+        {
+          throw new Exception("Cannot delete unrecognized TaxAssociation id \"" + taxAssociationId + "\"");
+        }
+        
+        TaxAssociations = TaxAssociations.Values.Where(a => a.Id != taxAssociationId)
+          .ToDictionary(a => a.Id, a => a);
       }
     }
     

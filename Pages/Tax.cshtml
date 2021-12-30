@@ -358,10 +358,21 @@ async function modalToAssociateOrderOkButtonClick()
       <td>@a.Sale.Order.TaxableTotalCost.ToString("c0")</td>
     </tr>
 
+    bool first = true;
     foreach (var p in a.Purchases)
     {
     <tr>
-      <td></td>
+      <td>@{
+        if (first)
+        {
+          <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#modalToDeleteAssociation"
+            onclick="modalToDeleteAssociation_associationId = '@a.Id'"
+          >
+            Delete
+          </button>
+        }
+        first = false;
+      }</td>
       <td>@p.Order.Time.ToLocalTime().ToString("g")</td>
       <td>@p.Order.TransactionType</td>
       <td>@p.ContributingCoinCount.ToString("G29")</td>
@@ -397,3 +408,58 @@ async function modalToAssociateOrderOkButtonClick()
 }
   </tbody>
 </table>
+
+<!-- A modal dialog for deleting a tax association -->
+<div class="modal fade" id="modalToDeleteAssociation" tabindex="-1" role="dialog" aria-labelledby="modalToDeleteAssociation-Title" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalToDeleteAssociation-Title">
+          Delete tax association?
+        </h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+      </div>
+      <div class="modal-footer">
+        <img id="modalToDeleteAssociation-okSpinny" src="/spinny-arrows.gif" style="display: none;" />
+        <button type="button" class="btn btn-primary" onclick="modalToDeleteAssociationOkButtonClick()">Delete</button>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let modalToDeleteAssociation_associationId = '';
+async function modalToDeleteAssociationOkButtonClick() 
+{
+  let spinny = document.getElementById('modalToDeleteAssociation-okSpinny');
+  spinny.style = '';
+  try {
+    let r = await fetch('/api/deleteTaxAssociation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        taxAssociationId: modalToDeleteAssociation_associationId
+      })
+    });
+
+    if (r.ok) {
+      location.reload();
+    }
+    else {
+      let t = await r.text();
+      alert('!ok: ' + t);
+    }
+  }
+  catch (e) {
+    alert(e);
+  }
+  finally {
+    spinny.style = 'display: none;';
+  }
+}
+</script>
