@@ -84,10 +84,11 @@ namespace CryptoProfiteer
             throw new Exception($"CSV line {lineNumber} has unrecognized field {buySellIndex + 1} \"{fields[buySellIndex]}\"; expected one of " + string.Join(",", Enum.GetNames(typeof(TransactionType)).Select(x => "\"" + x + "\"")));
           }
 
-          if (!DateTime.TryParse(fields[createdAtIndex], out var createdAtTime))
+          if (!DateTime.TryParse(fields[createdAtIndex], CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var createdAtTime))
           {
             throw new Exception($"CSV line {lineNumber} has non-date/time field {createdAtIndex + 1} \"{fields[createdAtIndex]}\"; expected date/time such as \"{DateTime.Now.ToString("o")}\"");
           }
+          createdAtTime = createdAtTime.ToUniversalTime();
 
           if (!Decimal.TryParse(fields[coinCountIndex], NumberStyles.Float, CultureInfo.InvariantCulture, out var coinCount))
           {
@@ -109,19 +110,17 @@ namespace CryptoProfiteer
             throw new Exception($"CSV line {lineNumber} has non-numeric field {totalCostIndex + 1} \"{fields[totalCostIndex]}\"; expected numeric value such as \"3.17\"");
           }
           
-          if (fields[paymentTypeIndex] != "USD")
+          var coinType = fields[coinTypeIndex];
+          var paymentCoinType = fields[paymentTypeIndex];
+          var expectedProduct = $"{coinType}-{paymentCoinType}";
+          if (fields[product] != expectedProduct)
           {
-            throw new Exception($"CSV line {lineNumber} has unexpected field {paymentTypeIndex + 1} \"{fields[paymentTypeIndex]}\"; only USD is currently supported");
-          }
-
-          if (!fields[product].EndsWith("-USD"))
-          {
-            throw new Exception($"CSV line {lineNumber} has unexpected field {product + 1} \"{fields[product]}\"; only values ending in \"-USD\" are currently supported");
+            throw new Exception($"CSV line {lineNumber} has unexpected field {product + 1} \"{fields[product]}\"; based on other fields, expected \"{expectedProduct}\"");
           }
 
           var transaction = new PersistedTransaction
           {
-            TradeId = fields[tradeIdIndex],
+            TradeId = "C-" + fields[tradeIdIndex],
             TransactionType = transactionType,
             Exchange = CryptoExchange.Coinbase,
             Time = createdAtTime,
@@ -130,6 +129,7 @@ namespace CryptoProfiteer
             PerCoinCost = perCoinPrice,
             Fee = fee,
             TotalCost = totalCost,
+            PaymentCoinType = paymentCoinType,
           };
           transactions.Add(transaction);
         }
@@ -183,7 +183,7 @@ namespace CryptoProfiteer
         var coinCountIndex = IndexOrBust("dealSize");
         var perCoinPriceIndex = IndexOrBust("averagePrice");
         var feeIndex = IndexOrBust("fee");
-        var coinTypeIndex = IndexOrBust("symbol");
+        var productIndex = IndexOrBust("symbol");
         var tradeTypeIndex = IndexOrBust("type");
         var feeCurrencyIndex = IndexOrBust("feeCurrency");
         var dealFundsIndex = IndexOrBust("dealFunds");
@@ -205,15 +205,11 @@ namespace CryptoProfiteer
             throw new Exception($"CSV line {lineNumber} has unrecognized field {buySellIndex + 1} \"{fields[buySellIndex]}\"; expected one of " + string.Join(",", Enum.GetNames(typeof(TransactionType)).Select(x => "\"" + x + "\"")));
           }
 
-          if (!DateTime.TryParseExact(fields[createdAtIndex], "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var createdAtTime))
+          if (!DateTime.TryParseExact(fields[createdAtIndex], "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var createdAtTime))
           {
             throw new Exception($"CSV line {lineNumber} has non-date/time field {createdAtIndex + 1} \"{fields[createdAtIndex]}\"; expected date/time such as \"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")}\"");
           }
-          
-          // my experience is Kucoin times are reported 16 hours ahead of when I actually bought them
-          // maybe kucoin is reporting locale-sensitive time (I'm Pacific -8 hrs) but it's locale-ing the wrong way?
-          // oh well. just fix it.
-          createdAtTime = createdAtTime - TimeSpan.FromHours(16);
+          createdAtTime = createdAtTime.ToUniversalTime();
 
           if (!Decimal.TryParse(fields[coinCountIndex], NumberStyles.Float, CultureInfo.InvariantCulture, out var coinCount))
           {
@@ -230,23 +226,24 @@ namespace CryptoProfiteer
             throw new Exception($"CSV line {lineNumber} has non-numeric field {feeIndex + 1} \"{fields[feeIndex]}\"; expected numeric value such as \"3.17\"");
           }
 
-          var coinType = fields[coinTypeIndex];
-          if (!coinType.EndsWith("-USDT"))
+          var paymentCoinType = fields[feeCurrencyIndex];
+          var product = fields[productIndex];
+          var productParts = product.Split('-');
+          if (productParts.Length != 2)
           {
-            throw new Exception($"CSV line {lineNumber} has unexpected field {coinTypeIndex + 1} \"{fields[coinTypeIndex]}\"; currently only values ending with -USDT are supported such as \"BTC-USDT\"");            
+            throw new Exception($"CSV line {lineNumber} has unexpected field {productIndex + 1} \"{fields[productIndex]}\"; a value with a single hyphen is expected such as \"BTC-USDT\"");
           }
-          coinType = coinType.Substring(0, coinType.Length - "-USDT".Length);
+          var coinType = productParts[0];
+          if (productParts[1] != paymentCoinType)
+          {
+            throw new Exception($"CSV line {lineNumber} has unexpected field {productIndex + 1} \"{fields[productIndex]}\"; it didn't match the fee currency \"{paymentCoinType}\"");
+          }
           
           if (fields[tradeTypeIndex] != "market" && fields[tradeTypeIndex] != "limit")
           {
             throw new Exception($"CSV line {lineNumber} has unexpected field {tradeTypeIndex + 1} \"{fields[tradeTypeIndex]}\"; currently only \"market\" or \"limit\" is supported");
           }
-          
-          if (fields[feeCurrencyIndex] != "USDT")
-          {
-            throw new Exception($"CSV line {lineNumber} has unexpected field {feeCurrencyIndex + 1} \"{fields[feeCurrencyIndex]}\"; currently only USDT is supported");
-          }
-          
+
           if (!Decimal.TryParse(fields[dealFundsIndex], NumberStyles.Float, CultureInfo.InvariantCulture, out var dealFunds))
           {
             throw new Exception($"CSV line {lineNumber} has non-numeric field {dealFundsIndex + 1} \"{fields[dealFundsIndex]}\"; expected numeric value such as \"3.17\"");
@@ -263,7 +260,7 @@ namespace CryptoProfiteer
 
           var transaction = new PersistedTransaction
           {
-            TradeId = fields[tradeIdIndex],
+            TradeId = "K-" + fields[tradeIdIndex],
             TransactionType = transactionType,
             Exchange = CryptoExchange.Kucoin,
             Time = createdAtTime,
@@ -272,6 +269,7 @@ namespace CryptoProfiteer
             PerCoinCost = perCoinPrice,
             Fee = fee,
             TotalCost = totalCost,
+            PaymentCoinType = paymentCoinType
           };
           transactions.Add(transaction);
         }

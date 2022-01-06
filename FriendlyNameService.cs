@@ -31,38 +31,40 @@ namespace CryptoProfiteer
       await Task.Yield();
 
       var coinFriendlyNames = new Dictionary<string, string>();
-      using var http = new HttpClient();
-      try
+      await HttpClientSingleton.UseAsync(stoppingToken, async http =>
       {
-        var url = $"https://api.pro.coinbase.com/currencies";
-        var response = await http.GetAsync(url);
-        string responseBody = await response.Content.ReadAsStringAsync();
-        if (!response.IsSuccessStatusCode)
+        try
         {
-          throw new HttpRequestException($"coinbase currencies api returned {response.StatusCode}: {responseBody}");
-        }
-        var data = JArray.Parse(responseBody);
-        foreach (var currency in data)
-        {
-          var type = currency.SelectToken("details.type").Value<string>();
-          if (type == "crypto")
+          var url = $"https://api.pro.coinbase.com/currencies";
+          var response = await http.GetAsync(url);
+          string responseBody = await response.Content.ReadAsStringAsync();
+          if (!response.IsSuccessStatusCode)
           {
-            var coinType = currency["id"].Value<string>();
-            var friendlyName = currency["name"].Value<string>();
-            coinFriendlyNames[coinType] = $"{friendlyName} ({coinType})";
+            throw new HttpRequestException($"coinbase currencies api returned {response.StatusCode}: {responseBody}");
           }
+          var data = JArray.Parse(responseBody);
+          foreach (var currency in data)
+          {
+            var type = currency.SelectToken("details.type").Value<string>();
+            if (type == "crypto")
+            {
+              var coinType = currency["id"].Value<string>();
+              var friendlyName = currency["name"].Value<string>();
+              coinFriendlyNames[coinType] = $"{friendlyName} ({coinType})";
+            }
+          }
+          _dataService.UpdateFriendlyNames(coinFriendlyNames);
         }
-        _dataService.UpdateFriendlyNames(coinFriendlyNames);
-      }
-      catch (OperationCanceledException)
-      {
-        // this is our fault for shutting down. Don't bother logging it.
-        throw;
-      }
-      catch (Exception ex)
-      {
-        _logger.LogError(ex, $"{ex.GetType().Name} while fetching coin friendly names: {ex.Message}");
-      }
+        catch (OperationCanceledException)
+        {
+          // this is our fault for shutting down. Don't bother logging it.
+          throw;
+        }
+        catch (Exception ex)
+        {
+          _logger.LogError(ex, $"{ex.GetType().Name} while fetching coin friendly names: {ex.Message}");
+        }
+      });
     }
   }
 }

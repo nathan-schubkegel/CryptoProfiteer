@@ -30,6 +30,9 @@ namespace CryptoProfiteer
       services.AddHostedService<PriceService>();
       services.AddHostedService<FriendlyNameService>();
       services.AddHostedService<BrowserLauncherService>();
+      services.AddSingleton<HistoricalCoinPriceService>();
+      services.AddSingleton<IHistoricalCoinPriceService>(sp => sp.GetRequiredService<HistoricalCoinPriceService>());
+      services.AddHostedService(sp => sp.GetRequiredService<HistoricalCoinPriceService>());
       
       services.AddSingleton<IDataService, DataService>();
     }

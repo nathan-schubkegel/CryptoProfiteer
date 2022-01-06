@@ -40,6 +40,7 @@ namespace CryptoProfiteer
     private readonly object _lock = new object();
     private readonly ILogger<DataService> _logger;
     private readonly Dictionary<string, FriendlyName> _friendlyNames = new Dictionary<string, FriendlyName>();
+    private readonly IHistoricalCoinPriceService _historicalCoinPriceService;
 
     public IReadOnlyDictionary<string, Transaction> Transactions { get; private set; } = new Dictionary<string, Transaction>();
     public IReadOnlyDictionary<string, Order> Orders { get; private set; } = new Dictionary<string, Order>();
@@ -47,9 +48,10 @@ namespace CryptoProfiteer
     public IReadOnlyDictionary<string, CoinPrice> CoinPrices { get; private set; } = new Dictionary<string, CoinPrice>();
     public IReadOnlyDictionary<string, TaxAssociation> TaxAssociations { get; private set; } = new Dictionary<string, TaxAssociation>();
     
-    public DataService(ILogger<DataService> logger)
+    public DataService(ILogger<DataService> logger, IHistoricalCoinPriceService historicalCoinPriceService)
     {
       _logger = logger;
+      _historicalCoinPriceService = historicalCoinPriceService;
     }
     
     private FriendlyName GetOrCreateFriendlyName(string coinType)
@@ -83,7 +85,8 @@ namespace CryptoProfiteer
         {
           newTransactions[t.TradeId] = new Transaction(
             t ?? throw new Exception("invalid null transaction"),
-            GetOrCreateFriendlyName(t.CoinType));
+            GetOrCreateFriendlyName(t.CoinType),
+            _historicalCoinPriceService);
         }
 
         var newOrders = BuildOrders(newTransactions);
@@ -102,30 +105,36 @@ namespace CryptoProfiteer
     {
       var newOrders = new Dictionary<string, Order>();
       var orderTransactions = new List<Transaction>();
-      foreach (var t in transactions.Values.OrderBy(x => x.Time))
+      foreach (var tGroup in transactions.Values.GroupBy(x => (x.CoinType, x.PaymentCoinType, x.Exchange, x.TransactionType)))
       {
-        if (orderTransactions.Count == 0)
+        foreach (var t in tGroup.OrderBy(x => x.Time))
         {
+          if (orderTransactions.Count == 0)
+          {
+            orderTransactions.Add(t);
+            continue;
+          }
+          
+          // consider fills within the same second to be part of the same order
+          // (this won't be 100% reliable when I start doing bot trading... but it's true enough for a single human doing purchases)
+          var difference = orderTransactions[0].Time - t.Time;
+          if (difference < TimeSpan.FromSeconds(1) && difference > TimeSpan.FromSeconds(-1))
+          {
+            orderTransactions.Add(t);
+            continue;
+          }
+          
+          var order = new Order(orderTransactions, GetOrCreateFriendlyName(orderTransactions[0].CoinType));
+          newOrders[order.Id] = order;
+          orderTransactions.Clear();
           orderTransactions.Add(t);
-          continue;
         }
-        
-        var difference = orderTransactions[0].Time - t.Time;
-        if (difference < TimeSpan.FromSeconds(1) && difference > TimeSpan.FromSeconds(-1))
+        if (orderTransactions.Count > 0)
         {
-          orderTransactions.Add(t);
-          continue;
+          var order = new Order(orderTransactions, GetOrCreateFriendlyName(orderTransactions[0].CoinType));
+          newOrders[order.Id] = order;
+          orderTransactions.Clear();
         }
-        
-        var order = new Order(orderTransactions, GetOrCreateFriendlyName(orderTransactions[0].CoinType));
-        newOrders[order.Id] = order;
-        orderTransactions.Clear();
-        orderTransactions.Add(t);
-      }
-      if (orderTransactions.Count > 0)
-      {
-        var order = new Order(orderTransactions, GetOrCreateFriendlyName(orderTransactions[0].CoinType));
-        newOrders[order.Id] = order;
       }
       return newOrders;
     }
