@@ -25,10 +25,10 @@ namespace CryptoProfiteer.Pages
       switch (sortBy)
       {
         default:
-        case "coinTypeDescending": return values.OrderByDescending(x => x.CoinType).ThenByDescending(x => x.Time);
-        case "coinType": return values.OrderBy(x => x.CoinType).ThenByDescending(x => x.Time);
         case "date": return values.OrderByDescending(x => x.Time).ThenBy(x => x.CoinType);
         case "dateAscending": return values.OrderBy(x => x.Time).ThenBy(x => x.CoinType);
+        case "coinTypeDescending": return values.OrderByDescending(x => x.CoinType).ThenByDescending(x => x.Time);
+        case "coinType": return values.OrderBy(x => x.CoinType).ThenByDescending(x => x.Time);
       }
     }
     
