@@ -42,9 +42,25 @@ namespace CryptoProfiteer
     {
       _logger = logger;
     }
+    
+    private DateTime ChopSecondsAndSmaller(DateTime time)
+    {
+      // expected format: 2021-01-06T06:07:54.31Z
+      var s = time.ToString("o");
+
+      // get everything before and after the seconds and milliseconds
+      var beforeSeconds = s.Substring(0, 17);
+      var end = 17; while (end < s.Length) { if (s[end] == '.' || (s[end] >= '0' && s[end] <= '9')) end++; else break; }
+      var remainder = s.Substring(end, s.Length - end);
+
+      // Change the seconds and milliseconds to 00
+      return DateTime.Parse(beforeSeconds + "00" + remainder, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
+    }
 
     public Decimal? ToUsd(Decimal coinCount, string coinType, DateTime time, CryptoExchange exchange)
     {
+      time = ChopSecondsAndSmaller(time);
+      
       if (coinType == "USD" || coinType == "USDT")
       {
         return coinCount;
@@ -114,14 +130,27 @@ namespace CryptoProfiteer
               4 - close - closing price (last trade) in the bucket interval
               5 - volume - volume of trading activity during the bucket interval
               */
-              var candle = (JArray)jArray[jArray.Count / 2];
-              var low = candle[1].Value<Decimal>();
-              var high = candle[2].Value<Decimal>();
-              var average = (low + high) / 2;
+              Decimal bestPrice = 0m;
+              TimeSpan closestDifference = DateTime.MaxValue.Subtract(DateTime.MinValue);
+              if (jArray.Count == 0) throw new Exception($"No sale history found for {coinType} at {time} on {exchange}");
+              foreach (JArray candle in jArray)
+              {
+                var unixEpochSeconds = candle[0].Value<long>();
+                var candleTime = UnixEpochSecondsToDateTime(unixEpochSeconds);
+                var difference = candleTime.Subtract(time);
+                if (difference < closestDifference)
+                {
+                  var low = candle[1].Value<Decimal>();
+                  var high = candle[2].Value<Decimal>();
+                  bestPrice = (low + high) / 2;
+                  closestDifference = difference;
+                }
+              }
+
               var newDictionary = new Dictionary<(string CoinType, DateTime Time, CryptoExchange Exchange), Decimal>(_pricePerCoinUsd);
-              newDictionary[(coinType, time, exchange)] = average;
+              newDictionary[(coinType, time, exchange)] = bestPrice;
               _pricePerCoinUsd = newDictionary;
-              _logger.LogInformation($"determined pricePerCoinUsd = {average} for {coinType} at {time}");
+              _logger.LogInformation($"determined pricePerCoinUsd = {bestPrice} for {coinType} at {time}");
             });
           }
         }
@@ -135,6 +164,12 @@ namespace CryptoProfiteer
           _logger.LogError(ex, $"{ex.GetType().Name} while fetching historical coin prices: {ex.Message}");
         }
       }
+    }
+    
+    private static DateTime UnixEpochSecondsToDateTime(long unixEpochSeconds)
+    {
+      DateTime dateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
+      return dateTime.AddSeconds(unixEpochSeconds);
     }
     
     public IEnumerable<PersistedHistoricalCoinPrice> GetPersistedData()
