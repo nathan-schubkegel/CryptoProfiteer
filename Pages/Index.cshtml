@@ -8,6 +8,10 @@
 .table > thead > tr:first-child > th {
     border: none;
 }
+
+.table {
+  margin-bottom: 0px;
+}
 </style>
 
 <div class="text-center">
@@ -82,10 +86,10 @@ const nextSortByCashValue = sortBy === 'cashValue' ? 'cashValueAscending' : 'cas
           <table class="table table-sm">
             <thead>
               <tr>
-                <td scope="col">Date</td>
-                <td scope="col">Count</td>
-                <td scope="col">Per Coin</td>
-                <td scope="col">Total</td>
+                <th scope="col">Date</th>
+                <th scope="col">Count</th>
+                <th scope="col">Per Coin</th>
+                <th scope="col">Total</th>
               </tr>
             </thead>
             <tbody>
