@@ -32,6 +32,7 @@ namespace CryptoProfiteer
     private readonly PersistedTransaction _data;
     private readonly FriendlyName _friendlyName;
     private readonly IHistoricalCoinPriceService _currencyConverter;
+    public IHistoricalCoinPriceService CurrencyConverter => _currencyConverter;
     
     private Decimal? _perCoinCostUsd;
     private Decimal? _feeUsd;

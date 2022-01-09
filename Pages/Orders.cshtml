@@ -101,6 +101,8 @@ const nextSortByCoinType = sortBy === 'coinType' ? 'coinTypeDescending' : 'coinT
   string sortBy = HttpContext.Request.Query.TryGetValue("sortBy", out var sortByValues) ? sortByValues[0] : null;
   foreach (var t in Model.Orders(sortBy)) 
   {
+    var isTrade = t.PaymentCoinType != "USD" && t.PaymentCoinType != "USDT";
+  
     <tr>
       <td>@t.Time.ToLocalTime().ToString("g")</td>
       <td>@t.TransactionType</td>
@@ -113,9 +115,9 @@ const nextSortByCoinType = sortBy === 'coinType' ? 'coinTypeDescending' : 'coinT
         </button>
       </td>
       <td>@t.CoinCount.ToString("G29")</td>
-      <td>$@t.PerCoinCost.ToString()</td>
-      <td>@t.Fee.ToString("c")</td>
-      <td>@t.TotalCost.ToString("c")</td>
+      <td>$@(t.PerCoinCostUsd?.ToString() ?? "<unknown>")@{ if (isTrade) { <text> USD<br>(@t.PerCoinCost.ToString() @t.PaymentCoinType)</text> } }</td>
+      <td>@(t.FeeUsd?.ToString("c") ?? "<unknown>")@{ if (isTrade) { <text> USD<br>(@t.Fee.ToString() @t.PaymentCoinType)</text> } }</td>
+      <td>@(t.TotalCostUsd?.ToString("c") ?? "<unknown>")@{ if (isTrade) { <text> USD<br>(@t.TotalCost.ToString() @t.PaymentCoinType)</text> } }</td>
     </tr>
   }
 }
