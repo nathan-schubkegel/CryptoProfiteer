@@ -42,6 +42,9 @@ namespace CryptoProfiteer
       _data = data;
       _friendlyName = friendlyName;
       _currencyConverter = currencyConverter;
+
+      // start work to learn historical prices
+      _ = PerCoinCostUsd;
     }
     
     public string TradeId => _data.TradeId;
