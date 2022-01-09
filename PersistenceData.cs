@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
+using System;
 using Newtonsoft.Json;
 
 namespace CryptoProfiteer
@@ -10,6 +11,8 @@ namespace CryptoProfiteer
     public List<PersistedTransaction> Transactions { get; set; } = new List<PersistedTransaction>();
     
     public List<PersistedTaxAssociation> TaxAssociations { get; set; } = new List<PersistedTaxAssociation>();
+    
+    public List<PersistedHistoricalCoinPrice> HistoricalCoinPrices { get; set; } = new List<PersistedHistoricalCoinPrice>();
 
     public static PersistenceData LoadFrom(string dataFilePath)
     {

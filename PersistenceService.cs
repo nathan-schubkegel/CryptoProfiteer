@@ -14,13 +14,16 @@ namespace CryptoProfiteer
   {
     private readonly ILogger<PersistenceService> _logger;
     private readonly IDataService _dataService;
+    private readonly IHistoricalCoinPriceService _historicalCoinPriceService;
     private readonly string _dataFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data.json");
     private string _lastSavedData;
 
-    public PersistenceService(ILogger<PersistenceService> logger, IDataService dataService)
+    public PersistenceService(ILogger<PersistenceService> logger, IDataService dataService,
+      IHistoricalCoinPriceService historicalCoinPriceService)
     {
       _logger = logger;
       _dataService = dataService;
+      _historicalCoinPriceService = historicalCoinPriceService;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -28,9 +31,10 @@ namespace CryptoProfiteer
       var newData = PersistenceData.LoadFrom(_dataFilePath);
       _dataService.ImportTransactions(newData.Transactions);
       _dataService.ImportTaxAssociations(newData.TaxAssociations);
+      _historicalCoinPriceService.ImportPersistedData(newData.HistoricalCoinPrices);
 
       // update _lastSavedData from loaded data
-      TrySave(noTouchieFileSystem: true, (newData.Transactions, newData.TaxAssociations));
+      TrySave(noTouchieFileSystem: true, (newData.Transactions, newData.TaxAssociations), newData.HistoricalCoinPrices);
 
       // NOTE: other services don't start until this method awaits
       // and that is leveraged to 
@@ -42,19 +46,20 @@ namespace CryptoProfiteer
       {
         while (!stoppingToken.IsCancellationRequested)
         {
-          TrySave(noTouchieFileSystem: false, _dataService.GetPersistedData());
+          TrySave(noTouchieFileSystem: false, _dataService.GetPersistedData(), _historicalCoinPriceService.GetPersistedData());
 
           await Task.Delay(1000, stoppingToken);
         }
       }
       finally
       {
-        TrySave(noTouchieFileSystem: false, _dataService.GetPersistedData());
+        TrySave(noTouchieFileSystem: false, _dataService.GetPersistedData(), _historicalCoinPriceService.GetPersistedData());
       }
     }
 
     private void TrySave(bool noTouchieFileSystem, 
-      (IEnumerable<PersistedTransaction> Transactions, IEnumerable<PersistedTaxAssociation> TaxAssociations) dataToSave)
+      (IEnumerable<PersistedTransaction> Transactions, IEnumerable<PersistedTaxAssociation> TaxAssociations) dataToSave,
+      IEnumerable<PersistedHistoricalCoinPrice> historicalCoinPrices)
     {
       var toSave = new PersistenceData
       {
@@ -66,6 +71,12 @@ namespace CryptoProfiteer
         TaxAssociations = dataToSave.TaxAssociations
           .OrderBy(x => x.Id)
           .ToList(),
+          
+        HistoricalCoinPrices = historicalCoinPrices
+          .OrderBy(x => x.Time)
+          .ThenBy(x => x.CoinType)
+          .ThenBy(x => x.Exchange)
+          .ToList()
       };
       
       // TODO: I'd really love to NOT be serializing all of my system state every second

@@ -20,6 +20,10 @@ namespace CryptoProfiteer
   public interface IHistoricalCoinPriceService
   {
     Decimal? ToUsd(Decimal cost, string coinType, DateTime time, CryptoExchange exchange);
+
+    IEnumerable<PersistedHistoricalCoinPrice> GetPersistedData();
+
+    void ImportPersistedData(IEnumerable<PersistedHistoricalCoinPrice> persistedData);
   }
 
   public class HistoricalCoinPriceService : BackgroundService, IHistoricalCoinPriceService
@@ -27,8 +31,8 @@ namespace CryptoProfiteer
     private readonly ILogger<HistoricalCoinPriceService> _logger;
     private readonly Channel<object> _signal = Channel.CreateBounded<object>(1);
     
-    private readonly ConcurrentDictionary<(string CoinType, DateTime Time, CryptoExchange Exchange), Decimal> _pricePerCoinUsd =
-      new ConcurrentDictionary<(string CoinType, DateTime Time, CryptoExchange Exchange), Decimal>();
+    private volatile IReadOnlyDictionary<(string CoinType, DateTime Time, CryptoExchange Exchange), Decimal> _pricePerCoinUsd =
+      new Dictionary<(string CoinType, DateTime Time, CryptoExchange Exchange), Decimal>();
       
     private readonly ConcurrentDictionary<(string CoinType, DateTime Time, CryptoExchange Exchange), object> _neededPrices =
       new ConcurrentDictionary<(string CoinType, DateTime Time, CryptoExchange Exchange), object>();
@@ -88,8 +92,8 @@ namespace CryptoProfiteer
                 throw new HttpRequestException($"coinbase pro api for {coinType} candle at={time.ToString("o")} returned {response.StatusCode}: {responseBody}");
               }
               
-              _logger.LogInformation($"HistoricalCoinPriceService processed request for {coinType} at {time} from {exchange}, producing this data:"
-                + Environment.NewLine + responseBody);
+              _logger.LogTrace("HistoricalCoinPriceService processed request for {0} at {1} from {2}, producing this data: {3}",
+                coinType, time, exchange, responseBody);
 
               var jArray = JArray.Parse(responseBody);
               if (jArray.Count == 0)
@@ -110,7 +114,9 @@ namespace CryptoProfiteer
               var low = candle[1].Value<Decimal>();
               var high = candle[2].Value<Decimal>();
               var average = (low + high) / 2;
-              _pricePerCoinUsd[(coinType, time, exchange)] = average;
+              var newDictionary = new Dictionary<(string CoinType, DateTime Time, CryptoExchange Exchange), Decimal>(_pricePerCoinUsd);
+              newDictionary[(coinType, time, exchange)] = average;
+              _pricePerCoinUsd = newDictionary;
               _logger.LogInformation($"determined that pricePerCoinUsd = {average} for {coinType} at {time}");
             });
             
@@ -127,6 +133,27 @@ namespace CryptoProfiteer
           _logger.LogError(ex, $"{ex.GetType().Name} while fetching historical coin prices: {ex.Message}");
         }
       }
+    }
+    
+    public IEnumerable<PersistedHistoricalCoinPrice> GetPersistedData()
+    {
+      return _pricePerCoinUsd.Select(x => new PersistedHistoricalCoinPrice
+      {
+        CoinType = x.Key.CoinType,
+        Time = x.Key.Time,
+        Exchange = x.Key.Exchange,
+        PricePerCoinUsd = x.Value
+      });
+    }
+    
+    public void ImportPersistedData(IEnumerable<PersistedHistoricalCoinPrice> persistedData)
+    {
+      var newDictionary = new Dictionary<(string CoinType, DateTime Time, CryptoExchange Exchange), Decimal>(_pricePerCoinUsd);
+      foreach (var p in persistedData)
+      {
+        newDictionary[(p.CoinType, p.Time, p.Exchange)] = p.PricePerCoinUsd;
+      }
+      _pricePerCoinUsd = newDictionary;
     }
   }
 }
