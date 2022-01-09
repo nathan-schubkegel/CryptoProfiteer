@@ -22,7 +22,6 @@ namespace CryptoProfiteer
     public Decimal PerCoinCost { get; }
     public Decimal Fee { get; }
     public Decimal TotalCost { get; }
-    public int TaxableTotalCost { get; }
 
     private Decimal? _perCoinCostUsd;
     private Decimal? _feeUsd;
@@ -69,7 +68,6 @@ namespace CryptoProfiteer
         }
       }
       
-      TaxableTotalCost = (int)Math.Round(TotalCost, MidpointRounding.AwayFromZero);
       PerCoinCost = Math.Abs(TotalCost / CoinCount);
       
       // Decimal offers 29 digits of decimal precision, but that's an unnecessary firehose.

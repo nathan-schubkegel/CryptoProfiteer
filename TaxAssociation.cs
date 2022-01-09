@@ -41,11 +41,13 @@ namespace CryptoProfiteer
         purchases.Add(new TaxAssociationPurchase(purchase, order));
       }
       Purchases = purchases;
-      
-      // TODO: somebody should make sure these contributing costs are all negative
+
+      // FUTURE: somebody should make sure these contributing costs loaded from file are all negative
+      // (currently it's done in DataService.UpdateTaxAssociation() when they're created)
       TotalCostBought = Purchases.Sum(p => p.ContributingCost);
-      
-      // TODO: somebody shoud make sure these contributing coin counts are all positive
+
+      // FUTURE: somebody should make sure these contributing counts loaded from file are all positive
+      // (currently it's done in DataService.UpdateTaxAssociation() when they're created)
       CoinCountBought = Purchases.Sum(p => p.ContributingCoinCount);
     }
 
@@ -56,7 +58,7 @@ namespace CryptoProfiteer
     public IReadOnlyList<TaxAssociationPurchase> Purchases { get; }
     public TaxAssociationSale Sale { get; }
     public int TotalCostBought { get; }
-    public int TotalCostSold => Sale.Order.TaxableTotalCost;
+    public int TotalCostSold => Sale.Order.TaxableTotalCostUsd ?? 0;
     public bool IsNetGain => TotalCostBought + TotalCostSold >= 0;
     public int PercentNetGainLoss
     {
