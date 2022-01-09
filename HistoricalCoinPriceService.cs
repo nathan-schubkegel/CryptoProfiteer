@@ -10,6 +10,7 @@ using System.Net.Http.Headers;
 using System;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
+using System.Collections.Immutable;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -34,8 +35,8 @@ namespace CryptoProfiteer
     private volatile IReadOnlyDictionary<(string CoinType, DateTime Time, CryptoExchange Exchange), Decimal> _pricePerCoinUsd =
       new Dictionary<(string CoinType, DateTime Time, CryptoExchange Exchange), Decimal>();
       
-    private readonly ConcurrentDictionary<(string CoinType, DateTime Time, CryptoExchange Exchange), object> _neededPrices =
-      new ConcurrentDictionary<(string CoinType, DateTime Time, CryptoExchange Exchange), object>();
+    private ImmutableHashSet<(string CoinType, DateTime Time, CryptoExchange Exchange)> _neededPrices =
+      ImmutableHashSet<(string CoinType, DateTime Time, CryptoExchange Exchange)>.Empty;
     
     public HistoricalCoinPriceService(ILogger<HistoricalCoinPriceService> logger)
     {
@@ -55,7 +56,7 @@ namespace CryptoProfiteer
       }
       else
       {
-        _neededPrices[(coinType, time, exchange)] = null;
+        ImmutableInterlocked.Update(ref _neededPrices, t => t.Add((coinType, time, exchange)));
         _signal.Writer.TryWrite(null);
         return null;
       }
@@ -70,13 +71,16 @@ namespace CryptoProfiteer
       {
         try
         {
-          await _signal.Reader.ReadAsync(stoppingToken);
-          
-        again:
-          var (coinType, time, exchange) = _neededPrices.Keys.FirstOrDefault();
-          if (coinType != null && !_pricePerCoinUsd.ContainsKey((coinType, time, exchange)))
+          var neededPrices = Interlocked.CompareExchange(ref _neededPrices, null, null);
+          if (neededPrices.Count == 0)
           {
-            _neededPrices.Remove((coinType, time, exchange), out _);
+            await _signal.Reader.ReadAsync(stoppingToken);
+            continue;
+          }
+
+          foreach (var (coinType, time, exchange) in neededPrices.Where(x => !_pricePerCoinUsd.ContainsKey(x)))
+          {
+            ImmutableInterlocked.Update(ref _neededPrices, p => p.Remove((coinType, time, exchange)));
             var request = new HttpRequestMessage(HttpMethod.Get, $"https://api.exchange.coinbase.com/products/{coinType}-USD/candles" +
               $"?granularity=60" +
               $"&start={time.Subtract(TimeSpan.FromMinutes(2)).ToString("o")}" +
@@ -117,10 +121,8 @@ namespace CryptoProfiteer
               var newDictionary = new Dictionary<(string CoinType, DateTime Time, CryptoExchange Exchange), Decimal>(_pricePerCoinUsd);
               newDictionary[(coinType, time, exchange)] = average;
               _pricePerCoinUsd = newDictionary;
-              _logger.LogInformation($"determined that pricePerCoinUsd = {average} for {coinType} at {time}");
+              _logger.LogInformation($"determined pricePerCoinUsd = {average} for {coinType} at {time}");
             });
-            
-            goto again;
           }
         }
         catch (OperationCanceledException)
