@@ -84,11 +84,14 @@ namespace CryptoProfiteer
             throw new Exception($"CSV line {lineNumber} has unrecognized field {buySellIndex + 1} \"{fields[buySellIndex]}\"; expected one of " + string.Join(",", Enum.GetNames(typeof(TransactionType)).Select(x => "\"" + x + "\"")));
           }
 
-          if (!DateTime.TryParse(fields[createdAtIndex], CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var createdAtTime))
+          if (!DateTime.TryParse(fields[createdAtIndex], CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var createdAtTime))
           {
             throw new Exception($"CSV line {lineNumber} has non-date/time field {createdAtIndex + 1} \"{fields[createdAtIndex]}\"; expected date/time such as \"{DateTime.Now.ToString("o")}\"");
           }
-          createdAtTime = createdAtTime.ToUniversalTime();
+          if (createdAtTime.Kind != DateTimeKind.Utc)
+          {
+            throw new Exception($"CSV line {lineNumber} date/time field was incorrectly interpreted as {createdAtTime.Kind}");
+          }
 
           if (!Decimal.TryParse(fields[coinCountIndex], NumberStyles.Float, CultureInfo.InvariantCulture, out var coinCount))
           {
@@ -205,11 +208,17 @@ namespace CryptoProfiteer
             throw new Exception($"CSV line {lineNumber} has unrecognized field {buySellIndex + 1} \"{fields[buySellIndex]}\"; expected one of " + string.Join(",", Enum.GetNames(typeof(TransactionType)).Select(x => "\"" + x + "\"")));
           }
 
-          if (!DateTime.TryParseExact(fields[createdAtIndex], "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var createdAtTime))
+          if (!DateTime.TryParseExact(fields[createdAtIndex], "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var createdAtTime))
           {
             throw new Exception($"CSV line {lineNumber} has non-date/time field {createdAtIndex + 1} \"{fields[createdAtIndex]}\"; expected date/time such as \"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")}\"");
           }
-          createdAtTime = createdAtTime.ToUniversalTime();
+          if (createdAtTime.Kind != DateTimeKind.Utc)
+          {
+            throw new Exception($"CSV line {lineNumber} date/time field was incorrectly interpreted as {createdAtTime.Kind}");
+          }
+          // Kucoin times are reported 8 hours after UTC, which appears to be the local time in singapore.
+          // So subtract 8 hours to compensate
+          createdAtTime = createdAtTime - TimeSpan.FromHours(8);
 
           if (!Decimal.TryParse(fields[coinCountIndex], NumberStyles.Float, CultureInfo.InvariantCulture, out var coinCount))
           {
