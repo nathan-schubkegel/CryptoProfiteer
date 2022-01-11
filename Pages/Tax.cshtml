@@ -63,9 +63,11 @@
 
 <script>
 let resolveOrderNeedingTaxAssociation_orderId = '';
+let resolveOrderNeedingTaxAssociation_coinCount = '';
 function onResolveOrderNeedingTaxAssociationClick(orderId, perCoinCost, prettyTotalCost, coinCount, prettyCoinType, machineCoinType, prettyOrderTime, machineOrderTime)
 {
   resolveOrderNeedingTaxAssociation_orderId = orderId;
+  resolveOrderNeedingTaxAssociation_coinCount = coinCount;
 
   let totalCostSpan = document.getElementById('modalToAssociateOrder-TotalCost');
   totalCostSpan.textContent = prettyTotalCost;
@@ -213,6 +215,31 @@ function onResolveOrderNeedingTaxAssociationClick(orderId, perCoinCost, prettyTo
 
 <script>
 
+let selectedContributingCoinCount = 0;
+let selectedContributingCost = 0;
+function updateSelectedContributions() {
+  selectedContributingCoinCount = 0;
+  selectedContributingCost = 0;
+  for (var checkbox of document.getElementsByClassName('button-for-selecting-purchase-orders')) {
+    if (checkbox.checked) {
+      try {
+        let orderId = checkbox.getAttribute('data-orderId');
+        let contributingCoinCount = Math.abs(Number(document.getElementById('input-contributing-coin-count-for-order-' + orderId).value));
+        selectedContributingCoinCount += contributingCoinCount;
+        let contributingCost = Math.abs(Number(document.getElementById('input-contributing-cost-for-order-' + orderId).value));
+        selectedContributingCost += contributingCost;
+      }
+      catch (e) {
+        console.log('updateSelectedContributions() threw', e);
+        selectedContributingCoinCount = NaN;
+        selectedContributingCost = NaN;
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 let isProgrammaticallyChangingStuff = false;
 
 function modalToAssociateOrderCheckBoxClick(orderId)
@@ -222,17 +249,48 @@ function modalToAssociateOrderCheckBoxClick(orderId)
   const row = document.getElementById('modalToAssociateOrder-inputsForOrder-' + orderId);
   row.style.display = checkbox.checked ? '' : 'none';
 
-  let oldValue = isProgrammaticallyChangingStuff;
-  isProgrammaticallyChangingStuff = true;
-  try {
-    const coinCountInput = document.getElementById('input-contributing-coin-count-for-order-' + orderId);
-    coinCountInput.value = checkbox.getAttribute("data-orderCoinCountRemaining");
+  if (checkbox.checked) {
+    let oldValue = isProgrammaticallyChangingStuff;
+    isProgrammaticallyChangingStuff = true;
+    try {
+      const coinCountInput = document.getElementById('input-contributing-coin-count-for-order-' + orderId);
+      const coinCountRemaining = checkbox.getAttribute("data-orderCoinCountRemaining");
+      coinCountInput.value = '0';
 
-    const costInput = document.getElementById('input-contributing-cost-for-order-' + orderId);
-    costInput.value = checkbox.getAttribute("data-orderCostRemaining");
-  }
-  finally {
-    isProgrammaticallyChangingStuff = oldValue;
+      const costInput = document.getElementById('input-contributing-cost-for-order-' + orderId);
+      const costRemaining = checkbox.getAttribute("data-orderCostRemaining");
+      costInput.value = '0';
+      
+      // try reducing the auto-typed values to what's needed to satisfy the order
+      try {
+        if (!updateSelectedContributions()) throw "bleh";
+
+        const orderTotalCost = checkbox.getAttribute("data-orderTotalCost");
+        const orderCoinCount = checkbox.getAttribute("data-orderCoinCount");
+        let coinCountAvailable = Math.max(0, Number(resolveOrderNeedingTaxAssociation_coinCount) - selectedContributingCoinCount);
+        if (coinCountAvailable > Number(coinCountRemaining)) {
+          coinCountInput.value = coinCountRemaining;
+          costInput.value = costRemaining;
+        }
+        else if (coinCountAvailable > 0) {
+          coinCountInput.value = coinCountAvailable.toString();
+          costInput.value = (coinCountAvailable * Number(orderTotalCost) / Number(orderCoinCount)).toFixed();
+        }
+        else {
+          coinCountInput.value = '0';
+          costInput.value = '0';
+        }
+      }
+      catch (e) {
+        console.log('modalToAssociateOrderCheckBoxClick() threw', e);
+        // as a fallback, use the order remaining values
+        coinCountInput.value = coinCountRemaining;
+        costInput.value = costRemaining;
+      }
+    }
+    finally {
+      isProgrammaticallyChangingStuff = oldValue;
+    }
   }
 }
 

@@ -56,8 +56,8 @@ namespace CryptoProfiteer.Pages
         .Select(o => 
           (
             order: o,
-            coinCountRemaining: o.CoinCount - coinCountUsedPerPurchase.GetValueOrDefault(o.Id, 0m),
-            costRemaining: o.TaxableTotalCostUsd == null ? (int?)null : o.TaxableTotalCostUsd.Value - costUsedPerPurchase.GetValueOrDefault(o.Id, 0)
+            coinCountRemaining: Math.Max(0m, o.CoinCount - coinCountUsedPerPurchase.GetValueOrDefault(o.Id, 0m)),
+            costRemaining: o.TaxableTotalCostUsd == null ? (int?)null : Math.Max(0, Math.Abs(o.TaxableTotalCostUsd.Value) - Math.Abs(costUsedPerPurchase.GetValueOrDefault(o.Id, 0)))
           ));
 
       switch (sortBy)
