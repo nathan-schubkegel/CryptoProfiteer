@@ -62,7 +62,47 @@ namespace CryptoProfiteer
         }
         catch (Exception ex)
         {
-          _logger.LogError(ex, $"{ex.GetType().Name} while fetching coin friendly names: {ex.Message}");
+          _logger.LogError(ex, $"{ex.GetType().Name} while fetching coin friendly names from coinbase: {ex.Message}");
+        }
+      });
+      
+      await HttpClientSingleton.UseAsync(stoppingToken, async http =>
+      {
+        try
+        {
+          var url = $"https://api.kucoin.com/api/v1/currencies";
+          var response = await http.GetAsync(url);
+          string responseBody = await response.Content.ReadAsStringAsync();
+          if (!response.IsSuccessStatusCode)
+          {
+            throw new HttpRequestException($"kucoin currencies api returned {response.StatusCode}: {responseBody}");
+          }
+          var data = JObject.Parse(responseBody);
+          var code = data.SelectToken("code")?.Value<string>();
+          if (code != "200000")
+          {
+            throw new HttpRequestException($"kucoin currencies api returned non-success code=\"{code}\"");
+          }
+          var currencies = (JArray)data["data"];
+          foreach (JObject currency in currencies)
+          {
+            var coinType = currency["currency"].Value<string>();
+            var friendlyName = currency["fullName"].Value<string>();
+            if (!coinFriendlyNames.ContainsKey(coinType))
+            {
+              coinFriendlyNames[coinType] = $"{friendlyName} ({coinType})";
+            }
+          }
+          _dataService.UpdateFriendlyNames(coinFriendlyNames);
+        }
+        catch (OperationCanceledException)
+        {
+          // this is our fault for shutting down. Don't bother logging it.
+          throw;
+        }
+        catch (Exception ex)
+        {
+          _logger.LogError(ex, $"{ex.GetType().Name} while fetching coin friendly names from kucoin: {ex.Message}");
         }
       });
     }
