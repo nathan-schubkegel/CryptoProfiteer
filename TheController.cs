@@ -300,8 +300,8 @@ namespace CryptoProfiteer
       public class Purchase
       {
         public string OrderId { get; set; }
-        public Decimal ContributingCoinCount { get; set; }
-        public int ContributingCost { get; set; }
+        public string ContributingCoinCount { get; set; }
+        public string ContributingCost { get; set; }
       }
     }
     
@@ -313,8 +313,8 @@ namespace CryptoProfiteer
         inputs.Purchases.Select(p => 
         (
           p.OrderId,
-          p.ContributingCoinCount,
-          p.ContributingCost
+          Decimal.Parse(p.ContributingCoinCount, NumberStyles.Float, CultureInfo.InvariantCulture),
+          int.Parse(p.ContributingCost)
         )).ToArray());
 
       return Ok(new { taxAssociationId });

@@ -10,6 +10,11 @@
 }
 </style>
 
+<script src='/js/bignumber.js'></script>
+<script>
+BigNumber.set({ ROUNDING_MODE: 4 }); // 4 is HALF_UP
+</script>
+
 <div id='sales-needing-tax-association'>
   <h1>
     Sales Needing Tax Association
@@ -215,24 +220,24 @@ function onResolveOrderNeedingTaxAssociationClick(orderId, perCoinCost, prettyTo
 
 <script>
 
-let selectedContributingCoinCount = 0;
-let selectedContributingCost = 0;
+let selectedContributingCoinCount = BigNumber(0);
+let selectedContributingCost = BigNumber(0);
 function updateSelectedContributions() {
-  selectedContributingCoinCount = 0;
-  selectedContributingCost = 0;
+  selectedContributingCoinCount = BigNumber(0);
+  selectedContributingCost = BigNumber(0);
   for (var checkbox of document.getElementsByClassName('button-for-selecting-purchase-orders')) {
     if (checkbox.checked) {
       try {
         let orderId = checkbox.getAttribute('data-orderId');
-        let contributingCoinCount = Math.abs(Number(document.getElementById('input-contributing-coin-count-for-order-' + orderId).value));
-        selectedContributingCoinCount += contributingCoinCount;
-        let contributingCost = Math.abs(Number(document.getElementById('input-contributing-cost-for-order-' + orderId).value));
-        selectedContributingCost += contributingCost;
+        let contributingCoinCount = BigNumber(document.getElementById('input-contributing-coin-count-for-order-' + orderId).value).abs();
+        selectedContributingCoinCount = selectedContributingCoinCount.plus(contributingCoinCount);
+        let contributingCost = BigNumber(document.getElementById('input-contributing-cost-for-order-' + orderId).value).abs();
+        selectedContributingCost = selectedContributingCost.plus(contributingCost);
       }
       catch (e) {
         console.log('updateSelectedContributions() threw', e);
-        selectedContributingCoinCount = NaN;
-        selectedContributingCost = NaN;
+        selectedContributingCoinCount = BigNumber(NaN);
+        selectedContributingCost = BigNumber(NaN);
         return false;
       }
     }
@@ -260,6 +265,7 @@ function modalToAssociateOrderCheckBoxClick(orderId)
       const costInput = document.getElementById('input-contributing-cost-for-order-' + orderId);
       const costRemaining = checkbox.getAttribute("data-orderCostRemaining");
       costInput.value = '0';
+      costInput.disabled = true;
       
       // try reducing the auto-typed values to what's needed to satisfy the order
       try {
@@ -267,14 +273,14 @@ function modalToAssociateOrderCheckBoxClick(orderId)
 
         const orderTotalCost = checkbox.getAttribute("data-orderTotalCost");
         const orderCoinCount = checkbox.getAttribute("data-orderCoinCount");
-        let coinCountAvailable = Math.max(0, Number(resolveOrderNeedingTaxAssociation_coinCount) - selectedContributingCoinCount);
-        if (coinCountAvailable > Number(coinCountRemaining)) {
+        let coinCountAvailable = BigNumber.max(BigNumber(0), BigNumber(resolveOrderNeedingTaxAssociation_coinCount).minus(selectedContributingCoinCount));
+        if (coinCountAvailable.isGreaterThan(BigNumber(coinCountRemaining))) {
           coinCountInput.value = coinCountRemaining;
           costInput.value = costRemaining;
         }
-        else if (coinCountAvailable > 0) {
+        else if (coinCountAvailable.isGreaterThan(BigNumber(0))) {
           coinCountInput.value = coinCountAvailable.toString();
-          costInput.value = (coinCountAvailable * Number(orderTotalCost) / Number(orderCoinCount)).toFixed();
+          costInput.value = coinCountAvailable.times(BigNumber(orderTotalCost)).dividedBy(BigNumber(orderCoinCount)).toFixed(0);
         }
         else {
           coinCountInput.value = '0';
@@ -305,7 +311,7 @@ function modalToAssociateOrderContributingCoinCountChanged(orderId)
   const coinCountInput = document.getElementById('input-contributing-coin-count-for-order-' + orderId);
   const costInput = document.getElementById('input-contributing-cost-for-order-' + orderId);
   try {
-    costInput.value = (Number(coinCountInput.value) * Number(orderTotalCost) / Number(orderCoinCount)).toFixed();
+    costInput.value = BigNumber(coinCountInput.value).times(BigNumber(orderTotalCost)).dividedBy(BigNumber(orderCoinCount)).toFixed();
   }
   catch {
     costInput.value = '<unknown>';
@@ -323,7 +329,7 @@ function modalToAssociateOrderContributingCostChanged(orderId)
   const costInput = document.getElementById('input-contributing-cost-for-order-' + orderId);
   const coinCountInput = document.getElementById('input-contributing-coin-count-for-order-' + orderId);
   try {
-    coinCountInput.value = (Number(orderCoinCount) * Number(costInput.value) / Number(orderTotalCost)).toString().substring(0, orderCoinCount.length);
+    coinCountInput.value = BigNumber(orderCoinCount).times(BigNumber(costInput.value)).dividedBy(BigNumber(orderTotalCost)).toString().substring(0, orderCoinCount.length);
   }
   catch {
     coinCountInput.value = '<unknown>';
@@ -348,8 +354,9 @@ async function modalToAssociateOrderOkButtonClick()
     if (checkbox.checked) {
       try {
         let orderId = checkbox.getAttribute('data-orderId');
-        let contributingCoinCount = Number(document.getElementById('input-contributing-coin-count-for-order-' + orderId).value);
-        let contributingCost = Number(document.getElementById('input-contributing-cost-for-order-' + orderId).value);
+        let contributingCoinCount = document.getElementById('input-contributing-coin-count-for-order-' + orderId).value;
+        let contributingCost = document.getElementById('input-contributing-cost-for-order-' + orderId).value;
+        if (BigNumber(contributingCoinCount).isEqualTo(BigNumber(0))) { continue; }
         purchases.push({ orderId, contributingCoinCount, contributingCost });
       }
       catch (e) {
