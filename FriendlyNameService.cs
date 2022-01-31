@@ -8,21 +8,39 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace CryptoProfiteer
 {
-  public class FriendlyNameService : BackgroundService
+  public interface IFriendlyNameService
+  {
+    FriendlyName GetOrCreateFriendlyName(string coinType);
+  }
+  
+  public class FriendlyNameService : BackgroundService, IFriendlyNameService
   {
     private readonly ILogger<FriendlyNameService> _logger;
-    private readonly IDataService _dataService;
+    private readonly ConcurrentDictionary<string, FriendlyName> _friendlyNames = new ConcurrentDictionary<string, FriendlyName>();
 
-    public FriendlyNameService(ILogger<FriendlyNameService> logger, IDataService dataService)
+    public FriendlyNameService(ILogger<FriendlyNameService> logger)
     {
       _logger = logger;
-      _dataService = dataService;
+    }
+    
+    public FriendlyName GetOrCreateFriendlyName(string coinType)
+    {
+      return _friendlyNames.GetOrAdd(coinType, k => new FriendlyName { Value = coinType });
+    }
+    
+    private void UpdateFriendlyNames(Dictionary<string, string> newFriendlyNames)
+    {
+      foreach ((var coinType, var friendlyName) in newFriendlyNames)
+      {
+        GetOrCreateFriendlyName(coinType).Value = friendlyName;
+      }
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -53,7 +71,7 @@ namespace CryptoProfiteer
               coinFriendlyNames[coinType] = $"{friendlyName} ({coinType})";
             }
           }
-          _dataService.UpdateFriendlyNames(coinFriendlyNames);
+          UpdateFriendlyNames(coinFriendlyNames);
         }
         catch (OperationCanceledException)
         {
@@ -93,7 +111,7 @@ namespace CryptoProfiteer
               coinFriendlyNames[coinType] = $"{friendlyName} ({coinType})";
             }
           }
-          _dataService.UpdateFriendlyNames(coinFriendlyNames);
+          UpdateFriendlyNames(coinFriendlyNames);
         }
         catch (OperationCanceledException)
         {

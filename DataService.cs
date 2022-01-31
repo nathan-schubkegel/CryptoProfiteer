@@ -22,7 +22,6 @@ namespace CryptoProfiteer
     void ImportTransactions(IEnumerable<PersistedTransaction> transactions);
     void ImportTaxAssociations(IEnumerable<PersistedTaxAssociation> importedTaxAssociations);
     void UpdateCoinPrices(IEnumerable<CoinPriceFromExchange> prices);
-    void UpdateFriendlyNames(Dictionary<string, string> newFriendlyNames);
 
     // 'taxAssociationId' may be null/empty when creating a new tax association
     // 'saleOrderId' may be null/empty when modifying an existing tax association to not change that aspect
@@ -39,7 +38,7 @@ namespace CryptoProfiteer
   {
     private readonly object _lock = new object();
     private readonly ILogger<DataService> _logger;
-    private readonly Dictionary<string, FriendlyName> _friendlyNames = new Dictionary<string, FriendlyName>();
+    private readonly IFriendlyNameService _friendlyNameService;
     private readonly IHistoricalCoinPriceService _historicalCoinPriceService;
 
     public IReadOnlyDictionary<string, Transaction> Transactions { get; private set; } = new Dictionary<string, Transaction>();
@@ -48,34 +47,13 @@ namespace CryptoProfiteer
     public IReadOnlyDictionary<string, CoinPrice> CoinPrices { get; private set; } = new Dictionary<string, CoinPrice>();
     public IReadOnlyDictionary<string, TaxAssociation> TaxAssociations { get; private set; } = new Dictionary<string, TaxAssociation>();
     
-    public DataService(ILogger<DataService> logger, IHistoricalCoinPriceService historicalCoinPriceService)
+    public DataService(ILogger<DataService> logger, IHistoricalCoinPriceService historicalCoinPriceService, IFriendlyNameService friendlyNameService)
     {
       _logger = logger;
       _historicalCoinPriceService = historicalCoinPriceService;
+      _friendlyNameService = friendlyNameService;
     }
-    
-    private FriendlyName GetOrCreateFriendlyName(string coinType)
-    {
-      // NOTE: assuming caller has lock held
-      if (!_friendlyNames.TryGetValue(coinType, out var friendlyName))
-      {
-        friendlyName = new FriendlyName { Value = coinType };
-        _friendlyNames[coinType] = friendlyName;
-      }
-      return friendlyName;
-    }
-    
-    public void UpdateFriendlyNames(Dictionary<string, string> newFriendlyNames)
-    {
-      lock (_lock)
-      {
-        foreach ((var coinType, var friendlyName) in newFriendlyNames)
-        {
-          GetOrCreateFriendlyName(coinType).Value = friendlyName;
-        }
-      }
-    }
-    
+
     public void ImportTransactions(IEnumerable<PersistedTransaction> importedTransactions)
     {
       lock (_lock)
@@ -85,7 +63,7 @@ namespace CryptoProfiteer
         {
           newTransactions[t.TradeId] = new Transaction(
             t ?? throw new Exception("invalid null transaction"),
-            GetOrCreateFriendlyName(t.CoinType),
+            _friendlyNameService.GetOrCreateFriendlyName(t.CoinType),
             _historicalCoinPriceService);
         }
 
@@ -124,14 +102,14 @@ namespace CryptoProfiteer
             continue;
           }
           
-          var order = new Order(orderTransactions, GetOrCreateFriendlyName(orderTransactions[0].CoinType));
+          var order = new Order(orderTransactions, _friendlyNameService.GetOrCreateFriendlyName(orderTransactions[0].CoinType));
           newOrders[order.Id] = order;
           orderTransactions.Clear();
           orderTransactions.Add(t);
         }
         if (orderTransactions.Count > 0)
         {
-          var order = new Order(orderTransactions, GetOrCreateFriendlyName(orderTransactions[0].CoinType));
+          var order = new Order(orderTransactions, _friendlyNameService.GetOrCreateFriendlyName(orderTransactions[0].CoinType));
           newOrders[order.Id] = order;
           orderTransactions.Clear();
         }
@@ -147,7 +125,7 @@ namespace CryptoProfiteer
         x => x.Key,
         x => new CoinSummary(
           coinType: x.Key,
-          friendlyName: GetOrCreateFriendlyName(x.Key),
+          friendlyName: _friendlyNameService.GetOrCreateFriendlyName(x.Key),
           coinCount: x.Where(y => y.TransactionType == TransactionType.Buy).Select(y => y.CoinCount).Sum()
             - x.Where(y => y.TransactionType == TransactionType.Sell).Select(y => y.CoinCount).Sum(),
           coinPrice: coinPrices.GetValueOrDefault(x.Key))
@@ -228,7 +206,7 @@ namespace CryptoProfiteer
         var now = DateTime.Now;
         foreach (var price in prices)
         {
-          newPrices[price.CoinType] = new CoinPrice(price, GetOrCreateFriendlyName(price.CoinType), now);
+          newPrices[price.CoinType] = new CoinPrice(price, _friendlyNameService.GetOrCreateFriendlyName(price.CoinType), now);
           newCount++;
         }
         
