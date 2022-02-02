@@ -9,6 +9,7 @@ using System.Net.Http.Headers;
 using System;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
+using System.Collections.Immutable;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -18,28 +19,70 @@ namespace CryptoProfiteer
   public interface IFriendlyNameService
   {
     FriendlyName GetOrCreateFriendlyName(string coinType);
+    ImmutableArray<string> GetExchangeCurrencies(CryptoExchange exchange);
   }
   
   public class FriendlyNameService : BackgroundService, IFriendlyNameService
   {
     private readonly ILogger<FriendlyNameService> _logger;
-    private readonly ConcurrentDictionary<string, FriendlyName> _friendlyNames = new ConcurrentDictionary<string, FriendlyName>();
+    private readonly object _lock = new object();
+    
+    // this object can be mutated while _lock is held
+    private readonly Dictionary<string, FriendlyName> _unresolvedFriendlyNames = new Dictionary<string, FriendlyName>();
+    
+    // these objects are immutable and must be completely replaced, not mutated
+    private Dictionary<string, FriendlyName> _friendlyNames = new Dictionary<string, FriendlyName>();
+    private Dictionary<CryptoExchange, ImmutableArray<string>> _exchangeCurrencies = new Dictionary<CryptoExchange, ImmutableArray<string>>();
 
     public FriendlyNameService(ILogger<FriendlyNameService> logger)
     {
       _logger = logger;
     }
     
-    public FriendlyName GetOrCreateFriendlyName(string coinType)
+    public ImmutableArray<string> GetExchangeCurrencies(CryptoExchange exchange)
     {
-      return _friendlyNames.GetOrAdd(coinType, k => new FriendlyName { Value = coinType });
+      return _exchangeCurrencies.TryGetValue(exchange, out var result) ? result : ImmutableArray<string>.Empty;
     }
     
-    private void UpdateFriendlyNames(Dictionary<string, string> newFriendlyNames)
+    public FriendlyName GetOrCreateFriendlyName(string coinType)
     {
-      foreach ((var coinType, var friendlyName) in newFriendlyNames)
+      if (_friendlyNames.TryGetValue(coinType, out var result)) return result;
+      lock (_lock)
       {
-        GetOrCreateFriendlyName(coinType).Value = friendlyName;
+        if (_friendlyNames.TryGetValue(coinType, out result)) return result;
+        if (_unresolvedFriendlyNames.TryGetValue(coinType, out result)) return result;
+        result = new FriendlyName { Value = coinType };
+        _unresolvedFriendlyNames[coinType] = result;
+        return result;
+      }
+    }
+    
+    private void UpdateFriendlyNames(Dictionary<string, string> newFriendlyNames, CryptoExchange exchange)
+    {
+      lock (_lock)
+      {
+        // update _friendlyNames
+        var result = new Dictionary<string, FriendlyName>(_friendlyNames);
+        foreach ((string coinType, string friendlyNameText) in newFriendlyNames)
+        {
+          if (!_unresolvedFriendlyNames.TryGetValue(coinType, out var friendlyName) &&
+              !_friendlyNames.TryGetValue(coinType, out friendlyName))
+          {
+            friendlyName = new FriendlyName();
+          }
+          friendlyName.Value = friendlyNameText;
+          result[coinType] = friendlyName;
+          _unresolvedFriendlyNames.Remove(coinType);
+        }
+        _friendlyNames = result;
+
+        // update _exchangeCurrencies
+        var newCurrencies = new Dictionary<CryptoExchange, ImmutableArray<string>>(_exchangeCurrencies);
+        newCurrencies[exchange] = newCurrencies.GetValueOrDefault(exchange, ImmutableArray<string>.Empty)
+          .Concat(newFriendlyNames.Keys)
+          .Distinct()
+          .ToImmutableArray();
+        _exchangeCurrencies = newCurrencies;
       }
     }
 
@@ -71,7 +114,7 @@ namespace CryptoProfiteer
               coinFriendlyNames[coinType] = $"{friendlyName} ({coinType})";
             }
           }
-          UpdateFriendlyNames(coinFriendlyNames);
+          UpdateFriendlyNames(coinFriendlyNames, CryptoExchange.Coinbase);
         }
         catch (OperationCanceledException)
         {
@@ -111,7 +154,7 @@ namespace CryptoProfiteer
               coinFriendlyNames[coinType] = $"{friendlyName} ({coinType})";
             }
           }
-          UpdateFriendlyNames(coinFriendlyNames);
+          UpdateFriendlyNames(coinFriendlyNames, CryptoExchange.Kucoin);
         }
         catch (OperationCanceledException)
         {
