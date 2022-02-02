@@ -2,25 +2,19 @@ using System;
 
 namespace CryptoProfiteer
 {
-  public class CoinPriceFromExchange
-  {
-    public string CoinType { get; set; }
-    public Decimal PerCoinCost { get; set; }
-  }
-  
   public class CoinPrice
   {
     private readonly FriendlyName _friendlyName;
 
     public string CoinType { get; }
     public string FriendlyName => _friendlyName.Value;
-    public Decimal PerCoinCost { get; }
+    public Decimal PerCoinCostUsd { get; }
     public DateTime LastUpdatedTime { get; }
-    public CoinPrice(CoinPriceFromExchange data, FriendlyName friendlyName, DateTime lastUpdated)
+    public CoinPrice(string coinType, decimal perCoinCostUsd, FriendlyName friendlyName, DateTime lastUpdated)
     {
-      CoinType = data.CoinType;
+      CoinType = coinType;
       _friendlyName = friendlyName;
-      PerCoinCost = data.PerCoinCost;
+      PerCoinCostUsd = perCoinCostUsd;
       LastUpdatedTime = lastUpdated;
     }
   }

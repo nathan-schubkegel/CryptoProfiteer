@@ -54,7 +54,7 @@ function filterBy(coinType)
 
 <div id="summary-coin-prices">
   @foreach (var price in Model.CoinPrices) {
-    <div style="display: none" id="summary-coin-price-for-@price.CoinType">@price.FriendlyName currently at $@price.PerCoinCost.ToString()</div>
+    <div style="display: none" id="summary-coin-price-for-@price.CoinType">@price.FriendlyName currently at $@price.PerCoinCostUsd.ToString()</div>
   }
 </div>
 

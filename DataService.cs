@@ -16,12 +16,10 @@ namespace CryptoProfiteer
     IReadOnlyDictionary<string, Transaction> Transactions { get; }
     IReadOnlyDictionary<string, Order> Orders { get; }
     IReadOnlyDictionary<string, CoinSummary> CoinSummaries { get; }
-    IReadOnlyDictionary<string, CoinPrice> CoinPrices { get; }
     IReadOnlyDictionary<string, TaxAssociation> TaxAssociations { get; }
 
     void ImportTransactions(IEnumerable<PersistedTransaction> transactions);
     void ImportTaxAssociations(IEnumerable<PersistedTaxAssociation> importedTaxAssociations);
-    void UpdateCoinPrices(IEnumerable<CoinPriceFromExchange> prices);
 
     // 'taxAssociationId' may be null/empty when creating a new tax association
     // 'saleOrderId' may be null/empty when modifying an existing tax association to not change that aspect
@@ -40,18 +38,24 @@ namespace CryptoProfiteer
     private readonly ILogger<DataService> _logger;
     private readonly IFriendlyNameService _friendlyNameService;
     private readonly IHistoricalCoinPriceService _historicalCoinPriceService;
+    private readonly IPriceService _priceService;
 
     public IReadOnlyDictionary<string, Transaction> Transactions { get; private set; } = new Dictionary<string, Transaction>();
     public IReadOnlyDictionary<string, Order> Orders { get; private set; } = new Dictionary<string, Order>();
     public IReadOnlyDictionary<string, CoinSummary> CoinSummaries { get; private set; } = new Dictionary<string, CoinSummary>();
-    public IReadOnlyDictionary<string, CoinPrice> CoinPrices { get; private set; } = new Dictionary<string, CoinPrice>();
     public IReadOnlyDictionary<string, TaxAssociation> TaxAssociations { get; private set; } = new Dictionary<string, TaxAssociation>();
     
-    public DataService(ILogger<DataService> logger, IHistoricalCoinPriceService historicalCoinPriceService, IFriendlyNameService friendlyNameService)
+    public DataService(
+      ILogger<DataService> logger,
+      IHistoricalCoinPriceService historicalCoinPriceService,
+      IFriendlyNameService friendlyNameService,
+      IPriceService priceService)
     {
       _logger = logger;
       _historicalCoinPriceService = historicalCoinPriceService;
       _friendlyNameService = friendlyNameService;
+      _priceService = priceService;
+      _priceService.CoinPricesUpdated += OnCoinPricesUpdated;
     }
 
     public void ImportTransactions(IEnumerable<PersistedTransaction> importedTransactions)
@@ -68,7 +72,7 @@ namespace CryptoProfiteer
         }
 
         var newOrders = BuildOrders(newTransactions);
-        var newCoinSummaries = BuildCoinSummaries(newTransactions, CoinPrices);
+        var newCoinSummaries = BuildCoinSummaries(newTransactions);
         var newTaxAssociations = ImportTaxAssociations(new List<PersistedTaxAssociation>(0), newOrders);
         
         Transactions = newTransactions;
@@ -118,8 +122,7 @@ namespace CryptoProfiteer
     }
     
     private Dictionary<string, CoinSummary> BuildCoinSummaries(
-      IReadOnlyDictionary<string, Transaction> transactions,
-      IReadOnlyDictionary<string, CoinPrice> coinPrices)
+      IReadOnlyDictionary<string, Transaction> transactions)
     {
       return transactions.Values.GroupBy(x => x.CoinType).ToDictionary(
         x => x.Key,
@@ -128,7 +131,7 @@ namespace CryptoProfiteer
           friendlyName: _friendlyNameService.GetOrCreateFriendlyName(x.Key),
           coinCount: x.Where(y => y.TransactionType == TransactionType.Buy).Select(y => y.CoinCount).Sum()
             - x.Where(y => y.TransactionType == TransactionType.Sell).Select(y => y.CoinCount).Sum(),
-          coinPrice: coinPrices.GetValueOrDefault(x.Key))
+          coinPrice: _priceService.TryGetCoinPrice(x.Key))
       );
     }
     
@@ -196,23 +199,12 @@ namespace CryptoProfiteer
 
       return newTaxAssociations;
     }
-    
-    public void UpdateCoinPrices(IEnumerable<CoinPriceFromExchange> prices)
+
+    private void OnCoinPricesUpdated()
     {
       lock (_lock)
       {
-        int newCount = 0;
-        var newPrices = new Dictionary<string, CoinPrice>(CoinPrices);
-        var now = DateTime.Now;
-        foreach (var price in prices)
-        {
-          newPrices[price.CoinType] = new CoinPrice(price, _friendlyNameService.GetOrCreateFriendlyName(price.CoinType), now);
-          newCount++;
-        }
-        
-        var newCoinSummaries = BuildCoinSummaries(Transactions, newPrices);
-        
-        CoinPrices = newPrices;
+        var newCoinSummaries = BuildCoinSummaries(Transactions);
         CoinSummaries = newCoinSummaries;
       }
     }

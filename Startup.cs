@@ -27,13 +27,17 @@ namespace CryptoProfiteer
       services.AddControllersWithViews();
 
       services.AddHostedService<PersistenceService>();
-      services.AddHostedService<PriceService>();
+      
+      services.AddSingleton<PriceService>();
+      services.AddSingleton<IPriceService>(sp => sp.GetRequiredService<PriceService>());
+      services.AddHostedService(sp => sp.GetRequiredService<PriceService>());
 
       services.AddSingleton<FriendlyNameService>();
       services.AddSingleton<IFriendlyNameService>(sp => sp.GetRequiredService<FriendlyNameService>());
       services.AddHostedService(sp => sp.GetRequiredService<FriendlyNameService>());
 
       services.AddHostedService<BrowserLauncherService>();
+
       services.AddSingleton<HistoricalCoinPriceService>();
       services.AddSingleton<IHistoricalCoinPriceService>(sp => sp.GetRequiredService<HistoricalCoinPriceService>());
       services.AddHostedService(sp => sp.GetRequiredService<HistoricalCoinPriceService>());

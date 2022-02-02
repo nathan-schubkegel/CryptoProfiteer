@@ -24,7 +24,7 @@ namespace CryptoProfiteer
       _friendlyName = friendlyName;
       CoinCount = coinCount;
       CoinPrice = coinPrice;
-      CashValue = coinPrice == null ? (Decimal?)null : coinPrice.PerCoinCost * CoinCount;
+      CashValue = coinPrice == null ? (Decimal?)null : coinPrice.PerCoinCostUsd * CoinCount;
     }
   }
 }

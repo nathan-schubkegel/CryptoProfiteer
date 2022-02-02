@@ -8,6 +8,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -15,15 +16,45 @@ using System.Globalization;
 
 namespace CryptoProfiteer
 {
-  public class PriceService : BackgroundService
+  public interface IPriceService
+  {
+    CoinPrice TryGetCoinPrice(string coinType);
+    event Action CoinPricesUpdated;
+  }
+  
+  public class PriceService : BackgroundService, IPriceService
   {
     private readonly ILogger<PriceService> _logger;
-    private readonly IDataService _dataService;
+    private readonly IFriendlyNameService _friendlyNameService;
+    
+    // _prices is immutable, and must be completely replaced
+    private Dictionary<string, CoinPrice> _prices = new Dictionary<string, CoinPrice>();
+    
+    // _neededPrices is mutable, and must be locked before being read/modified
+    private readonly HashSet<string> _neededPrices = new HashSet<string>();
+    
+    public event Action CoinPricesUpdated;
 
-    public PriceService(ILogger<PriceService> logger, IDataService dataService)
+    public PriceService(ILogger<PriceService> logger, IFriendlyNameService friendlyNameService)
     {
       _logger = logger;
-      _dataService = dataService;
+      _friendlyNameService = friendlyNameService;
+    }
+    
+    public CoinPrice TryGetCoinPrice(string coinType)
+    {
+      if (_prices.TryGetValue(coinType, out var result))
+      {
+        return result;
+      }
+      else
+      {
+        lock (_neededPrices)
+        {
+          _neededPrices.Add(coinType);
+          return null;
+        }
+      }
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -35,23 +66,8 @@ namespace CryptoProfiteer
       {
         try
         {
-          // figure out which exchanges know about which cryptos
-          var exchanges = new Dictionary<string, List<CryptoExchange>>();
-          foreach (var transaction in _dataService.Transactions.Values)
-          {
-            if (!exchanges.TryGetValue(transaction.CoinType, out var bucket))
-            {
-              bucket = new List<CryptoExchange>();
-              exchanges[transaction.CoinType] = bucket;
-            }
-            if (!bucket.Contains(transaction.Exchange))
-            {
-              bucket.Add(transaction.Exchange);
-            }
-          }
-
-          // Ask Kucoin for all prices it knows about, and save all that we know about
-          Dictionary<string, Decimal> kucoinPrices = null;
+          // Ask Kucoin for all prices it knows about, and save them all
+          var kucoins = new HashSet<string>();
           {
             var url = $"https://api.kucoin.com/api/v1/prices?base=USD";
             await HttpClientSingleton.UseAsync(stoppingToken, async http =>
@@ -68,43 +84,53 @@ namespace CryptoProfiteer
               {
                 throw new HttpRequestException($"kucoin prices api returned system code {systemCode}: {responseBody}");
               }
-              kucoinPrices = ((JObject)json.SelectToken("data"))
-                .ToObject<Dictionary<string, string>>()
-                .ToDictionary(p => p.Key, p => Decimal.Parse(p.Value, NumberStyles.Float, CultureInfo.InvariantCulture));
 
-              var oldSummaries = _dataService.CoinSummaries;
-              var newPrices = kucoinPrices.Where(p => oldSummaries.ContainsKey(p.Key))
-                .Select(p => new CoinPriceFromExchange { CoinType = p.Key, PerCoinCost = p.Value })
-                .ToArray();
-              _dataService.UpdateCoinPrices(newPrices);
+              var now = DateTime.UtcNow;
+              var newPrices = new Dictionary<string, CoinPrice>(_prices);
+              foreach ((string coinType, JToken priceToken) in (JObject)json.SelectToken("data"))
+              {
+                var price = Decimal.Parse(priceToken.Value<string>(), NumberStyles.Float, CultureInfo.InvariantCulture);
+                var newPrice = new CoinPrice(coinType, price, _friendlyNameService.GetOrCreateFriendlyName(coinType), now);
+                newPrices[coinType] = newPrice;
+                kucoins.Add(coinType);
+              }
+              _prices = newPrices;
             });
+            
+            NotifyCoinPricesUpdated();
           }
-          
-          // all other coins... ask their individual exchanges
-          foreach (var coinSummary in _dataService.CoinSummaries.Values)
-          {
-            if (kucoinPrices.ContainsKey(coinSummary.CoinType))
-            {
-              continue;
-            }
 
-            var coinExchanges = exchanges[coinSummary.CoinType];
-            if (coinExchanges.Contains(CryptoExchange.Coinbase))
+          {
+            // Determine which coin prices need + can be fetched from Coinbase
+            var coinBaseCurrencies = _friendlyNameService.GetExchangeCurrencies(CryptoExchange.Coinbase).ToHashSet();
+            List<string> coinTypesToRequest;
+            lock (_neededPrices)
+            {
+              coinTypesToRequest = _neededPrices.Where(x => !kucoins.Contains(x) && coinBaseCurrencies.Contains(x)).ToList();
+            }
+          
+            // Ask CoinBase for those prices
+            foreach (var coinType in coinTypesToRequest)
             {
               await HttpClientSingleton.UseAsync(stoppingToken, async http =>
               {
-                var url = $"https://api.coinbase.com/v2/prices/{coinSummary.CoinType}-USD/spot";
+                var url = $"https://api.coinbase.com/v2/prices/{coinType}-USD/spot";
                 var response = await http.GetAsync(url);
                 string responseBody = await response.Content.ReadAsStringAsync();
                 if (!response.IsSuccessStatusCode)
                 {
-                  throw new HttpRequestException($"coinbase price api for {coinSummary.CoinType} returned {response.StatusCode}: {responseBody}");
+                  throw new HttpRequestException($"coinbase price api for {coinType} returned {response.StatusCode}: {responseBody}");
                 }
                 var json = JObject.Parse(responseBody);
-                var perCoinCost = Decimal.Parse(json.SelectToken("data.amount").Value<string>(), NumberStyles.Float, CultureInfo.InvariantCulture);
-                var newPrice = new CoinPriceFromExchange { CoinType = coinSummary.CoinType, PerCoinCost = perCoinCost };
-                _dataService.UpdateCoinPrices(new[]{newPrice});
+                var price = Decimal.Parse(json.SelectToken("data.amount").Value<string>(), NumberStyles.Float, CultureInfo.InvariantCulture);
+                var now = DateTime.UtcNow;
+                var newPrice = new CoinPrice(coinType, price, _friendlyNameService.GetOrCreateFriendlyName(coinType), now);
+                var newPrices = new Dictionary<string, CoinPrice>(_prices);
+                newPrices[coinType] = newPrice;
+                _prices = newPrices;
               });
+              
+              NotifyCoinPricesUpdated();
             }
           }
         }
@@ -118,6 +144,18 @@ namespace CryptoProfiteer
           _logger.LogError(ex, $"{ex.GetType().Name} while fetching coin prices: {ex.Message}");
         }
         await Task.Delay(30000, stoppingToken);
+      }
+    }
+    
+    private void NotifyCoinPricesUpdated()
+    {
+      try
+      {
+        CoinPricesUpdated?.Invoke();
+      }
+      catch (Exception ex)
+      {
+        _logger.LogError(ex, $"{ex.GetType().Name} while responding to new coin prices: {ex.Message}");
       }
     }
   }

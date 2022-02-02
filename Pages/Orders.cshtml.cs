@@ -12,11 +12,13 @@ namespace CryptoProfiteer.Pages
   {
     private readonly ILogger<OrdersModel> _logger;
     private readonly IDataService _data;
+    private readonly IPriceService _priceService;
 
-    public OrdersModel(ILogger<OrdersModel> logger, IDataService data)
+    public OrdersModel(ILogger<OrdersModel> logger, IDataService data, IPriceService priceService)
     {
       _logger = logger;
       _data = data;
+      _priceService = priceService;
     }
 
     public IEnumerable<Order> Orders(string sortBy = null)
@@ -33,7 +35,7 @@ namespace CryptoProfiteer.Pages
     }
     
     public IEnumerable<CoinPrice> CoinPrices => _data.Orders.Values.Select(x => x.CoinType).Distinct()
-      .Select(x => _data.CoinPrices.TryGetValue(x, out var price) ? price : null).Where(x => x != null);
+      .Select(x => _priceService.TryGetCoinPrice(x)).Where(x => x != null);
 
     public void OnGet()
     {

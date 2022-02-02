@@ -77,7 +77,7 @@ const nextSortByCashValue = sortBy === 'cashValue' ? 'cashValueAscending' : 'cas
         </a>
       </td>
       <td>@s.CoinCount.ToString("G29")</td>
-      <td>@s.CoinPrice?.PerCoinCost.ToString("c")</td>
+      <td>@s.CoinPrice?.PerCoinCostUsd.ToString("c")</td>
       <td id='cash-value' value='@s.CashValue?.ToString()'>@s.CashValue?.ToString("c")</td>
     </tr>
     <tr class="collapse" id="collapse-@s.CoinType">
