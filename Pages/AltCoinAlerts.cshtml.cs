@@ -14,18 +14,21 @@ namespace CryptoProfiteer.Pages
     private readonly IDataService _data;
     private readonly IAltCoinAlertService _alerts;
     private readonly IHistoricalCoinPriceService _historicalPrices;
+    private readonly IPriceService _currentPrices;
     private readonly IFriendlyNameService _friendlyNames;
 
     public AltCoinAlertsModel(ILogger<AltCoinAlertsModel> logger,
       IDataService data,
       IAltCoinAlertService alerts,
       IHistoricalCoinPriceService historicalPrices,
+      IPriceService currentPrices,
       IFriendlyNameService friendlyNames)
     {
       _logger = logger;
       _data = data;
       _alerts = alerts;
       _historicalPrices = historicalPrices;
+      _currentPrices = currentPrices;
       _friendlyNames = friendlyNames;
     }
     
@@ -42,7 +45,7 @@ namespace CryptoProfiteer.Pages
     
     public string GetFriendlyName(string coinType) => _friendlyNames.GetOrCreateFriendlyName(coinType).Value;
     
-    public Decimal? GetPrice(string coinType, DateTime date) {
+    public Decimal? GetHistoricalPrice(string coinType, DateTime date) {
       var basecoins = _friendlyNames.GetExchangeCurrencies(CryptoExchange.Coinbase);
       var kucoins = _friendlyNames.GetExchangeCurrencies(CryptoExchange.Kucoin);
       if (basecoins.Contains(coinType))
@@ -57,6 +60,10 @@ namespace CryptoProfiteer.Pages
       {
         return null;
       }
+    }
+    
+    public Decimal? GetCurrentPrice(string coinType) {
+      return _currentPrices.TryGetCoinPrice(coinType)?.PerCoinCostUsd;
     }
 
     public void OnGet()
