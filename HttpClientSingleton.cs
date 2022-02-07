@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Net.Http;
@@ -5,16 +6,30 @@ using System;
 
 namespace CryptoProfiteer
 {
-  public static class HttpClientSingleton
+  public interface IHttpClientSingleton
   {
-    private static readonly HttpClient _client = new HttpClient();
-    private static SemaphoreSlim _semaphore = new SemaphoreSlim(1);
+    Task UseAsync(string description, CancellationToken stoppingToken, Func<HttpClient, Task> action);
+  }
+  
+  public class HttpClientSingleton : IHttpClientSingleton
+  {
+    public static readonly string UserAgent = "CryptoProfiteer/0.3.0";
 
-    public static async Task UseAsync(CancellationToken stoppingToken, Func<HttpClient, Task> action)
+    private readonly ILogger<HttpClientSingleton> _logger;
+    private readonly HttpClient _client = new HttpClient();
+    private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1);
+
+    public HttpClientSingleton(ILogger<HttpClientSingleton> logger)
+    {
+      _logger = logger;
+    }
+
+    public async Task UseAsync(string description, CancellationToken stoppingToken, Func<HttpClient, Task> action)
     {
       await _semaphore.WaitAsync(stoppingToken);
       try
       {
+        _logger.LogInformation("HttpClientSingleton now doing: {0}", description);
         await action(_client);
       }
       finally

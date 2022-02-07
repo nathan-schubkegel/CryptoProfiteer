@@ -43,6 +43,8 @@ namespace CryptoProfiteer
       services.AddHostedService(sp => sp.GetRequiredService<HistoricalCoinPriceService>());
 
       services.AddSingleton<IDataService, DataService>();
+      services.AddSingleton<IAltCoinAlertService, AltCoinAlertService>();
+      services.AddSingleton<IHttpClientSingleton, HttpClientSingleton>();
     }
 
     // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

@@ -19,11 +19,12 @@ namespace CryptoProfiteer
   public interface IFriendlyNameService
   {
     FriendlyName GetOrCreateFriendlyName(string coinType);
-    ImmutableArray<string> GetExchangeCurrencies(CryptoExchange exchange);
+    ImmutableHashSet<string> GetExchangeCurrencies(CryptoExchange exchange);
   }
   
   public class FriendlyNameService : BackgroundService, IFriendlyNameService
   {
+    private readonly IHttpClientSingleton _httpClientSingleton;
     private readonly ILogger<FriendlyNameService> _logger;
     private readonly object _lock = new object();
     
@@ -32,16 +33,17 @@ namespace CryptoProfiteer
     
     // these objects are immutable and must be completely replaced, not mutated
     private Dictionary<string, FriendlyName> _friendlyNames = new Dictionary<string, FriendlyName>();
-    private Dictionary<CryptoExchange, ImmutableArray<string>> _exchangeCurrencies = new Dictionary<CryptoExchange, ImmutableArray<string>>();
+    private Dictionary<CryptoExchange, ImmutableHashSet<string>> _exchangeCurrencies = new Dictionary<CryptoExchange, ImmutableHashSet<string>>();
 
-    public FriendlyNameService(ILogger<FriendlyNameService> logger)
+    public FriendlyNameService(ILogger<FriendlyNameService> logger, IHttpClientSingleton httpClientSingleton)
     {
       _logger = logger;
+      _httpClientSingleton = httpClientSingleton;
     }
     
-    public ImmutableArray<string> GetExchangeCurrencies(CryptoExchange exchange)
+    public ImmutableHashSet<string> GetExchangeCurrencies(CryptoExchange exchange)
     {
-      return _exchangeCurrencies.TryGetValue(exchange, out var result) ? result : ImmutableArray<string>.Empty;
+      return _exchangeCurrencies.TryGetValue(exchange, out var result) ? result : ImmutableHashSet<string>.Empty;
     }
     
     public FriendlyName GetOrCreateFriendlyName(string coinType)
@@ -77,11 +79,11 @@ namespace CryptoProfiteer
         _friendlyNames = result;
 
         // update _exchangeCurrencies
-        var newCurrencies = new Dictionary<CryptoExchange, ImmutableArray<string>>(_exchangeCurrencies);
-        newCurrencies[exchange] = newCurrencies.GetValueOrDefault(exchange, ImmutableArray<string>.Empty)
+        var newCurrencies = new Dictionary<CryptoExchange, ImmutableHashSet<string>>(_exchangeCurrencies);
+        newCurrencies[exchange] = newCurrencies.GetValueOrDefault(exchange, ImmutableHashSet<string>.Empty)
           .Concat(newFriendlyNames.Keys)
           .Distinct()
-          .ToImmutableArray();
+          .ToImmutableHashSet();
         _exchangeCurrencies = newCurrencies;
       }
     }
@@ -92,7 +94,7 @@ namespace CryptoProfiteer
       await Task.Yield();
 
       var coinFriendlyNames = new Dictionary<string, string>();
-      await HttpClientSingleton.UseAsync(stoppingToken, async http =>
+      await _httpClientSingleton.UseAsync("fetching coinbase currencies (for friendly names)", stoppingToken, async http =>
       {
         try
         {
@@ -127,7 +129,7 @@ namespace CryptoProfiteer
         }
       });
       
-      await HttpClientSingleton.UseAsync(stoppingToken, async http =>
+      await _httpClientSingleton.UseAsync("fetching kucoin currencies (for friendly names)", stoppingToken, async http =>
       {
         try
         {

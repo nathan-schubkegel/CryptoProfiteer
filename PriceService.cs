@@ -24,6 +24,7 @@ namespace CryptoProfiteer
   
   public class PriceService : BackgroundService, IPriceService
   {
+    private readonly IHttpClientSingleton _httpClientSingleton;
     private readonly ILogger<PriceService> _logger;
     private readonly IFriendlyNameService _friendlyNameService;
     
@@ -35,10 +36,11 @@ namespace CryptoProfiteer
     
     public event Action CoinPricesUpdated;
 
-    public PriceService(ILogger<PriceService> logger, IFriendlyNameService friendlyNameService)
+    public PriceService(ILogger<PriceService> logger, IFriendlyNameService friendlyNameService, IHttpClientSingleton httpClientSingleton)
     {
       _logger = logger;
       _friendlyNameService = friendlyNameService;
+      _httpClientSingleton = httpClientSingleton;
     }
     
     public CoinPrice TryGetCoinPrice(string coinType)
@@ -70,7 +72,7 @@ namespace CryptoProfiteer
           var kucoins = new HashSet<string>();
           {
             var url = $"https://api.kucoin.com/api/v1/prices?base=USD";
-            await HttpClientSingleton.UseAsync(stoppingToken, async http =>
+            await _httpClientSingleton.UseAsync("fetching current prices of all cryptos on kucoin", stoppingToken, async http =>
             {
               var response = await http.GetAsync(url);
               string responseBody = await response.Content.ReadAsStringAsync();
@@ -112,7 +114,7 @@ namespace CryptoProfiteer
             // Ask CoinBase for those prices
             foreach (var coinType in coinTypesToRequest)
             {
-              await HttpClientSingleton.UseAsync(stoppingToken, async http =>
+              await _httpClientSingleton.UseAsync($"fetching current price of {coinType} from coinbase", stoppingToken, async http =>
               {
                 var url = $"https://api.coinbase.com/v2/prices/{coinType}-USD/spot";
                 var response = await http.GetAsync(url);
@@ -143,6 +145,8 @@ namespace CryptoProfiteer
         {
           _logger.LogError(ex, $"{ex.GetType().Name} while fetching coin prices: {ex.Message}");
         }
+        
+        // TODO: be able to interrupt this when someone requests a price that coinbase has that we don't have yet
         await Task.Delay(30000, stoppingToken);
       }
     }
