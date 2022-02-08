@@ -80,7 +80,7 @@ namespace CryptoProfiteer
           }
 
           if (!Enum.TryParse<TransactionType>(fields[buySellIndex], ignoreCase: true, out var transactionType) ||
-              !(transactionType != TransactionType.Buy && transactionType != TransactionType.Sell))
+              (transactionType != TransactionType.Buy && transactionType != TransactionType.Sell))
           {
             throw new Exception($"CSV line {lineNumber} has unrecognized field {buySellIndex + 1} \"{fields[buySellIndex]}\"; expected one of " + string.Join(",", Enum.GetNames(typeof(TransactionType)).Select(x => "\"" + x + "\"")));
           }
@@ -205,7 +205,7 @@ namespace CryptoProfiteer
           }
 
           if (!Enum.TryParse<TransactionType>(fields[buySellIndex], ignoreCase: true, out var transactionType) ||
-              !(transactionType != TransactionType.Buy && transactionType != TransactionType.Sell))
+              (transactionType != TransactionType.Buy && transactionType != TransactionType.Sell))
           {
             throw new Exception($"CSV line {lineNumber} has unrecognized field {buySellIndex + 1} \"{fields[buySellIndex]}\"; expected one of " + string.Join(",", Enum.GetNames(typeof(TransactionType)).Select(x => "\"" + x + "\"")));
           }
