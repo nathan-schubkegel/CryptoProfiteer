@@ -21,6 +21,12 @@ namespace CryptoProfiteer.Pages
 
     public IEnumerable<Transaction> OrderedTransactions =>  _data.Transactions.Values
       .OrderByDescending(x => x.Time).ThenBy(x => x.TradeId);
+      
+    public IEnumerable<(string MachineName, string FriendlyName)> GetCoinTypes() =>
+      _data.Transactions.Values
+      .Select(t => (t.CoinType, t.FriendlyName))
+      .Distinct()
+      .OrderBy(x => x.FriendlyName);
 
     public void OnGet()
     {

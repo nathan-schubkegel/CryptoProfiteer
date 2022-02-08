@@ -26,9 +26,11 @@ namespace CryptoProfiteer
     // Returns the new/modified TaxAssociation ID
     string UpdateTaxAssociation(string taxAssociationId, string saleOrderId,
       (string orderId, Decimal contributingCoinCount, int contributingCost)[] purchaseOrderUpdates);
-      
+
     void DeleteTaxAssociation(string taxAssociationId);
-    
+    string AddAdjustment(string coinType, decimal coinCount);
+    void DeleteAdjustment(string transactionId);
+
     (IEnumerable<PersistedTransaction> Transactions, IEnumerable<PersistedTaxAssociation> TaxAssociations) GetPersistedData();
   }
 
@@ -129,8 +131,7 @@ namespace CryptoProfiteer
         x => new CoinSummary(
           coinType: x.Key,
           friendlyName: _friendlyNameService.GetOrCreateFriendlyName(x.Key),
-          coinCount: x.Where(y => y.TransactionType == TransactionType.Buy).Select(y => y.CoinCount).Sum()
-            - x.Where(y => y.TransactionType == TransactionType.Sell).Select(y => y.CoinCount).Sum(),
+          coinCount: x.Sum(y => y.TransactionType == TransactionType.Sell ? -y.CoinCount : y.CoinCount),
           coinPrice: _priceService.TryGetCoinPrice(x.Key))
       );
     }
@@ -330,6 +331,53 @@ namespace CryptoProfiteer
           Transactions.Values.Select(x => x.GetPersistedData()), 
           TaxAssociations.Values.Select(x => x.GetPersistedData())
         );
+      }
+    }
+    
+    public string AddAdjustment(string coinType, decimal coinCount)
+    {
+      lock (_lock)
+      {
+        if (!Transactions.Values.Any(x => x.CoinType == coinType))
+        {
+          throw new Exception("Unrecognized coin type; you can only adjust coins that you already own.");
+        }
+        
+        var id = "adjustment-" + Guid.NewGuid().ToString();
+        ImportTransactions(new [] { new PersistedTransaction
+        {
+          TradeId = id,
+          TransactionType = TransactionType.Adjustment,
+          Exchange = CryptoExchange.None,
+          Time = DateTime.UtcNow,
+          CoinType = coinType,
+          PaymentCoinType = "USD",
+          CoinCount = coinCount,
+          PerCoinCost = 0m,
+          Fee = 0m,
+          TotalCost = 0m,
+        }});
+        return id;
+      }
+    }
+
+    public void DeleteAdjustment(string tradeId)
+    {
+      lock (_lock)
+      {
+        var oldTransactions = Transactions;
+        var newTransactions = new Dictionary<string, Transaction>(Transactions.Where(
+          kvp => !(kvp.Key == tradeId && kvp.Value.TransactionType == TransactionType.Adjustment)));
+        try
+        {
+          Transactions = newTransactions;
+          ImportTransactions(new PersistedTransaction[0]);
+        }
+        catch
+        {
+          Transactions = oldTransactions;
+          throw;
+        }
       }
     }
   }

@@ -92,10 +92,117 @@
   </button>
   <input id="upload-coinbase-fills-input" type="file" name="name" style="display: none;" />
   <img id="upload-coinbase-fills-spinny" src="/spinny-arrows.gif" style="display: none;" />
-
+  <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#modalToAddAdjustment" onclick="onAddAdjustment()">
+    Add Adjustment
+  </button>
 </h1>
 
+<!-- A modal dialog for adding an adjustment transaction -->
+<div class="modal fade" id="modalToAddAdjustment" tabindex="-1" role="dialog" aria-labelledby="modalToAddAdjustment-Title" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalToAddAdjustment-Title">
+          Add Adjustment Transaction
+        </h5>
+        (like... you need to adjust how much of a particular coin you actually own because this software doesn't account for wallet transfer fees)
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="input-group mb-3">
+        
+          <div class="input-group-prepend">
+            <label class="input-group-text" for="modalToAddAdjustment_CoinType">Coin Type</label>
+          </div>
+          <select class="custom-select" id="modalToAddAdjustment_CoinType">
+        @{
+          foreach (var coinType in Model.GetCoinTypes())
+          {
+            <option value="@coinType.MachineName">@coinType.FriendlyName</option>
+          }
+        }
+          </select>
+        </div>
+        <div class="input-group mb-3">
+          <div class="input-group-prepend">
+            <span class="input-group-text">Coin Count</span>
+          </div>
+          <input type="text" class="form-control" aria-label="Amount" value="-0.0001" id="modalToAddAdjustment_CoinCount">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <img id="modalToAddAdjustment-okSpinny" src="/spinny-arrows.gif" style="display: none;" />
+        <button type="button" class="btn btn-primary" onclick="modalToAddAdjustmentOkButtonClick()">OK</button>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
+async function modalToAddAdjustmentOkButtonClick()
+{
+  let coinTypeInput = document.getElementById('modalToAddAdjustment_CoinType');
+  let coinCountInput = document.getElementById('modalToAddAdjustment_CoinCount');
+
+  let spinny = document.getElementById('modalToAddAdjustment-okSpinny');
+  spinny.style = '';
+  try {
+    let r = await fetch('/api/addAdjustment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        coinType: coinTypeInput.value,
+        coinCount: coinCountInput.value
+      })
+    });
+
+    if (r.ok) {
+      location.reload();
+    }
+    else {
+      let t = await r.text();
+      alert('!ok: ' + t);
+    }
+  }
+  catch (e) {
+    alert(e);
+  }
+  finally {
+    spinny.style = 'display: none;';
+  }
+}
+
+async function deleteAdjustment(tradeId, spinnyParent)
+{
+  let spinny = document.getElementById('deleteAdjustment-spinny');
+  spinnyParent.appendChild(spinny);
+  spinny.style = '';
+  try {
+    let r = await fetch('/api/deleteAdjustment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tradeId })
+    });
+
+    if (r.ok) {
+      location.reload();
+    }
+    else {
+      let t = await r.text();
+      alert('!ok: ' + t);
+    }
+  }
+  catch (e) {
+    alert(e);
+  }
+  finally {
+    spinny.style = 'display: none;';
+  }
+}
+
 let filteredBy = '';
 function filterBy(coinType)
 {
@@ -138,7 +245,10 @@ function filterBy(coinType)
 
     <tr>
       <td>@t.Time.ToLocalTime().ToString("g")</td>
-      <td>@t.TransactionType</td>
+      <td>@{ 
+        if (t.TransactionType != TransactionType.Adjustment) { <text>@t.TransactionType</text> }
+        else { <button type="button" class="btn btn-primary" onclick="deleteAdjustment('@t.TradeId', this.parentElement)">Delete Adjustment</button> }
+      }</td>
       <td id='coin-type'>
         <button id='coin-type-filter-button' type="button" class="btn btn-secondary btn-sm"
           onclick='filterBy("@t.CoinType")'
@@ -155,3 +265,4 @@ function filterBy(coinType)
 }
   </tbody>
 </table>
+<img id="deleteAdjustment-spinny" src="/spinny-arrows.gif" style="display: none;" />

@@ -6,11 +6,11 @@ namespace CryptoProfiteer
 {
   // NOTE: this type is JSON serialized/deserialized
   [JsonConverter(typeof(StringEnumConverter))] 
-  public enum TransactionType { Buy, Sell }
+  public enum TransactionType { Buy, Sell, Adjustment }
 
   // NOTE: this type is JSON serialized/deserialized
   [JsonConverter(typeof(StringEnumConverter))] 
-  public enum CryptoExchange { Coinbase, Kucoin }
+  public enum CryptoExchange { None, Coinbase, Kucoin }
 
   // NOTE: this type is JSON serialized/deserialized
   public class PersistedTransaction

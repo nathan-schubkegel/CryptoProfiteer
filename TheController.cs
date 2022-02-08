@@ -79,7 +79,8 @@ namespace CryptoProfiteer
             throw new Exception($"CSV line {lineNumber} has {fields.Count} fields; different from header line which has {headerFields.Count} fields; aborting.");
           }
 
-          if (!Enum.TryParse<TransactionType>(fields[buySellIndex], ignoreCase: true, out var transactionType))
+          if (!Enum.TryParse<TransactionType>(fields[buySellIndex], ignoreCase: true, out var transactionType) ||
+              !(transactionType != TransactionType.Buy && transactionType != TransactionType.Sell))
           {
             throw new Exception($"CSV line {lineNumber} has unrecognized field {buySellIndex + 1} \"{fields[buySellIndex]}\"; expected one of " + string.Join(",", Enum.GetNames(typeof(TransactionType)).Select(x => "\"" + x + "\"")));
           }
@@ -203,7 +204,8 @@ namespace CryptoProfiteer
             throw new Exception($"CSV line {lineNumber} has {fields.Count} fields; different from header line which has {headerFields.Count} fields; aborting.");
           }
 
-          if (!Enum.TryParse<TransactionType>(fields[buySellIndex], ignoreCase: true, out var transactionType))
+          if (!Enum.TryParse<TransactionType>(fields[buySellIndex], ignoreCase: true, out var transactionType) ||
+              !(transactionType != TransactionType.Buy && transactionType != TransactionType.Sell))
           {
             throw new Exception($"CSV line {lineNumber} has unrecognized field {buySellIndex + 1} \"{fields[buySellIndex]}\"; expected one of " + string.Join(",", Enum.GetNames(typeof(TransactionType)).Select(x => "\"" + x + "\"")));
           }
@@ -329,6 +331,32 @@ namespace CryptoProfiteer
     public IActionResult DeleteTaxAssociation([FromBody]DeleteTaxAssociationInputs inputs)
     {
       _dataService.DeleteTaxAssociation(inputs.TaxAssociationId);
+      return Ok();
+    }
+    
+    public class AddAdjustmentInputs
+    {
+      public string CoinType { get; set; }
+      public string CoinCount { get; set; }
+    }
+    
+    [HttpPost("addAdjustment")]
+    public IActionResult AddAdjustment([FromBody]AddAdjustmentInputs inputs)
+    {
+      var coinCount = Decimal.Parse(inputs.CoinCount, NumberStyles.Float, CultureInfo.InvariantCulture);
+      _dataService.AddAdjustment(inputs.CoinType, coinCount);
+      return Ok();
+    }
+    
+    public class DeleteAdjustmentInputs
+    {
+      public string TradeId { get; set; }
+    }
+    
+    [HttpPost("deleteAdjustment")]
+    public IActionResult DeleteAdjustment([FromBody]DeleteAdjustmentInputs inputs)
+    {
+      _dataService.DeleteAdjustment(inputs.TradeId);
       return Ok();
     }
   }
