@@ -200,11 +200,20 @@
         }</td>
       </tr>
     }
+
+    WritePotentialProfitsRow("Total (perfectly timed sale)", percentGainsTotal);
+    WritePotentialProfitsRow("Hype (perfectly timed sale)", percentGainsHype);
+    WritePotentialProfitsRow("Winner (perfectly timed sale)", percentGainsWinner);
+    WritePotentialProfitsRow("Loser (perfectly timed sale)", percentGainsLoser);
     
-    WritePotentialProfitsRow("Total", percentGainsTotal);
-    WritePotentialProfitsRow("Hype", percentGainsHype);
-    WritePotentialProfitsRow("Winner", percentGainsWinner);
-    WritePotentialProfitsRow("Loser", percentGainsLoser);
+    percentGainsTotal = percentGainsTotal.Select(x => Math.Min(10, x)).ToList();
+    percentGainsHype = percentGainsHype.Select(x => Math.Min(10, x)).ToList();
+    percentGainsWinner = percentGainsWinner.Select(x => Math.Min(10, x)).ToList();
+    percentGainsLoser = percentGainsLoser.Select(x => Math.Min(10, x)).ToList();
+    WritePotentialProfitsRow("Total (10% max sale)", percentGainsTotal);
+    WritePotentialProfitsRow("Hype (10% max sale)", percentGainsHype);
+    WritePotentialProfitsRow("Winner (10% max sale)", percentGainsWinner);
+    WritePotentialProfitsRow("Loser (10% max sale)", percentGainsLoser);
   }
     </tbody>
   </table>

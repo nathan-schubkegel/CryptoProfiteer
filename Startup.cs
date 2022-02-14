@@ -44,6 +44,7 @@ namespace CryptoProfiteer
 
       services.AddSingleton<IDataService, DataService>();
       services.AddSingleton<IAltCoinAlertService, AltCoinAlertService>();
+      services.AddSingleton<ICandleService, CandleService>();
       services.AddSingleton<IHttpClientSingleton, HttpClientSingleton>();
     }
 

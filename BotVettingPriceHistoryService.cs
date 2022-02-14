@@ -11,17 +11,16 @@ using Newtonsoft.Json;
 
 namespace CryptoProfiteer
 {
-  public static class StringUtils
+  public interface IBotVettingPriceHistoryService
   {
-    public static IEnumerable<string> GetLines(this string source)
+  }
+
+  public class BotVettingPriceHistoryService: IBotVettingPriceHistoryService
+  {
+    private readonly object _lock = new object();
+
+    public BotVettingPriceHistoryService()
     {
-      var reader = new StringReader(source ?? string.Empty);
-      string line;
-      while (null != (line = reader.ReadLine()))
-      {
-        yield return line;
-      }
-      reader.Dispose();
     }
   }
 }
