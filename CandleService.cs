@@ -73,12 +73,11 @@ namespace CryptoProfiteer
     public PersistedCandleRangeId Id { get; set; }
     
     // NOTE: this list contains null arrays where the exchange has gaps in trade data
+    // NOTE: this property is persisted to JSON on disk
     public List<Decimal[]> Candles { get; set; }
 
-    [JsonIgnore]
     public int Count => Candles.Count;
 
-    //[JsonIgnore]
     public Candle? TryGetCandle(int i)
     {
       if (i < 0 || i >= Candles.Count) return null;
@@ -109,6 +108,9 @@ namespace CryptoProfiteer
     public const int CloseIndex = 1;
     public const int HighIndex = 2;
     public const int LowIndex = 3;
+    
+    public bool IsBearish => Close < Open;
+    public bool IsBullish => Open > Close;
   }
   
   public enum CandleGranularity
@@ -230,11 +232,10 @@ namespace CryptoProfiteer
             data.Add(null);
           }
 
-          var jsonBlob = JsonConvert.SerializeObject(data);
-          
           // avoid polluting our cache: only save data to disk if none of it was "in the future" when we asked for it
           if (allDataIsPast)
           {
+            var jsonBlob = JsonConvert.SerializeObject(data);
             lock(_fileLock)
             {
               Directory.CreateDirectory(dirPath);

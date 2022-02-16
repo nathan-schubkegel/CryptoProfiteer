@@ -16,11 +16,13 @@ namespace CryptoProfiteer
   public class TheController : ControllerBase
   {
     private readonly IDataService _dataService;
+    private readonly IBotProvingService _botProvingService;
     private readonly ILogger<TheController> _logger;
 
-    public TheController(IDataService dataService, ILogger<TheController> logger)
+    public TheController(IDataService dataService, IBotProvingService botProvingService, ILogger<TheController> logger)
     {
       _dataService = dataService;
+      _botProvingService = botProvingService;
       _logger = logger;
     }
 
@@ -358,6 +360,36 @@ namespace CryptoProfiteer
     {
       _dataService.DeleteAdjustment(inputs.TradeId);
       return Ok();
+    }
+    
+    public class ProveBotInputs
+    {
+      public string StartTime { get; set; }
+      public string EndTime { get; set; }
+      public string BotName { get; set; }
+      public string Granularity { get; set; }
+      public string InitialUsd { get; set; }
+      public string CoinType { get; set; }
+    }
+    
+    public class ProveBotOutputs
+    {
+      public BotProofResult Result { get; set; }
+    }
+    
+    [HttpPost("proveBot")]
+    public async Task<ActionResult<ProveBotOutputs>> ProveBot([FromBody]ProveBotInputs inputs)
+    {
+      var result = await _botProvingService.Prove(
+        botName: inputs.BotName,
+        coinType: inputs.CoinType,
+        initialUsd: Decimal.Parse(inputs.InitialUsd, NumberStyles.Float, CultureInfo.InvariantCulture),
+        startTime: DateTime.Parse(inputs.StartTime, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal),
+        endTime: DateTime.Parse(inputs.EndTime, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal),
+        granularity: Enum.Parse<CandleGranularity>(inputs.Granularity, ignoreCase: true),
+        stoppingToken: HttpContext.RequestAborted
+      );
+      return new ProveBotOutputs { Result = result };
     }
   }
 }

@@ -1,0 +1,90 @@
+@page
+@using System.Globalization;
+@using System.Threading;
+@using System.Threading.Tasks;
+@model BotProofModel
+@{
+  ViewData["Title"] = "Bot Proof";
+}
+
+<style>
+.table > thead > tr:first-child > th {
+    border: none;
+}
+</style>
+
+<h1>
+  @ViewData["Title"]
+</h1>
+
+<script>
+let isFetchingMore = false;
+let botName = 'ThreeUpsThenDownBot';
+let startTime = '2022-01-01T00:00:00Z';
+let hours = 0;
+let granularity = 'Minutes';
+let coinType = 'BTC';
+let initialUsd = '100';
+
+async function more()
+{
+  if (isFetchingMore) return;
+  let spinny = document.getElementById('more-spinny');
+  spinny.style.display = '';
+  isFetchingMore = true;
+  try
+  {
+    hours += 6;
+    
+    let startDate = new Date(startTime)
+    let endDate = new Date(startTime);
+    endDate.setHours(startDate.getHours() + hours);
+  
+    let r = await fetch('/api/proveBot', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        startTime: startDate.toISOString(),
+        endTime: endDate.toISOString(),
+        botName,
+        granularity,
+        initialUsd,
+        coinType
+      })
+    });
+
+    if (r.ok) {
+      let t = await r.text();
+      displayMoreResults(t);
+    }
+    else {
+      let t = await r.text();
+      alert('!ok: ' + t);
+    }
+  }
+  catch (e) {
+    alert('failed: ' + e);
+  }
+  finally
+  {
+    isFetchingMore = false;
+    spinny.style.display = 'none';
+  }
+}
+
+function displayMoreResults(t)
+{
+  document.getElementById('more-results').innerText = t;
+}
+</script>
+
+<div id='more-results'>
+  No results yet. Click 'more' to simulate!
+</div>
+<button id='more-button' type="button" class="btn btn-primary btn-sm"
+  onclick="more()"
+>
+  More
+</button>
+
+<img id="more-spinny" src="/spinny-arrows.gif" style="display: none;" />
