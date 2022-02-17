@@ -47,6 +47,11 @@ namespace CryptoProfiteer
       services.AddSingleton<ICandleService, CandleService>();
       services.AddSingleton<IHttpClientSingleton, HttpClientSingleton>();
       services.AddSingleton<IBotProvingService, BotProvingService>();
+      
+      services.AddControllers().AddJsonOptions(options =>
+      {
+        options.JsonSerializerOptions.WriteIndented = true;
+      });
     }
 
     // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
