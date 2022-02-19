@@ -1,6 +1,7 @@
 
 using System;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 
 namespace CryptoProfiteer
 {
@@ -8,8 +9,11 @@ namespace CryptoProfiteer
   // and tries to sell when a candle goes bearish
   public class ThreeUpsThenDownBot : ITradeBot
   {
-    public ThreeUpsThenDownBot(Decimal initialFunds)
+    private readonly ILogger _logger;
+    
+    public ThreeUpsThenDownBot(ILogger logger, Decimal initialFunds)
     {
+      _logger = logger;
       Usd = initialFunds;
       MaxUsdHeld = initialFunds;
     }
@@ -55,6 +59,7 @@ namespace CryptoProfiteer
           _candles[_candles.Count - 3].IsBearish &&
           _candles[_candles.Count - 4].IsBearish)
       {
+        _logger.LogInformation("Buying because we're at a bullish candle after 3 bearish candles"); 
         return Usd;
       }
       
@@ -68,24 +73,42 @@ namespace CryptoProfiteer
       // can't sell if I have no coins
       if (CoinCount <= 0m) return null;
       
-      // if at any time the price drops below 5% of where I bought, then sell as a safety measure
+      // I don't know why these would be null... I just gotta ignore these scenarios for now...
       if (CurrentPrice == null) return null;
-      if (CurrentPrice.Value * 0.95m > LastPurchasedPerCoinPrice.Value) return CoinCount;
+      if (LastPurchasedPerCoinPrice == null) return null;
       
-      // if at any time the price drops below 50% of the difference 
-      // from "where I bought it" to "the max I've possibly been able to buy it"
-      // then sell as a profit-guaranteeing measure
-      if (MaxObservedPotentialSalePrice != null &&
-          (MaxObservedPotentialSalePrice.Value - LastPurchasedPerCoinPrice.Value) * 0.5m + LastPurchasedPerCoinPrice.Value > CurrentPrice.Value)
+      // if at any time the price drops below 5% of where I bought, then sell as a safety measure
+      if (CurrentPrice.Value * 0.95m > LastPurchasedPerCoinPrice.Value)
       {
+        _logger.LogInformation($"Selling because CurrentPrice ({CurrentPrice}) * 0.95m > LastPurchasedPerCoinPrice ({LastPurchasedPerCoinPrice})");
         return CoinCount;
       }
       
+      // if at least 0.4% profit has been possible at some point
+      if (MaxObservedPotentialPerCoinPrice.Value >= 1.004m * LastPurchasedPerCoinPrice.Value)
+      {
+        // if at any time the profit drops below 50% of the max possible profit
+        // then sell as a profit-guaranteeing measure
+        var limit = (MaxObservedPotentialPerCoinPrice.Value - LastPurchasedPerCoinPrice.Value) * 0.5m + LastPurchasedPerCoinPrice.Value;
+        if (CurrentPrice.Value <= limit)
+        {
+          _logger.LogInformation($"Selling because CurrentPrice ({CurrentPrice}) <= limit ({limit})");
+          return CoinCount;
+        }
+        else
+        {
+          _logger.LogInformation($"max observed price >= 0.4% up, but CurrentPrice ({CurrentPrice}) > ");
+        }
+      }
+
+      /*
       // sell when there's a decreasing candle
       if (_candles[_candles.Count - 1].IsBearish)
       {
-        return Usd;
+        _logger.LogInformation($"Selling because there's a bearish candle");
+        return CoinCount;
       }
+      */
       
       return null;
     }
@@ -96,8 +119,8 @@ namespace CryptoProfiteer
       Usd = Math.Max(0m, Usd - usd);
       MaxUsdHeld = Math.Max(MaxUsdHeld, Usd);
       CoinCount = Math.Max(0m, CoinCount + coinCount);
-      LastPurchasedPerCoinPrice = coinCount / usd;
-      MaxObservedPotentialSalePrice = LastPurchasedPerCoinPrice;
+      LastPurchasedPerCoinPrice = usd / coinCount;
+      MaxObservedPotentialPerCoinPrice = LastPurchasedPerCoinPrice;
     }
     
     // notifies the bot that it successfully sold X coins for Y dollars
@@ -107,7 +130,7 @@ namespace CryptoProfiteer
       MaxUsdHeld = Math.Max(MaxUsdHeld, Usd);
       CoinCount = Math.Max(0m, CoinCount - coinCount);
       LastPurchasedPerCoinPrice = null;
-      MaxObservedPotentialSalePrice = null;
+      MaxObservedPotentialPerCoinPrice = null;
     }
     
     // notifies the bot of the latest-fetched current crypto price
@@ -115,9 +138,9 @@ namespace CryptoProfiteer
     {
       CurrentPrice = price;
       CurrentPriceTime = time;
-      if (MaxObservedPotentialSalePrice != null)
+      if (MaxObservedPotentialPerCoinPrice != null)
       {
-        MaxObservedPotentialSalePrice = Math.Max(MaxObservedPotentialSalePrice.Value, CurrentPrice.Value);
+        MaxObservedPotentialPerCoinPrice = Math.Max(MaxObservedPotentialPerCoinPrice.Value, CurrentPrice.Value);
       }
     }
     
@@ -138,6 +161,6 @@ namespace CryptoProfiteer
     public Decimal MaxUsdHeld { get; private set; }
     private readonly List<Candle> _candles = new List<Candle>();
     public Decimal? LastPurchasedPerCoinPrice { get; private set; }
-    public Decimal? MaxObservedPotentialSalePrice { get; private set; }
+    public Decimal? MaxObservedPotentialPerCoinPrice { get; private set; }
   }
 }

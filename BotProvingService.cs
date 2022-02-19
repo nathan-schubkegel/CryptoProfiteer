@@ -36,10 +36,12 @@ namespace CryptoProfiteer
   public class BotProvingService: IBotProvingService
   {
     private readonly ICandleService _candleService;
+    private readonly ILogger<BotProvingService> _logger;
     
-    public BotProvingService(ICandleService candleService)
+    public BotProvingService(ICandleService candleService, ILogger<BotProvingService> logger)
     {
       _candleService = candleService;
+      _logger = logger;
     }
     
     public async Task<BotProofResult> Prove(string botName, string coinType, Decimal initialUsd, DateTime startTime, DateTime endTime, CandleGranularity granularity, CancellationToken stoppingToken)
@@ -47,7 +49,7 @@ namespace CryptoProfiteer
       var result = new BotProofResult();
       
       if (botName != "ThreeUpsThenDownBot") throw new Exception("unsupported bot name; only 'ThreeUpsThenDownBot' is supported now");
-      var bot = new ThreeUpsThenDownBot(initialUsd);
+      var bot = new ThreeUpsThenDownBot(_logger, initialUsd);
       bot.CoinType = coinType;
       bot.Granularity = granularity;
       
