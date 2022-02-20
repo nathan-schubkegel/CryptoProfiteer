@@ -17,6 +17,7 @@ namespace CryptoProfiteer
     public DateTime Time { get; set; }
     public Decimal Usd { get; set; }
     public Decimal CoinCount { get; set; }
+    public string Note { get; set; }
   }
   
   // NOTE: this class is serialized to JSON for the front-end
@@ -36,10 +37,12 @@ namespace CryptoProfiteer
   public class BotProvingService: IBotProvingService
   {
     private readonly ICandleService _candleService;
+    private readonly ILogger<BotProvingService> _logger;
     
-    public BotProvingService(ICandleService candleService)
+    public BotProvingService(ICandleService candleService, ILogger<BotProvingService> logger)
     {
       _candleService = candleService;
+      _logger = logger;
     }
     
     public async Task<BotProofResult> Prove(string botName, string coinType, Decimal initialUsd, DateTime startTime, DateTime endTime, CandleGranularity granularity, CancellationToken stoppingToken)
@@ -51,6 +54,7 @@ namespace CryptoProfiteer
       bot.CoinType = coinType;
       bot.Granularity = granularity;
       
+      Candle? lastCandle = null;
       DateTime currentTime = startTime;
       if (endTime < startTime) throw new Exception("invalid end time earlier than start time");
       if (endTime - startTime > TimeSpan.FromDays(365)) throw new Exception("invalid end time too far after start time; only max 1 year is supported now");
@@ -68,8 +72,9 @@ namespace CryptoProfiteer
           var candle = range.TryGetCandle(i);
           if (candle != null)
           {
+            lastCandle = candle;
             bot.ApplyNextCandle(currentTime, candle.Value);
-            var usdToSpend = bot.WantsToBuy();
+            (var usdToSpend, var buyNote) = bot.WantsToBuy();
             if (usdToSpend != null)
             {
               // buy coins with that money
@@ -78,11 +83,17 @@ namespace CryptoProfiteer
               var coinsPurchased = (usdToSpend.Value - fee) / price;
               bot.Bought(coinsPurchased, usdToSpend.Value);
               // could keep track of coin count and USD to make sure the bot doesn't cheat, but meh
-              result.BotStates.Add(new BotState { Time = currentTime, Usd = bot.Usd, CoinCount = bot.CoinCount });
+              result.BotStates.Add(new BotState
+              { 
+                Time = currentTime,
+                Usd = bot.Usd,
+                CoinCount = bot.CoinCount,
+                Note = buyNote,
+              });
             }
             else
             {
-              var coinsToSell = bot.WantsToSell();
+              (var coinsToSell, var sellNote) = bot.WantsToSell();
               if (coinsToSell != null)
               {
                 // sell those coins
@@ -92,12 +103,38 @@ namespace CryptoProfiteer
                 var usdGained = money - fee;
                 bot.Sold(coinsToSell.Value, usdGained);
                 // could keep track of coin count and USD to make sure the bot doesn't cheat, but meh
-                result.BotStates.Add(new BotState { Time = currentTime, Usd = bot.Usd, CoinCount = bot.CoinCount });
+                result.BotStates.Add(new BotState
+                {
+                  Time = currentTime,
+                  Usd = bot.Usd,
+                  CoinCount = bot.CoinCount,
+                  Note = sellNote,
+                });
               }
             }
           }
         }
       }
+      
+      // sell any still-held coins
+      // so I can see what the bot had (in USD) at the end of the run
+      if (bot.CoinCount > 0)
+      {
+        var price = lastCandle.Value.Close;
+        var money = price * bot.CoinCount;
+        var fee = 0.002m * money;
+        var usdGained = money - fee;
+        bot.Sold(bot.CoinCount, usdGained);
+        // could keep track of coin count and USD to make sure the bot doesn't cheat, but meh
+        result.BotStates.Add(new BotState
+        {
+          Time = currentTime,
+          Usd = bot.Usd,
+          CoinCount = bot.CoinCount,
+          Note = $"Forced to sell at CurrentPrice ({price}) because we're at the end of the simulation",
+        });
+      }
+      
       result.FinalCoinCount = bot.CoinCount;
       result.FinalUsd = bot.Usd;
       result.IsSunk = bot.IsSunk;
