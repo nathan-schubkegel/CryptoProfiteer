@@ -9,11 +9,8 @@ namespace CryptoProfiteer
   // and tries to sell when a candle goes bearish
   public class ThreeUpsThenDownBot : ITradeBot
   {
-    private readonly ILogger _logger;
-    
-    public ThreeUpsThenDownBot(ILogger logger, Decimal initialFunds)
+    public ThreeUpsThenDownBot(Decimal initialFunds)
     {
-      _logger = logger;
       Usd = initialFunds;
       MaxUsdHeld = initialFunds;
     }
@@ -41,16 +38,16 @@ namespace CryptoProfiteer
 
     // does the bot want to buy coins right now? how much money to spend? (assumes market price)
     // a non-null return value doesn't complete a purchase; it just instructs the system how much to buy if it can
-    public Decimal? WantsToBuy()
+    public (Decimal? usd, string note) WantsToBuy()
     {
       // don't buy while I'm holding coins
-      if (CoinCount > 0m) return null;
+      if (CoinCount > 0m) return (null, null);
       
       // can't buy if I'm out of money
-      if (Usd <= 0m) return null;
+      if (Usd <= 0m) return (null, null);
       
       // don't buy if I've had a 20% losing streak; consider the bot sunk at that point
-      if (IsSunk) return null;
+      if (IsSunk) return (null, null);
 
       // buy when there are at least 3 decreasing candles followed by an increasing candle
       if (_candles.Count >= 4 &&
@@ -59,58 +56,67 @@ namespace CryptoProfiteer
           _candles[_candles.Count - 3].IsBearish &&
           _candles[_candles.Count - 4].IsBearish)
       {
-        _logger.LogInformation("Buying because we're at a bullish candle after 3 bearish candles"); 
-        return Usd;
+        var bearOpen = _candles[_candles.Count - 4].Open;
+        var bearClose = _candles[_candles.Count - 2].Close;
+        var bearPercent = 1.0m - (bearClose / bearOpen);
+
+        var bullOpen = _candles[_candles.Count - 1].Open;
+        var bullClose = _candles[_candles.Count - 1].Close;
+        var bullPercent = (bullClose / bullOpen) - 1.0m;
+
+        return (Usd, $"Buying at CurrentPrice ({CurrentPrice?.ToString("F2")}) because " + 
+          $"after 3 bearish candles ({bearPercent.ToString("P1")} down from {bearOpen.ToString("F2")} to {bearClose.ToString("F2")}) " +
+          $"there was a bullish candle ({bullPercent.ToString("P1")} up from {bullOpen.ToString("F2")} to {bullClose.ToString("F2")})");
       }
       
-      return null;
+      return (null, null);
     }
     
     // does the bot want to sell coins right now? how many coins to sell? (assumes market price)
     // a non-null return value doesn't complete a sale; it just instructs the system how much to sell if it can
-    public Decimal? WantsToSell()
+    public (Decimal? coinCount, string note) WantsToSell()
     {
       // can't sell if I have no coins
-      if (CoinCount <= 0m) return null;
+      if (CoinCount <= 0m) return (null, null);
       
-      // I don't know why these would be null... I just gotta ignore these scenarios for now...
-      if (CurrentPrice == null) return null;
-      if (LastPurchasedPerCoinPrice == null) return null;
+      // Technically CurrentPrice should never be null when WantsToSell() is invoked
+      // but have a reasonable behavior for that scenario anyway
+      if (CurrentPrice == null) return (null, null);
+
+      // Technically LastPurchasedPerCoinPrice should be non null once coins are bought
+      // but have a reasonable behavior for that scenairo anyway
+      if (LastPurchasedPerCoinPrice == null) return (null, null);
       
       // if at any time the price drops below 5% of where I bought, then sell as a safety measure
-      if (CurrentPrice.Value * 0.95m > LastPurchasedPerCoinPrice.Value)
+      if (CurrentPrice.Value < LastPurchasedPerCoinPrice.Value * 0.95m)
       {
-        _logger.LogInformation($"Selling because CurrentPrice ({CurrentPrice}) * 0.95m > LastPurchasedPerCoinPrice ({LastPurchasedPerCoinPrice})");
-        return CoinCount;
+        return (CoinCount, $"Selling as safety measure because CurrentPrice ({CurrentPrice?.ToString("F2")}) " +
+          $"dropped 5% or more below LastPurchasedPerCoinPrice ({LastPurchasedPerCoinPrice?.ToString("F2")})");
       }
       
-      // if at least 0.4% profit has been possible at some point
-      if (MaxObservedPotentialPerCoinPrice.Value >= 1.004m * LastPurchasedPerCoinPrice.Value)
+      // coinbase takes a 0.2% transaction fee, so don't sell below that point
+      // to ensure the bot always makes a profit
+      if (CurrentPrice.Value <= LastPurchasedPerCoinPrice.Value * 1.002m)
       {
-        // if at any time the profit drops below 50% of the max possible profit
-        // then sell as a profit-guaranteeing measure
-        var limit = (MaxObservedPotentialPerCoinPrice.Value - LastPurchasedPerCoinPrice.Value) * 0.5m + LastPurchasedPerCoinPrice.Value;
-        if (CurrentPrice.Value <= limit)
-        {
-          _logger.LogInformation($"Selling because CurrentPrice ({CurrentPrice}) <= limit ({limit})");
-          return CoinCount;
-        }
-        else
-        {
-          _logger.LogInformation($"max observed price >= 0.4% up, but CurrentPrice ({CurrentPrice}) > ");
-        }
+        return (null, null);
       }
 
-      /*
-      // sell when there's a decreasing candle
+      // At this point in the logic, we're in the profit zone.
+      // Sell when there's a decreasing candle
       if (_candles[_candles.Count - 1].IsBearish)
       {
-        _logger.LogInformation($"Selling because there's a bearish candle");
-        return CoinCount;
+        var profitPercent = CurrentPrice.Value / LastPurchasedPerCoinPrice.Value - 1.0m;
+        
+        var bearOpen = _candles[_candles.Count - 1].Open;
+        var bearClose = _candles[_candles.Count - 1].Close;
+        var bearPercent = 1.0m - (bearClose / bearOpen);
+
+        return (CoinCount, $"Selling at CurrentPrice ({CurrentPrice?.ToString("F2")}) because we're " + 
+          $"{profitPercent.ToString("P1")} up from LastPurchasePrice ({LastPurchasedPerCoinPrice?.ToString("F2")}) " + 
+          $"and there's a bearish candle ({bearPercent.ToString("P1")} down from {bearOpen.ToString("F2")} to {bearClose.ToString("F2")})");
       }
-      */
-      
-      return null;
+
+      return (null, null);
     }
     
     // notifies the bot that it successfully purchased X coins for Y dollars
@@ -120,7 +126,6 @@ namespace CryptoProfiteer
       MaxUsdHeld = Math.Max(MaxUsdHeld, Usd);
       CoinCount = Math.Max(0m, CoinCount + coinCount);
       LastPurchasedPerCoinPrice = usd / coinCount;
-      MaxObservedPotentialPerCoinPrice = LastPurchasedPerCoinPrice;
     }
     
     // notifies the bot that it successfully sold X coins for Y dollars
@@ -130,7 +135,6 @@ namespace CryptoProfiteer
       MaxUsdHeld = Math.Max(MaxUsdHeld, Usd);
       CoinCount = Math.Max(0m, CoinCount - coinCount);
       LastPurchasedPerCoinPrice = null;
-      MaxObservedPotentialPerCoinPrice = null;
     }
     
     // notifies the bot of the latest-fetched current crypto price
@@ -138,10 +142,6 @@ namespace CryptoProfiteer
     {
       CurrentPrice = price;
       CurrentPriceTime = time;
-      if (MaxObservedPotentialPerCoinPrice != null)
-      {
-        MaxObservedPotentialPerCoinPrice = Math.Max(MaxObservedPotentialPerCoinPrice.Value, CurrentPrice.Value);
-      }
     }
     
     // Notifies the bot of the latest-produced ticker candle
@@ -161,6 +161,5 @@ namespace CryptoProfiteer
     public Decimal MaxUsdHeld { get; private set; }
     private readonly List<Candle> _candles = new List<Candle>();
     public Decimal? LastPurchasedPerCoinPrice { get; private set; }
-    public Decimal? MaxObservedPotentialPerCoinPrice { get; private set; }
   }
 }

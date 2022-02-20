@@ -110,7 +110,7 @@ namespace CryptoProfiteer
     public const int LowIndex = 3;
     
     public bool IsBearish => Close < Open;
-    public bool IsBullish => Open > Close;
+    public bool IsBullish => Close > Open;
   }
   
   public enum CandleGranularity

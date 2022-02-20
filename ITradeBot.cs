@@ -29,11 +29,11 @@ namespace CryptoProfiteer
 
     // does the bot want to buy coins right now? how much money to spend? (assumes market price)
     // a non-null return value doesn't complete a purchase; it just instructs the system how much to buy if it can
-    Decimal? WantsToBuy();
+    (Decimal? usd, string note) WantsToBuy();
     
     // does the bot want to sell coins right now? how many coins to sell? (assumes market price)
     // a non-null return value doesn't complete a sale; it just instructs the system how much to sell if it can
-    Decimal? WantsToSell();
+    (Decimal? coinCount, string note) WantsToSell();
     
     // notifies the bot that it successfully purchased X coins for Y dollars
     void Bought(Decimal coinCount, Decimal usd);
