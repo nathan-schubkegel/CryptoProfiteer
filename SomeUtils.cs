@@ -43,5 +43,32 @@ namespace CryptoProfiteer
       DateTime dateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
       return dateTime.AddSeconds(unixEpochSeconds);
     }
+    
+    public static Decimal SetMaxDecimals(this Decimal input, int maxDecimalDigits)
+    {
+      if (maxDecimalDigits > 0)
+      {
+        string c = input.ToString(CultureInfo.InvariantCulture);
+        int i = c.IndexOf('.');
+        if (i >= 0)
+        {
+          int decimalDigits = c.Length - i - 1;
+          if (decimalDigits > maxDecimalDigits)
+          {
+            c = c.Substring(0, c.Length - (decimalDigits - maxDecimalDigits));
+            return decimal.Parse(c, NumberStyles.Float, CultureInfo.InvariantCulture);
+          }
+        }
+        return input;
+      }
+      else
+      {
+        return Math.Round(input);
+      }
+      
+      // NOTE: Hans Passant suggested it can be done like this (where 100 = 2 decimal places)
+      // value = Math.Truncate(100 * value) / 100;
+      // but I like my ugly code better - less potential loss - ha, as if that matters... 29 digits of room to use!
+    }
   }
 }

@@ -14,14 +14,6 @@ namespace CryptoProfiteer
     public List<PersistedTaxAssociationPurchase> Purchases { get; set; }
   }
 
-  // NOTE: this type is JSON serialized/deserialized
-  public class PersistedTaxAssociationPurchase
-  {
-    public string OrderId { get; set; }
-    public Decimal ContributingCoinCount { get; set; }
-    public int ContributingCost { get; set; }
-  }
-
   public class TaxAssociation
   {
     private readonly PersistedTaxAssociation _data;
@@ -78,37 +70,5 @@ namespace CryptoProfiteer
     public Decimal CoinCountSold => Sale.Order.CoinCount;
 
     public PersistedTaxAssociation GetPersistedData() => _data;
-  }
-  
-  public class TaxAssociationPurchase
-  {
-    private readonly PersistedTaxAssociationPurchase _data;
-    
-    public TaxAssociationPurchase(PersistedTaxAssociationPurchase data, Order order)
-    {
-      _data = data ?? throw new Exception("nope. gotta have some backing data.");
-      Order = order ?? throw new Exception("nope. gotta have an associated order.");
-
-      if (order.TransactionType != TransactionType.Buy) throw new Exception("Tax association purchase data refers to order that is not a purchase");
-    }
-    
-    public Order Order { get; }
-    public Decimal ContributingCoinCount => _data.ContributingCoinCount;
-    public int ContributingCost => _data.ContributingCost;
-  }
-  
-  public class TaxAssociationSale
-  {
-    private TaxAssociation _association;
-    
-    public TaxAssociationSale(TaxAssociation association, Order order)
-    {
-      _association = association ?? throw new Exception("nope. gotta have some backing data.");
-      Order = order ?? throw new Exception("nope. gotta have an associated order.");
-
-      if (order.TransactionType != TransactionType.Sell) throw new Exception("Tax association sale data refers to order that is not a sale");
-    }
-    
-    public Order Order { get; }
   }
 }
