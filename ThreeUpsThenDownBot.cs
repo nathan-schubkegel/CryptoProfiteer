@@ -34,7 +34,14 @@ namespace CryptoProfiteer
     public Decimal Usd { get; private set; }
 
     // if true, then the bot has self-destructed from taking on too many losses
-    public bool IsSunk => CoinCount <= 0m && Usd <= MaxUsdHeld * 0.8m;
+    public bool IsSunk => CoinCount <= 0m && Usd <= MaxUsdHeld * (1m - PercentLossSunk);
+    
+    // if this much of the initial investment is lost across the entire simulation, then consider the bot sunk
+    public Decimal PercentLossSunk { get; set; } = 0.20m;
+    
+    // if this much is lost since the last time the bot made a purchase, then just sell
+    // (so the bot can have a chance of making gains again)
+    public Decimal PercentLossToJustSell { get; set; } = 0.05m;
 
     // does the bot want to buy coins right now? how much money to spend? (assumes market price)
     // a non-null return value doesn't complete a purchase; it just instructs the system how much to buy if it can
@@ -87,11 +94,11 @@ namespace CryptoProfiteer
       // but have a reasonable behavior for that scenairo anyway
       if (LastPurchasedPerCoinPrice == null) return (null, null);
       
-      // if at any time the price drops below 5% of where I bought, then sell as a safety measure
-      if (CurrentPrice.Value < LastPurchasedPerCoinPrice.Value * 0.95m)
+      // if at any time the price drops below N% of where I bought, then sell as a safety measure
+      if (CurrentPrice.Value < LastPurchasedPerCoinPrice.Value * (1 - PercentLossToJustSell))
       {
         return (CoinCount, $"Selling as safety measure because CurrentPrice ({CurrentPrice?.ToString("F2")}) " +
-          $"dropped 5% or more below LastPurchasedPerCoinPrice ({LastPurchasedPerCoinPrice?.ToString("F2")})");
+          $"dropped {PercentLossToJustSell.ToString("P1")} or more below LastPurchasedPerCoinPrice ({LastPurchasedPerCoinPrice?.ToString("F2")})");
       }
       
       // coinbase takes a 0.2% transaction fee, so don't sell below that point
@@ -156,10 +163,10 @@ namespace CryptoProfiteer
       }
     }
 
-    public DateTime? CurrentPriceTime { get; private set; }
-    public Decimal? CurrentPrice { get; private set; }
-    public Decimal MaxUsdHeld { get; private set; }
+    private DateTime? CurrentPriceTime;
+    private Decimal? CurrentPrice;
+    private Decimal MaxUsdHeld;
     private readonly List<Candle> _candles = new List<Candle>();
-    public Decimal? LastPurchasedPerCoinPrice { get; private set; }
+    private Decimal? LastPurchasedPerCoinPrice;
   }
 }
