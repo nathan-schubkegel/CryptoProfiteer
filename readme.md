@@ -29,3 +29,4 @@ bootstrap - MIT License - see https://github.com/twbs/bootstrap/tree/v4.3.1
 jquery - MIT License - see https://github.com/jquery/jquery/tree/3.5.1
 jquery-validation - MIT License - see https://github.com/jquery-validation/jquery-validation/tree/1.17.0
 bignumber.js - MIT license - see https://github.com/MikeMcl/bignumber.js/tree/v9.0.2
+vanillajs-datepicker - MIT license - see https://github.com/mymth/vanillajs-datepicker/tree/v1.2.0

@@ -25,6 +25,8 @@ namespace CryptoProfiteer
     IEnumerable<PersistedHistoricalCoinPrice> GetPersistedData();
 
     void ImportPersistedData(IEnumerable<PersistedHistoricalCoinPrice> persistedData);
+    
+    public ICollection<string> CoinbaseCoinTypes { get; }
   }
 
   public class HistoricalCoinPriceService : BackgroundService, IHistoricalCoinPriceService
@@ -34,6 +36,8 @@ namespace CryptoProfiteer
     private readonly Channel<object> _signal = Channel.CreateBounded<object>(1);
     
     private ICollection<string> _supportedCoinTypes = new HashSet<string>();
+    
+    public ICollection<string> CoinbaseCoinTypes => _supportedCoinTypes;
     
     private IReadOnlyDictionary<(string CoinType, DateTime Time, CryptoExchange Exchange), Decimal?> _historicalPrices =
       new Dictionary<(string CoinType, DateTime Time, CryptoExchange Exchange), Decimal?>();

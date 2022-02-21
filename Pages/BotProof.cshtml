@@ -17,16 +17,103 @@
   @ViewData["Title"]
 </h1>
 
+<script src='/lib/vanillajs-datepicker/dist/js/datepicker.js'></script>
+<link rel="stylesheet" href="/lib/vanillajs-datepicker/dist/css/datepicker.css">
+
+<div class="card border-dark mb-3" style="max-width: 600px; border-color:lightgrey">
+  <div class="card-header"><h5 class="card-title">Options</h5></div>
+  <div class="card-body text-dark">
+
+    <div class="input-group mb-3">
+      <div class="input-group-prepend">
+        <label class="input-group-text" for="botNameSelector">Bot Name</label>
+      </div>
+      <select class="custom-select" id="botNameSelector">
+        <option value="ThreeUpsThenDownBot" selected>Three Ups Then Down Bot</option>
+      </select>
+    </div>
+
+    <div class="input-group mb-3">
+      <div class="input-group-prepend">
+        <span class="input-group-text" id="initialFundsDescription">Initial Funds ($USD)</span>
+      </div>
+      <input type="text" class="form-control" id="initialFundsInput" placeholder="ex: 100.00" 
+        aria-label="Initial Funds" aria-describedby="initialFundsDescription" value="100">
+    </div>
+
+    <div class="input-group mb-3">
+      <div class="input-group-prepend">
+        <label class="input-group-text" for="coinTypeSelector">Coin Type</label>
+      </div>
+      <select class="custom-select" id="coinTypeSelector">
+    @{
+      foreach (var coinType in Model.CoinTypes.OrderBy(x => x.MachineName))
+      {
+        <option value="@coinType.MachineName" selected=@(coinType.MachineName == "BTC" ? "true" : null)>@coinType.FriendlyName</option>
+      }
+    }
+      </select>
+    </div>
+
+    <div class="input-group mb-3">
+      <div class="input-group-prepend">
+        <span class="input-group-text" id="startDateDescription">Start Date</span>
+      </div>
+      <input type="text" class="form-control" id="startDateInput" placeholder="ex: 2022-01-01" 
+        aria-label="Start Date" aria-describedby="startDateDescription" data-date='2022-01-01' value="2022-01-01">
+    </div>
+
+    <div class="input-group mb-3">
+      <div class="input-group-prepend">
+        <label class="input-group-text" for="durationSelector">Duration</label>
+      </div>
+      <select class="custom-select" id="durationSelector">
+        <option value="1">1 Hour</option>
+        <option value="6">6 Hours</option>
+        <option value="12">12 Hours</option>
+        <option value="24">24 Hours</option>
+        <option value="168" selected>7 Days</option>
+        <option value="744">31 Days</option>
+        <option value="4320">180 Days</option>
+        <option value="8760">1 Year</option>
+      </select>
+    </div>
+
+    <div class="input-group mb-3">
+      <div class="input-group-prepend">
+        <label class="input-group-text" for="granularitySelector">Candle Granularity</label>
+      </div>
+      <select class="custom-select" id="granularitySelector">
+        <option value="60" selected>1 Minute</option>
+        <option value="300">5 Minutes</option>
+        <option value="900">15 Minutes</option>
+        <option value="3600">1 Hour</option>
+        <option value="21600">6 Hours</option>
+        <option value="86400">1 Day</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<button id='go-button' type="button" class="btn btn-primary btn-sm"
+  onclick="simulate()"
+>
+  Go!
+</button>
+
+
+<img id="more-spinny" src="/spinny-arrows.gif" style="display: none;" />
+
 <script>
 let isFetchingMore = false;
-let botName = 'ThreeUpsThenDownBot';
-let startTime = '2022-01-01T00:00:00Z';
-let hours = 0;
-let granularity = 'Minutes';
-let coinType = 'BTC';
-let initialUsd = '100';
 
-async function more()
+const datePickerInput = document.getElementById('startDateInput');
+const datepicker = new Datepicker(datePickerInput, {
+  format: 'yyyy-mm-dd',
+  autohide: true,
+}); 
+
+async function simulate()
 {
   if (isFetchingMore) return;
   let spinny = document.getElementById('more-spinny');
@@ -34,11 +121,18 @@ async function more()
   isFetchingMore = true;
   try
   {
-    hours += 6;
-    
+    let botName = document.getElementById('botNameSelector').value;
+    let initialUsd = document.getElementById('initialFundsInput').value;
+    let coinType = document.getElementById('coinTypeSelector').value;
+    let startTime = document.getElementById('startDateInput').value;
+    let granularity = document.getElementById('granularitySelector').value;
+    let hours = document.getElementById('durationSelector').value;
+    try { hours = Number(hours); } catch { alert('invalid non-numeric duration'); return; }
+
+    startTime += "T00:00:00Z";
     let startDate = new Date(startTime)
     let endDate = new Date(startTime);
-    endDate.setHours(startDate.getHours() + hours);
+    endDate.setHours(endDate.getHours() + hours);
   
     let r = await fetch('/api/proveBot', {
       method: 'POST',
@@ -74,17 +168,38 @@ async function more()
 
 function displayMoreResults(t)
 {
-  document.getElementById('more-results').innerText = t;
+  try
+  {
+    const details = document.getElementById('simulation-details');
+    details.innerText = t;
+
+    // initially hide the summary in case we only half-populate it
+    const summary = document.getElementById('simulation-summary');
+    summary.style.display = 'none';
+    const r = JSON.parse(t);
+    document.getElementById('final-usd').innerText = '$' + r.result.finalUsd.toFixed(2);
+    document.getElementById('final-coin-count').innerText = r.result.finalCoinCount;
+    document.getElementById('is-sunk').style.display = r.result.isSunk ? '' : 'none';
+    summary.style.display = '';
+  }
+  catch (e)
+  {
+    alert('failed to populate simulation summary info! ' + e);
+  }
 }
 </script>
 
-<div id='more-results' style='white-space: pre-wrap;'>
-  No results yet. Click 'more' to simulate!
+<div id='simulation-summary' style='display: none; margin-top: 40px'>
+  <h5>Summary</h5>
+  <div>
+    Final USD: <span id='final-usd'>nyet</span><br>
+    Final Coin Count: <span id='final-coin-count'>niet</span><br>
+    <span id='is-sunk' style='display:none;'><b>Bot is sunk!</b> (it was forced to stop entirely because its losses were too high)</span>
+  <div>
 </div>
-<button id='more-button' type="button" class="btn btn-primary btn-sm"
-  onclick="more()"
->
-  More
-</button>
-
-<img id="more-spinny" src="/spinny-arrows.gif" style="display: none;" />
+<div style='margin-top: 40px'>
+  <h5>Details</h5>
+  <div id='simulation-details' style='white-space: pre-wrap;'>
+    No results yet. Click 'Go!' to simulate!
+  </div>
+</div>
