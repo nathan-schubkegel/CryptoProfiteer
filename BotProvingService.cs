@@ -11,24 +11,6 @@ using Newtonsoft.Json;
 
 namespace CryptoProfiteer
 {
-  // NOTE: this class is serialized to JSON for the front-end
-  public class BotState
-  {
-    public DateTime Time { get; set; }
-    public Decimal Usd { get; set; }
-    public Decimal CoinCount { get; set; }
-    public string Note { get; set; }
-  }
-  
-  // NOTE: this class is serialized to JSON for the front-end
-  public class BotProofResult
-  {
-    public List<BotState> BotStates { get; set; } = new List<BotState>();
-    public Decimal FinalUsd { get; set; }
-    public Decimal FinalCoinCount { get; set; }
-    public bool IsSunk { get; set; }
-  }
-  
   public interface IBotProvingService
   {
     Task<BotProofResult> Prove(string botName, string coinType, Decimal initialUsd, DateTime startTime, DateTime endTime, CandleGranularity granularity, CancellationToken stoppingToken);
