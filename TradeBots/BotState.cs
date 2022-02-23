@@ -1,6 +1,6 @@
 using System;
 
-namespace CryptoProfiteer
+namespace CryptoProfiteer.TradeBots
 {
   // NOTE: this class is serialized to JSON for the front-end
   public class BotState

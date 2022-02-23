@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
 using System.Globalization;
+using CryptoProfiteer.TradeBots;
 
 namespace CryptoProfiteer
 {
