@@ -36,7 +36,7 @@ BigNumber.set({ ROUNDING_MODE: 4 }); // 4 is HALF_UP
     bool hadSalesNeedingTaxAssociation = false;
     foreach (var t in Model.SalesNeedingTaxAssociation(null))
     {
-      var isTrade = t.PaymentCoinType != "USD" && t.PaymentCoinType != "USDT";
+      var isTrade = t.PaymentCoinType != "USD";
       hadSalesNeedingTaxAssociation = true;
       <tr>
         <td>@t.FriendlyName</td>
@@ -156,7 +156,7 @@ function onResolveOrderNeedingTaxAssociationClick(orderId, perCoinCost, prettyTo
         @{
           foreach ((var t, var coinCountRemaining, var costRemaining) in Model.PurchasesNeedingTaxAssociation(null))
           {
-            var isTrade = t.PaymentCoinType != "USD" && t.PaymentCoinType != "USDT";
+            var isTrade = t.PaymentCoinType != "USD";
             <tr data-coinType='@t.CoinType' data-purchaseTime='@t.Time.ToString("o")'>
               <td>@t.Time.ToLocalTime().ToString("g")</td>
               <td>
@@ -422,7 +422,7 @@ foreach (var yearOfAssociations in Model.TaxAssociations(null).GroupBy(x => x.Ti
   
   foreach (var a in yearOfAssociations)
   {
-    var isTrade = a.Sale.Order.PaymentCoinType != "USD" && a.Sale.Order.PaymentCoinType != "USDT";
+    var isTrade = a.Sale.Order.PaymentCoinType != "USD";
     <tr>
       <td>@a.FriendlyName</td>
       <td>@a.Sale.Order.Time.ToLocalTime().ToString("g")</td>
@@ -435,7 +435,7 @@ foreach (var yearOfAssociations in Model.TaxAssociations(null).GroupBy(x => x.Ti
     bool first = true;
     foreach (var p in a.Purchases)
     {
-      isTrade = p.Order.PaymentCoinType != "USD" && p.Order.PaymentCoinType != "USDT";
+      isTrade = p.Order.PaymentCoinType != "USD";
     <tr>
       <td>@{
         if (first)

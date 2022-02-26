@@ -241,7 +241,7 @@ function filterBy(coinType)
   <tbody id='transaction-rows'>
 @foreach (var t in Model.OrderedTransactions) 
 {
-  var isTrade = t.PaymentCoinType != "USD" && t.PaymentCoinType != "USDT";
+  var isTrade = t.PaymentCoinType != "USD";
 
     <tr>
       <td>@t.Time.ToLocalTime().ToString("g")</td>

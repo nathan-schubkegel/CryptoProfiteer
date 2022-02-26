@@ -126,12 +126,43 @@ namespace CryptoProfiteer
     private Dictionary<string, CoinSummary> BuildCoinSummaries(
       IReadOnlyDictionary<string, Transaction> transactions)
     {
-      return transactions.Values.GroupBy(x => x.CoinType).ToDictionary(
+      // tally how much of each coin is held based on transactions
+      var coinCounts = new Dictionary<string, Decimal>();
+      foreach (var t in transactions.Values)
+      {
+        // account for coin type
+        var coins = coinCounts.GetValueOrDefault(t.CoinType, 0m);
+        switch (t.TransactionType)
+        {
+          case TransactionType.Sell: coins -= Math.Abs(t.CoinCount); break;
+          case TransactionType.Buy: coins += Math.Abs(t.CoinCount); break;
+          case TransactionType.Adjustment: coins += t.CoinCount; break;
+          default: throw new Exception("Unrecognized transaction type" + t.TransactionType);
+        }
+        coinCounts[t.CoinType] = coins;
+        
+        // account for coin payment type
+        if (t.PaymentCoinType != "USD")
+        {
+          coins = coinCounts.GetValueOrDefault(t.PaymentCoinType, 0m);
+          switch (t.TransactionType)
+          {
+            case TransactionType.Sell: coins += Math.Abs(t.TotalCost); break;
+            case TransactionType.Buy: coins -= Math.Abs(t.TotalCost); break;
+            case TransactionType.Adjustment: throw new Exception("adjustments are supposed to be always \"paid\" in USD");
+            default: throw new Exception("Unrecognized transaction type " + t.TransactionType);
+          }
+          coinCounts[t.PaymentCoinType] = coins;
+        }
+      }
+      
+      // return a CoinSummary for each
+      return coinCounts.ToDictionary(
         x => x.Key,
         x => new CoinSummary(
           coinType: x.Key,
           friendlyName: _friendlyNameService.GetOrCreateFriendlyName(x.Key),
-          coinCount: x.Sum(y => y.TransactionType == TransactionType.Sell ? -y.CoinCount : y.CoinCount),
+          coinCount: x.Value,
           coinPrice: _priceService.TryGetCoinPrice(x.Key))
       );
     }

@@ -58,7 +58,7 @@ namespace CryptoProfiteer
     {
       time = time.ChopSecondsAndSmaller();
       
-      if (coinType == "USD" || coinType == "USDT")
+      if (coinType == "USD")
       {
         return coinCount;
       }

@@ -101,7 +101,7 @@ const nextSortByCoinType = sortBy === 'coinType' ? 'coinTypeDescending' : 'coinT
   string sortBy = HttpContext.Request.Query.TryGetValue("sortBy", out var sortByValues) ? sortByValues[0] : null;
   foreach (var t in Model.Orders(sortBy)) 
   {
-    var isTrade = t.PaymentCoinType != "USD" && t.PaymentCoinType != "USDT";
+    var isTrade = t.PaymentCoinType != "USD";
   
     <tr>
       <td>@t.Time.ToLocalTime().ToString("g")</td>

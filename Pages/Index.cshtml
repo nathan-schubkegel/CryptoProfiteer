@@ -97,7 +97,7 @@ const nextSortByCashValue = sortBy === 'cashValue' ? 'cashValueAscending' : 'cas
     var orders = ordersByCoinType[s.CoinType];
     foreach (var o in orders)
     {
-      var isTrade = o.PaymentCoinType != "USD" && o.PaymentCoinType != "USDT";
+      var isTrade = o.PaymentCoinType != "USD";
 
               <tr>
                 <td>@o.Time.ToLocalTime().ToString("g")</td>

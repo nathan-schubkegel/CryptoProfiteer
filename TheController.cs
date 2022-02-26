@@ -245,7 +245,7 @@ namespace CryptoProfiteer
           var productParts = product.Split('-');
           if (productParts.Length != 2)
           {
-            throw new Exception($"CSV line {lineNumber} has unexpected field {productIndex + 1} \"{fields[productIndex]}\"; a value with a single hyphen is expected such as \"BTC-USDT\"");
+            throw new Exception($"CSV line {lineNumber} has unexpected field {productIndex + 1} \"{fields[productIndex]}\"; a value with a single hyphen is expected such as \"BTC-USD\"");
           }
           var coinType = productParts[0];
           if (productParts[1] != paymentCoinType)
