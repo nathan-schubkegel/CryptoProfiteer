@@ -68,43 +68,47 @@ namespace CryptoProfiteer.TradeBots
 
             lastCandle = candle;
             bot.ApplyNextCandle(new NextCandleArgs { Time = currentTime, Candle = candle.Value });
-            var buyResult = bot.WantsToBuy(new WantsToBuyArgs
+            if (heldUsd > 0)
             {
-              Usd = heldUsd,
-              CoinCount = heldCoins,
-              PerCoinPrice = perCoinPrice,
-              FeePercent = feePercent,
-            });
-            if (buyResult.UsdToSpend != null)
-            {
-              if (buyResult.UsdToSpend <= 0 || buyResult.UsdToSpend > heldUsd)
+              var buyResult = bot.WantsToBuy(new WantsToBuyArgs
               {
-                throw new Exception($"Invalid bot operation; it tried to spend ${buyResult.UsdToSpend} when really ${heldUsd} was available.");
+                Usd = heldUsd,
+                CoinCount = heldCoins,
+                PerCoinPrice = perCoinPrice,
+                FeePercent = feePercent,
+              });
+              if (buyResult.UsdToSpend != null)
+              {
+                if (buyResult.UsdToSpend <= 0 || buyResult.UsdToSpend > heldUsd)
+                {
+                  throw new Exception($"Invalid bot operation; it tried to spend ${buyResult.UsdToSpend} when really ${heldUsd} was available.");
+                }
+                // buy coins with that money
+                var fee = feePercent * buyResult.UsdToSpend.Value;
+                var coinsPurchased = (buyResult.UsdToSpend.Value - fee) / perCoinPrice;
+                heldUsd -= buyResult.UsdToSpend.Value;
+                heldCoins += coinsPurchased;
+                bot.Bought(new BoughtArgs
+                {
+                  SpentUsd = buyResult.UsdToSpend.Value,
+                  BoughtCoinCount = coinsPurchased,
+                  Usd = heldUsd,
+                  CoinCount = heldCoins,
+                  FeeUsd = fee,
+                  PerCoinPriceIncludingFee = buyResult.UsdToSpend.Value / coinsPurchased,
+                  PerCoinPriceBeforeFee = perCoinPrice,
+                });
+                result.BotStates.Add(new BotState
+                { 
+                  Time = currentTime,
+                  Usd = heldUsd,
+                  CoinCount = heldCoins,
+                  Note = buyResult.Note,
+                });
               }
-              // buy coins with that money
-              var fee = feePercent * buyResult.UsdToSpend.Value;
-              var coinsPurchased = (buyResult.UsdToSpend.Value - fee) / perCoinPrice;
-              heldUsd -= buyResult.UsdToSpend.Value;
-              heldCoins += coinsPurchased;
-              bot.Bought(new BoughtArgs
-              {
-                SpentUsd = buyResult.UsdToSpend.Value,
-                BoughtCoinCount = coinsPurchased,
-                Usd = heldUsd,
-                CoinCount = heldCoins,
-                FeeUsd = fee,
-                PerCoinPriceIncludingFee = buyResult.UsdToSpend.Value / coinsPurchased,
-                PerCoinPriceBeforeFee = perCoinPrice,
-              });
-              result.BotStates.Add(new BotState
-              { 
-                Time = currentTime,
-                Usd = heldUsd,
-                CoinCount = heldCoins,
-                Note = buyResult.Note,
-              });
             }
-            else
+            
+            if (heldCoins > 0)
             {
               var sellResult = bot.WantsToSell(new WantsToSellArgs
               {
@@ -144,6 +148,7 @@ namespace CryptoProfiteer.TradeBots
                 });
               }
             }
+
             var totalValue = heldUsd + heldCoins * perCoinPrice;
             isSunk = totalValue < 0.80m * initialUsd;
           }

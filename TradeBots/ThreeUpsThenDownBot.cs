@@ -35,11 +35,9 @@ namespace CryptoProfiteer.TradeBots
     // a non-null return value doesn't complete a purchase; it just instructs the system how much to buy if it can
     public WantsToBuyResult WantsToBuy(WantsToBuyArgs args)
     {
-      // don't buy while I'm holding coins
-      if (args.CoinCount > 0m) return default;
-      
-      // can't buy if I'm out of money
-      if (args.Usd <= 0m) return default;
+      // don't sell while I'm holding more coins than USD
+      // (calculated this way to compensate for coinbase not doing full purcahses/sales)
+      if (args.CoinCountToLikelyUsd > args.Usd) return default;
       
       // buy when there are at least 3 decreasing candles followed by an increasing candle
       if (_candles.Count >= 4 &&
@@ -72,8 +70,9 @@ namespace CryptoProfiteer.TradeBots
     // a non-null return value doesn't complete a sale; it just instructs the system how much to sell if it can
     public WantsToSellResult WantsToSell(WantsToSellArgs args)
     {
-      // can't sell if I have no coins
-      if (args.CoinCount <= 0m) return default;
+      // don't sell while I'm holding more USD than coins
+      // (calculated this way to compensate for coinbase not doing full purcahses/sales)
+      if (args.CoinCountToLikelyUsd < args.Usd) return default;
       
       // Technically _lastPurchasedPerCoinPrice should be non null once coins are bought
       // but have a reasonable behavior for that scenairo anyway

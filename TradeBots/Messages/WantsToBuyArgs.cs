@@ -20,11 +20,11 @@ namespace CryptoProfiteer.TradeBots.Messages
     // The fee that will be assessed by the crypto exchange, as a percent of Usd spent.
     // Example: 5% is presented as 0.05
     public Decimal FeePercent;
+
+    // If all currently held coins were sold now, what would they be worth?
+    public Decimal CoinCountToLikelyUsd => (CoinCount * PerCoinPrice) * (1m - FeePercent);
     
-    // Computes how many coins the bot will receive if it spends the given amount of USD.
-    public Decimal PredictPurchase(Decimal usdToSpend)
-    {
-      return usdToSpend * (1m - FeePercent) / PerCoinPrice;
-    }
+    // If all currently held USD was sold now, how many coins would that buy?
+    public Decimal UsdToLikelyCoinCount => Usd * (1m - FeePercent) / PerCoinPrice;
   }
 }

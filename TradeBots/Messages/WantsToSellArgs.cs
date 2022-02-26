@@ -21,10 +21,10 @@ namespace CryptoProfiteer.TradeBots.Messages
     // Example: 5% is presented as 0.05
     public Decimal FeePercent;
     
-    // Computes how much USD the bot will earn if it sells the given number of coins.
-    public Decimal UsdToEarn(Decimal coinCount)
-    {
-      return coinCount * PerCoinPrice * (1m - FeePercent);
-    }
+    // If all currently held coins were sold now, what would they be worth?
+    public Decimal CoinCountToLikelyUsd => (CoinCount * PerCoinPrice) * (1m - FeePercent);
+    
+    // If all currently held USD was sold now, how many coins would that buy?
+    public Decimal UsdToLikelyCoinCount => Usd * (1m - FeePercent) / PerCoinPrice;
   }
 }
