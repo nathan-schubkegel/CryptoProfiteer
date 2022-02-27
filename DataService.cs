@@ -141,19 +141,16 @@ namespace CryptoProfiteer
         }
         coinCounts[t.CoinType] = coins;
         
-        // account for coin payment type
-        if (t.PaymentCoinType != "USD")
+        // account for payment coin type
+        coins = coinCounts.GetValueOrDefault(t.PaymentCoinType, 0m);
+        switch (t.TransactionType)
         {
-          coins = coinCounts.GetValueOrDefault(t.PaymentCoinType, 0m);
-          switch (t.TransactionType)
-          {
-            case TransactionType.Sell: coins += Math.Abs(t.TotalCost); break;
-            case TransactionType.Buy: coins -= Math.Abs(t.TotalCost); break;
-            case TransactionType.Adjustment: throw new Exception("adjustments are supposed to be always \"paid\" in USD");
-            default: throw new Exception("Unrecognized transaction type " + t.TransactionType);
-          }
-          coinCounts[t.PaymentCoinType] = coins;
+          case TransactionType.Sell: coins += Math.Abs(t.TotalCost); break;
+          case TransactionType.Buy: coins -= Math.Abs(t.TotalCost); break;
+          case TransactionType.Adjustment: throw new Exception("adjustments are supposed to be always \"paid\" in USD");
+          default: throw new Exception("Unrecognized transaction type " + t.TransactionType);
         }
+        coinCounts[t.PaymentCoinType] = coins;
       }
       
       // return a CoinSummary for each

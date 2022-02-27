@@ -38,6 +38,12 @@ namespace CryptoProfiteer
     public int? TaxableTotalCostUsd => _taxableTotalCostUsd == null ? 
       TotalCostUsd != null ? (_taxableTotalCostUsd = (int)Math.Round(TotalCostUsd.Value, MidpointRounding.AwayFromZero)) : null
       : _taxableTotalCostUsd;
+      
+    private Decimal? _perPaymentCoinCostUsd;
+    public Decimal? PerPaymentCoinCostUsd => _perPaymentCoinCostUsd == null 
+      ? (_perPaymentCoinCostUsd = _currencyConverter.ToUsd(1m, PaymentCoinType, Time, Exchange))
+      : _perPaymentCoinCostUsd;
+    public Decimal? PaymentCoinTotalCostUsd => TotalCostUsd == null ? null : -TotalCostUsd;
 
     public Order(List<Transaction> transactions, FriendlyName friendlyName)
     {

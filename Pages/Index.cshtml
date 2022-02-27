@@ -48,7 +48,7 @@ const nextSortByCashValue = sortBy === 'cashValue' ? 'cashValueAscending' : 'cas
   <thead>
     <tr>
       <th scope="col">
-        <button id='coin-type-sort-button' type="button" class="btn btn-secondary btn-sm"
+        <button type="button" class="btn btn-secondary btn-sm"
           onClick="window.location = location.pathname + '?sortBy=' + nextSortByCoinType">
           Name
         </button>
@@ -56,14 +56,14 @@ const nextSortByCashValue = sortBy === 'cashValue' ? 'cashValueAscending' : 'cas
       <th scope="col">Count</th>
       <th scope="col">Price per coin</th>
       <th scope="col">
-        <button id='cash-value-sort-button' type="button" class="btn btn-secondary btn-sm"
+        <button type="button" class="btn btn-secondary btn-sm"
           onClick="window.location = location.pathname + '?sortBy=' + nextSortByCashValue">
           Cash Value
         </button>
       </th>
     </tr>
   </thead>
-  <tbody id='coin-summary-rows'>
+  <tbody>
 @{
   var ordersByCoinType = Model.OrdersByCoinType("date");
 
@@ -71,14 +71,14 @@ const nextSortByCashValue = sortBy === 'cashValue' ? 'cashValueAscending' : 'cas
   foreach (var s in Model.Summaries(sortBy))
   {
     <tr>
-      <td id='coin-type' value='@s.CoinType'>
+      <td>
         <a data-toggle="collapse" href="#collapse-@s.CoinType" role="button" aria-expanded="false" aria-controls="collapse-@s.CoinType">
           @s.FriendlyName
         </a>
       </td>
       <td>@s.CoinCount.ToString("G29")</td>
       <td>@s.CoinPrice?.PerCoinCostUsd.ToString("c")</td>
-      <td id='cash-value' value='@s.CashValue?.ToString()'>@s.CashValue?.ToString("c")</td>
+      <td>@s.CashValue?.ToString("c")</td>
     </tr>
     <tr class="collapse" id="collapse-@s.CoinType">
       <td colspan="4">
@@ -90,21 +90,50 @@ const nextSortByCashValue = sortBy === 'cashValue' ? 'cashValueAscending' : 'cas
                 <th scope="col">Count</th>
                 <th scope="col">Per Coin</th>
                 <th scope="col">Total</th>
+                <th scope="col">Description</th>
               </tr>
             </thead>
             <tbody>
 @{
+    void PrintDescription(Order o)
+    {
+      if (o.TransactionType == TransactionType.Buy) 
+      { 
+        <text>Bought @o.CoinType@{if (o.PaymentCoinType != "USD") { <text> for @o.TotalCost.ToString("g") @o.PaymentCoinType</text> } }</text>
+      }
+      else if (o.TransactionType == TransactionType.Sell)
+      {
+        <text>Sold @o.CoinType@{if (o.PaymentCoinType != "USD") { <text> for @o.TotalCost @o.PaymentCoinType</text> } }</text>
+      }
+      else if (o.TransactionType == TransactionType.Adjustment)
+      {
+        <text>Adjustment</text>
+      }
+    }
+  
     var orders = ordersByCoinType[s.CoinType];
     foreach (var o in orders)
     {
-      var isTrade = o.PaymentCoinType != "USD";
-
+      if (o.CoinType == s.CoinType)
+      {
               <tr>
                 <td>@o.Time.ToLocalTime().ToString("g")</td>
                 <td>@o.CoinCount.ToString("G29")</td>
-                <td>$@(o.PerCoinCostUsd?.ToString() ?? "<unknown>")@{ if (isTrade) { <text> USD<br>(@o.PerCoinCost.ToString() @o.PaymentCoinType)</text> } }</td>
-                <td>@(o.TotalCostUsd?.ToString("c") ?? "<unknown>")@{ if (isTrade) { <text> USD<br>(@o.TotalCost.ToString() @o.PaymentCoinType)</text> } }</td>
+                <td>$@(o.PerCoinCostUsd?.ToString() ?? "<unknown>")</td>
+                <td>@(o.TotalCostUsd?.ToString("c") ?? "<unknown>")</td>
+                <td>@{PrintDescription(o);}</td>
               </tr>
+      }
+      else if (o.PaymentCoinType == s.CoinType)
+      {
+              <tr>
+                <td>@o.Time.ToLocalTime().ToString("g")</td>
+                <td>@Math.Abs(o.TotalCost).ToString("G29")</td>
+                <td>$@(o.PerPaymentCoinCostUsd?.ToString() ?? "<unknown>")</td>
+                <td>@(o.PaymentCoinTotalCostUsd?.ToString("c") ?? "<unknown>")</td>
+                <td>@{PrintDescription(o);}</td>
+              </tr>
+      }
     }
 }
             </tbody>

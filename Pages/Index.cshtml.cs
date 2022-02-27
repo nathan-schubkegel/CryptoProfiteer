@@ -38,10 +38,19 @@ namespace CryptoProfiteer.Pages
       var orders = _data.Orders;
       foreach (var o in orders.Values)
       {
+        // account for coin type
         if (!result.TryGetValue(o.CoinType, out var bucket))
         {
           bucket = new List<Order>();
           result[o.CoinType] = bucket;
+        }
+        bucket.Add(o);
+        
+        // account for payment coin type
+        if (!result.TryGetValue(o.PaymentCoinType, out bucket))
+        {
+          bucket = new List<Order>();
+          result[o.PaymentCoinType] = bucket;
         }
         bucket.Add(o);
       }
