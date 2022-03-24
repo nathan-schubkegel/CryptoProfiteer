@@ -8,6 +8,7 @@ namespace CryptoProfiteer
   public class PersistedTransaction
   {
     public string TradeId { get; set; }
+    public string OrderAggregationId { get; set; }
     public TransactionType TransactionType { get; set; }
     public CryptoExchange Exchange { get; set; }
     public DateTime Time { get; set; }

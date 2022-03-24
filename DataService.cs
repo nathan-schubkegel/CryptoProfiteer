@@ -89,7 +89,15 @@ namespace CryptoProfiteer
     {
       var newOrders = new Dictionary<string, Order>();
       var orderTransactions = new List<Transaction>();
-      foreach (var tGroup in transactions.Values.GroupBy(x => (x.CoinType, x.PaymentCoinType, x.Exchange, x.TransactionType)))
+      
+      // kucoin transactions are aggregated perfectly by order id; so group those with zeal
+      foreach (var kGroup in transactions.Values.Where(x => x.OrderAggregationId != null).GroupBy(x => x.OrderAggregationId))
+      {
+        var order = new Order(kGroup.ToList(), _friendlyNameService.GetOrCreateFriendlyName(kGroup.First().CoinType));
+        newOrders[order.Id] = order;
+      }
+
+      foreach (var tGroup in transactions.Values.Where(x => x.OrderAggregationId == null).GroupBy(x => (x.CoinType, x.PaymentCoinType, x.Exchange, x.TransactionType)))
       {
         foreach (var t in tGroup.OrderBy(x => x.Time))
         {
@@ -120,6 +128,7 @@ namespace CryptoProfiteer
           orderTransactions.Clear();
         }
       }
+
       return newOrders;
     }
     

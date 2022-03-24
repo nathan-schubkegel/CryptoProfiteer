@@ -41,9 +41,9 @@ namespace CryptoProfiteer.TradeBots
       const Decimal feePercent = 0.002m;
 
       var config = bot.GetConfig();
-      if (config.Exchange != CryptoExchange.Coinbase)
+      if (config.Exchange != CryptoExchange.CoinbasePro)
       {
-        throw new Exception("Unsupported exchange; only 'Coinbase' is supported now.");
+        throw new Exception("Unsupported exchange; only 'CoinbasePro' is supported now.");
       }
 
       Candle? lastCandle = null;
@@ -52,7 +52,7 @@ namespace CryptoProfiteer.TradeBots
       if (endTime - startTime > TimeSpan.FromDays(366)) throw new Exception("invalid end time too far after start time; only max 1 year is supported now");
       while (currentTime < endTime && !isSunk)
       {
-        var id = PersistedCandleRangeId.Coinbase(coinType, currentTime, granularity);
+        var id = PersistedCandleRangeId.CoinbasePro(coinType, currentTime, granularity);
         var candleRange = await _candleService.TryGetCandleRangeAsync(id, stoppingToken);
         if (candleRange == null)
         {

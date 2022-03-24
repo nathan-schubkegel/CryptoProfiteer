@@ -103,8 +103,8 @@ namespace CryptoProfiteer
           }
 
           {
-            // Determine which coin prices need + can be fetched from Coinbase
-            var coinBaseCurrencies = _friendlyNameService.GetExchangeCurrencies(CryptoExchange.Coinbase).ToHashSet();
+            // Determine which coin prices need + can be fetched from Coinbase Pro
+            var coinBaseCurrencies = _friendlyNameService.GetExchangeCurrencies(CryptoExchange.CoinbasePro).ToHashSet();
             List<string> coinTypesToRequest;
             lock (_neededPrices)
             {
@@ -112,6 +112,7 @@ namespace CryptoProfiteer
             }
           
             // Ask CoinBase for those prices
+            // TODO: should really change this to be asking for prices from Coinbase Pro!
             foreach (var coinType in coinTypesToRequest)
             {
               await _httpClientSingleton.UseAsync($"fetching current price of {coinType} from coinbase", stoppingToken, async http =>

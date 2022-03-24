@@ -60,7 +60,7 @@ namespace CryptoProfiteer
         
         if (data == null)
         {
-          if (id.Exchange != CryptoExchange.Coinbase) throw new Exception("no can do, hoss; coinbase only for now.");
+          if (id.Exchange != CryptoExchange.CoinbasePro) throw new Exception("no can do, hoss; coinbase pro only for now.");
 
           string responseBody = null;
           var request = new HttpRequestMessage(HttpMethod.Get, $"https://api.exchange.coinbase.com/products/{id.CoinType}-USD/candles" +

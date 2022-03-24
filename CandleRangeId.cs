@@ -55,12 +55,12 @@ namespace CryptoProfiteer
       }
     }
     
-    public static PersistedCandleRangeId Coinbase(string coinType, DateTime startTime, CandleGranularity granularity)
+    public static PersistedCandleRangeId CoinbasePro(string coinType, DateTime startTime, CandleGranularity granularity)
     {
       return new PersistedCandleRangeId
       {
         CoinType = coinType,
-        Exchange = CryptoExchange.Coinbase,
+        Exchange = CryptoExchange.CoinbasePro,
         StartTime = startTime,
         Count = MaxCoinbaseCount - 1,
         Granularity = granularity

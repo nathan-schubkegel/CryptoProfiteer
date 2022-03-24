@@ -26,6 +26,7 @@ namespace CryptoProfiteer
     }
     
     public string TradeId => _data.TradeId;
+    public string OrderAggregationId => _data.OrderAggregationId;
     public TransactionType TransactionType => _data.TransactionType;
     public CryptoExchange Exchange => _data.Exchange;
     public DateTime Time => _data.Time;

@@ -46,7 +46,7 @@ namespace CryptoProfiteer
         if (fields.Contains('\"'))
         {
           fields = fields.Trim();
-          if (fields.Length >= 2 && fields[0] == '\"' && fields[fields.Length] == '\"')
+          if (fields.Length >= 2 && fields[0] == '\"' && fields[fields.Length - 1] == '\"')
           {
             fields = fields.Substring(1, fields.Length - 2);
           }

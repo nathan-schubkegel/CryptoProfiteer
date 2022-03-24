@@ -22,7 +22,7 @@ namespace CryptoProfiteer.TradeBots
       _config = new ConfigResult
       {
         CoinType = coinType,
-        Exchange = CryptoExchange.Coinbase,
+        Exchange = CryptoExchange.CoinbasePro,
         CandleGranularity = granularity,
       };
     }

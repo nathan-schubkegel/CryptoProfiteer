@@ -30,7 +30,7 @@
         let spinny = document.getElementById('upload-coinbase-fills-spinny');
         spinny.style = '';
         try {
-          let r = await fetch('/api/coinbaseFillsCsv', {method: 'POST', body: formData});
+          let r = await fetch('/api/uploadCsv', {method: 'POST', body: formData});
           if (r.ok) {
             location.reload();
           }
@@ -49,46 +49,7 @@
       input.click();
     }"
   >
-    Upload Coinbase Fills.csv
-  </button>
-  <button type="button" class="btn btn-secondary" style="margin-left:20px;" 
-    onclick="
-    {
-      let input = document.getElementById('upload-coinbase-fills-input');
-      input.onchange = async e => {
-        let formData = new FormData();
-        try {
-          var file = e.target.files[0];
-          if (!file) return;
-          formData.append('file', file);
-        }
-        finally {
-          // make sure that re-attempts always trigger 'onchange' again
-          input.value = '';
-        }
-        let spinny = document.getElementById('upload-coinbase-fills-spinny');
-        spinny.style = '';
-        try {
-          let r = await fetch('/api/kucoinOrdersCsv', {method: 'POST', body: formData});
-          if (r.ok) {
-            location.reload();
-          }
-          else {
-            let t = await r.text();
-            alert(t);
-          }
-        }
-        catch (e) {
-          alert(e);
-        }
-        finally {
-          spinny.style = 'display: none;';
-        }
-      };
-      input.click();
-    }"
-  >
-    Upload Kucoin Orders.csv
+    Upload fills/orders CSV
   </button>
   <input id="upload-coinbase-fills-input" type="file" name="name" style="display: none;" />
   <img id="upload-coinbase-fills-spinny" src="/spinny-arrows.gif" style="display: none;" />

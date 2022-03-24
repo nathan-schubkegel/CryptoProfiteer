@@ -10,6 +10,7 @@ namespace CryptoProfiteer
   { 
     None, 
     Coinbase, 
+    CoinbasePro,
     Kucoin 
   }
 }

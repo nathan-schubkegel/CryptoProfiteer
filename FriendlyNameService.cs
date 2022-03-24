@@ -116,7 +116,7 @@ namespace CryptoProfiteer
               coinFriendlyNames[coinType] = $"{friendlyName} ({coinType})";
             }
           }
-          UpdateFriendlyNames(coinFriendlyNames, CryptoExchange.Coinbase);
+          UpdateFriendlyNames(coinFriendlyNames, CryptoExchange.CoinbasePro);
         }
         catch (OperationCanceledException)
         {

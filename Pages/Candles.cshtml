@@ -44,7 +44,7 @@
 
 @{
   var when = DateTime.Parse("2022-01-06T06:07:54.31Z", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
-  var data = await Model.CandleService.TryGetCandleRangeAsync(PersistedCandleRangeId.Coinbase("BTC", when, CandleGranularity.Minutes), CancellationToken.None);
+  var data = await Model.CandleService.TryGetCandleRangeAsync(PersistedCandleRangeId.CoinbasePro("BTC", when, CandleGranularity.Minutes), CancellationToken.None);
   <text>@data.Id.CoinType @data.Id.Exchange @data.Id.StartTime.ToLocalTime() @data.Id.Count @data.Id.Granularity<br></text>
   for (int i = 0; i < data.Count; i++)
   {
