@@ -2,6 +2,18 @@
 @model TaxModel
 @{
   ViewData["Title"] = "Tax";
+
+  // because I'm tired of seeing 1.456255434598 USDT on this page
+  string LimitTrailingDigits(string paymentAmount, string paymentCoinType) {
+    if (paymentCoinType == "USDT") {
+      var i = paymentAmount.IndexOf('.');
+      // if there are more than 2 decimal digits
+      if (i >= 0 && i < paymentAmount.Length - 3) {
+        return paymentAmount.Substring(0, i + 3) + " " + paymentCoinType;
+      }
+    }
+    return paymentAmount + " " + paymentCoinType;
+  }
 }
 
 <style>
@@ -57,8 +69,8 @@ BigNumber.set({ ROUNDING_MODE: 4 }); // 4 is HALF_UP
         </td>
         <td>@t.CoinCount.ToString("G29")</td>
         <td>$@(t.PerCoinCostUsd?.ToString() ?? "<unknown>")@{ if (isTrade) { <text> USD<br>(@t.PerCoinCost.ToString() @t.PaymentCoinType)</text> } }</td>
-        <td>@(t.FeeUsd?.ToString("c") ?? "<unknown>")@{ if (isTrade) { <text> USD<br>(@t.Fee.ToString() @t.PaymentCoinType)</text> } }</td>
-        <td>@(t.TotalCostUsd?.ToString("c") ?? "<unknown>")@{ if (isTrade) { <text> USD<br>(@t.TotalCost.ToString() @t.PaymentCoinType)</text> } }</td>
+        <td>@(t.FeeUsd?.ToString("c") ?? "<unknown>")@{ if (isTrade) { <text> USD<br>(@LimitTrailingDigits(t.Fee.ToString(), t.PaymentCoinType))</text> } }</td>
+        <td>@(t.TotalCostUsd?.ToString("c") ?? "<unknown>")@{ if (isTrade) { <text> USD<br>(@LimitTrailingDigits(t.TotalCost.ToString(), t.PaymentCoinType))</text> } }</td>
       </tr>
     }
   }
@@ -429,7 +441,7 @@ foreach (var yearOfAssociations in Model.TaxAssociations(null).GroupBy(x => x.Ti
       <td>@a.Sale.Order.TransactionType</td>
       <td>@a.Sale.Order.CoinCount.ToString("G29")</td>
       <td>$@(a.Sale.Order.PerCoinCostUsd?.ToString() ?? "<unknown>")@{ if (isTrade) { <text> USD<br>(@a.Sale.Order.PerCoinCost.ToString() @a.Sale.Order.PaymentCoinType)</text> } }</td>
-      <td>@(a.Sale.Order.TaxableTotalCostUsd?.ToString("c0") ?? "$<unknown>")@{ if (isTrade) { <text> USD<br>(@a.Sale.Order.TotalCost.ToString() @a.Sale.Order.PaymentCoinType)</text> } }</td>
+      <td>@(a.Sale.Order.TaxableTotalCostUsd?.ToString("c0") ?? "$<unknown>")@{ if (isTrade) { <text> USD<br>(@LimitTrailingDigits(a.Sale.Order.TotalCost.ToString(), a.Sale.Order.PaymentCoinType))</text> } }</td>
     </tr>
 
     bool first = true;
@@ -452,7 +464,7 @@ foreach (var yearOfAssociations in Model.TaxAssociations(null).GroupBy(x => x.Ti
       <td>@p.Order.TransactionType</td>
       <td>@p.ContributingCoinCount.ToString("G29")</td>
       <td>$@(p.Order.PerCoinCostUsd?.ToString() ?? "<unknown>")@{ if (isTrade) { <text> USD<br>(@p.Order.PerCoinCost.ToString() @p.Order.PaymentCoinType)</text> } }</td>
-      <td>@p.ContributingCost.ToString("c0")@{ if (isTrade) { <text> USD<br>(@(p.Order.TotalCostUsd == null ? "<unknown>" : (p.ContributingCost / (Decimal)p.Order.TotalCostUsd * p.Order.TotalCost).ToString()) @p.Order.PaymentCoinType)</text> } }</td>
+      <td>@p.ContributingCost.ToString("c0")@{ if (isTrade) { <text> USD<br>(@LimitTrailingDigits(p.Order.TotalCostUsd == null ? "<unknown>" : (p.ContributingCost / (Decimal)p.Order.TotalCostUsd * p.Order.TotalCost).ToString(), p.Order.PaymentCoinType))</text> } }</td>
       <td></td>
     </tr>
     }
