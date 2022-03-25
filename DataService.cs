@@ -156,7 +156,7 @@ namespace CryptoProfiteer
         {
           case TransactionType.Sell: coins += Math.Abs(t.TotalCost); break;
           case TransactionType.Buy: coins -= Math.Abs(t.TotalCost); break;
-          case TransactionType.Adjustment: throw new Exception("adjustments are supposed to be always \"paid\" in USD");
+          case TransactionType.Adjustment: if (t.PaymentCoinType != "USD") throw new Exception("adjustments are supposed to be always \"paid\" in USD"); break;
           default: throw new Exception("Unrecognized transaction type " + t.TransactionType);
         }
         coinCounts[t.PaymentCoinType] = coins;
