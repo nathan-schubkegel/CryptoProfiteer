@@ -52,6 +52,7 @@ namespace CryptoProfiteer
       }
       
       const string coinbaseProFillsHeaderLine = "portfolio,trade id,product,side,created at,size,size unit,price,fee,total,price/fee/total unit";
+      const string coinbaseProAccountStatementHeaderLine = "portfolio,type,time,amount,balance,amount/balance unit,transfer id,trade id,order id";
       const string kucoinTradesHeaderLine = "tradeCreatedAt,orderId,symbol,side,price,size,funds,fee,liquidity,feeCurrency,orderType,";
       const string kucoinOrdersHeaderLine = "orderCreatedAt,id,clientOid,symbol,side,type,stopPrice,price,size,dealSize,dealFunds,averagePrice,fee,feeCurrency,remark,tags,orderStatus,";
       const string coinbaseOrdersHeaderLine = "Timestamp,Transaction Type,Asset,Quantity Transacted,Spot Price Currency,Spot Price at Transaction,Subtotal,Total (inclusive of fees),Fees,Notes";
@@ -60,6 +61,10 @@ namespace CryptoProfiteer
       if (headerFields.SequenceEqual(Csv.Parse(coinbaseProFillsHeaderLine)))
       {
         PostCoinbaseProFillsCsv(lines);
+      }
+      else if (headerFields.SequenceEqual(Csv.Parse(coinbaseProAccountStatementHeaderLine)))
+      {
+        PostCoinbaseProAccountStatementCsv(lines);
       }
       else if (headerFields.SequenceEqual(Csv.Parse(kucoinTradesHeaderLine)))
       {
@@ -299,6 +304,78 @@ namespace CryptoProfiteer
           PaymentCoinType = paymentCoinType,
         };
         transactions.Add(transaction);
+      }
+
+      if (transactions.Count > 0)
+      {
+        _dataService.ImportTransactions(transactions);
+      }
+    }
+    
+    public void PostCoinbaseProAccountStatementCsv(List<string> lines)
+    {
+      var headerFields = Csv.Parse(lines[0]).Select(x => x.Trim()).ToList();
+
+      int IndexOrBust(string name)
+      {
+        int index = headerFields.IndexOf(name);
+        if (index < 0)
+        {
+          throw new Exception("CSV header lacks required '" + name + "' field");
+        }
+        return index;
+      }
+
+      var typeIndex = IndexOrBust("type");
+      var tradeIdIndex = IndexOrBust("trade id");
+      var orderIdIndex = IndexOrBust("order id");
+      var createdAtIndex = IndexOrBust("time");
+      var coinCountIndex = IndexOrBust("amount");
+      var coinTypeIndex = IndexOrBust("amount/balance unit");
+      
+      var transactions = new List<PersistedTransaction>();
+      int lineNumber = 1;
+      foreach (var line in lines.Skip(1))
+      {
+        lineNumber++;
+        var fields = Csv.Parse(line).Select(x => x.Trim()).ToList();
+        if (fields.Count == 0) continue;
+        if (fields.Count != headerFields.Count)
+        {
+          throw new Exception($"CSV line {lineNumber} has {fields.Count} fields; different from header line which has {headerFields.Count} fields; aborting.");
+        }
+
+        if (!DateTime.TryParse(fields[createdAtIndex], CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var createdAtTime))
+        {
+          throw new Exception($"CSV line {lineNumber} has non-date/time field {createdAtIndex + 1} \"{fields[createdAtIndex]}\"; expected date/time such as \"{DateTime.Now.ToString("o")}\"");
+        }
+        if (createdAtTime.Kind != DateTimeKind.Utc)
+        {
+          throw new Exception($"CSV line {lineNumber} date/time field was incorrectly interpreted as {createdAtTime.Kind}");
+        }
+
+        if (!Decimal.TryParse(fields[coinCountIndex], NumberStyles.Float, CultureInfo.InvariantCulture, out var coinCount))
+        {
+          throw new Exception($"CSV line {lineNumber} has non-numeric field {coinCountIndex + 1} \"{fields[coinCountIndex]}\"; expected numeric value such as \"3.17\"");
+        }
+
+        var coinType = fields[coinTypeIndex];
+        var transactionType = fields[typeIndex];
+        var tradeId = fields[tradeIdIndex];
+        var orderId = fields[orderIdIndex];
+
+        if (transactionType == "match")
+        {
+          if (!_dataService.Transactions.TryGetValue("CP-" + tradeId, out var transaction))
+          {
+            throw new Exception($"CSV line {lineNumber} has field {tradeIdIndex + 1} trade id \"{tradeId}\" referring to unknown transaction. You need to import the coinbase pro fills for this transaction first.");
+          }
+
+          var revisedTransaction = transaction.ClonePersistedData();
+          revisedTransaction.OrderAggregationId = orderId;
+          transactions.Add(revisedTransaction);
+        }
+        // else it's a fee or deposit or withdrawal - stuff we don't care about yet
       }
 
       if (transactions.Count > 0)
