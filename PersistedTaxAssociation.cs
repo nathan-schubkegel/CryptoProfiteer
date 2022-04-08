@@ -12,5 +12,12 @@ namespace CryptoProfiteer
     public string Id { get; set; }
     public string SaleOrderId { get; set; }
     public List<PersistedTaxAssociationPurchase> Purchases { get; set; }
+    
+    public PersistedTaxAssociation Clone() => new PersistedTaxAssociation
+    {
+      Id = Id,
+      SaleOrderId = SaleOrderId,
+      Purchases = Purchases.Select(x => x.Clone()).ToList(),
+    };
   }
 }

@@ -46,14 +46,14 @@ namespace CryptoProfiteer
       {
         while (!stoppingToken.IsCancellationRequested)
         {
-          TrySave(noTouchieFileSystem: false, _dataService.GetPersistedData(), _historicalCoinPriceService.GetPersistedData());
+          TrySave(noTouchieFileSystem: false, _dataService.ClonePersistedData(), _historicalCoinPriceService.ClonePersistedData());
 
           await Task.Delay(1000, stoppingToken);
         }
       }
       finally
       {
-        TrySave(noTouchieFileSystem: false, _dataService.GetPersistedData(), _historicalCoinPriceService.GetPersistedData());
+        TrySave(noTouchieFileSystem: false, _dataService.ClonePersistedData(), _historicalCoinPriceService.ClonePersistedData());
       }
     }
 

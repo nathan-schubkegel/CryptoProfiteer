@@ -12,5 +12,7 @@ namespace CryptoProfiteer
     public string OrderId { get; set; }
     public Decimal ContributingCoinCount { get; set; }
     public int ContributingCost { get; set; }
+    
+    public PersistedTaxAssociationPurchase Clone() => (PersistedTaxAssociationPurchase)MemberwiseClone();
   }
 }

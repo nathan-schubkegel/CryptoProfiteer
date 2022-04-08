@@ -18,5 +18,7 @@ namespace CryptoProfiteer
     public Decimal PerCoinCost { get; set; }
     public Decimal Fee { get; set; }
     public Decimal TotalCost { get; set; }
+    
+    public PersistedTransaction Clone() => (PersistedTransaction)MemberwiseClone();
   }
 }

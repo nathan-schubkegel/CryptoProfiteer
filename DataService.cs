@@ -31,7 +31,7 @@ namespace CryptoProfiteer
     string AddAdjustment(string coinType, decimal coinCount);
     void DeleteAdjustment(string transactionId);
 
-    (IEnumerable<PersistedTransaction> Transactions, IEnumerable<PersistedTaxAssociation> TaxAssociations) GetPersistedData();
+    (IEnumerable<PersistedTransaction> Transactions, IEnumerable<PersistedTaxAssociation> TaxAssociations) ClonePersistedData();
   }
 
   public class DataService : IDataService
@@ -190,7 +190,7 @@ namespace CryptoProfiteer
       var persistedTaxAssociations = new Dictionary<string, PersistedTaxAssociation>();
       foreach ((var id, var a) in TaxAssociations)
       {
-        persistedTaxAssociations[a.Id] = a.GetPersistedData();
+        persistedTaxAssociations[a.Id] = a.ClonePersistedData();
       }
       foreach (var a in importedTaxAssociations)
       {
@@ -281,7 +281,7 @@ namespace CryptoProfiteer
           {
             throw new Exception("Cannot add to unrecognized TaxAssociation id \"" + taxAssociationId + "\"");
           }
-          data = thing.GetPersistedData();
+          data = thing.ClonePersistedData();
           
           if (string.IsNullOrEmpty(saleOrderId))
           {
@@ -360,13 +360,13 @@ namespace CryptoProfiteer
       }
     }
     
-    public (IEnumerable<PersistedTransaction> Transactions, IEnumerable<PersistedTaxAssociation> TaxAssociations) GetPersistedData()
+    public (IEnumerable<PersistedTransaction> Transactions, IEnumerable<PersistedTaxAssociation> TaxAssociations) ClonePersistedData()
     {
       lock (_lock)
       {
         return (
-          Transactions.Values.Select(x => x.GetPersistedData()), 
-          TaxAssociations.Values.Select(x => x.GetPersistedData())
+          Transactions.Values.Select(x => x.ClonePersistedData()), 
+          TaxAssociations.Values.Select(x => x.ClonePersistedData())
         );
       }
     }

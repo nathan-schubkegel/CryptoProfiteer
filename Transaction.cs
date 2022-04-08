@@ -42,6 +42,6 @@ namespace CryptoProfiteer
     public Decimal? FeeUsd => _feeUsd == null ? (_feeUsd = _currencyConverter.ToUsd(Fee, PaymentCoinType, Time, Exchange)) : _feeUsd;
     public Decimal? TotalCostUsd => _totalCostUsd == null ? (_totalCostUsd = _currencyConverter.ToUsd(TotalCost, PaymentCoinType, Time, Exchange)) : _totalCostUsd;
 
-    public PersistedTransaction GetPersistedData() => _data;
+    public PersistedTransaction ClonePersistedData() => _data.Clone();
   }
 }

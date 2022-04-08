@@ -61,6 +61,6 @@ namespace CryptoProfiteer
     public Decimal CoinCountBought { get; }
     public Decimal CoinCountSold => Sale.Order.CoinCount;
 
-    public PersistedTaxAssociation GetPersistedData() => _data;
+    public PersistedTaxAssociation ClonePersistedData() => _data.Clone();
   }
 }

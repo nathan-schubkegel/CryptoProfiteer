@@ -22,7 +22,7 @@ namespace CryptoProfiteer
   {
     Decimal? ToUsd(Decimal cost, string coinType, DateTime time, CryptoExchange exchange);
 
-    IEnumerable<PersistedHistoricalCoinPrice> GetPersistedData();
+    IEnumerable<PersistedHistoricalCoinPrice> ClonePersistedData();
 
     void ImportPersistedData(IEnumerable<PersistedHistoricalCoinPrice> persistedData);
     
@@ -239,7 +239,7 @@ namespace CryptoProfiteer
       }
     }
     
-    public IEnumerable<PersistedHistoricalCoinPrice> GetPersistedData()
+    public IEnumerable<PersistedHistoricalCoinPrice> ClonePersistedData()
     {
       return _historicalPrices.Select(x => new PersistedHistoricalCoinPrice
       {
