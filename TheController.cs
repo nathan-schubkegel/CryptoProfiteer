@@ -55,6 +55,7 @@ namespace CryptoProfiteer
       const string kucoinTradesHeaderLine = "tradeCreatedAt,orderId,symbol,side,price,size,funds,fee,liquidity,feeCurrency,orderType,";
       const string kucoinOrdersHeaderLine = "orderCreatedAt,id,clientOid,symbol,side,type,stopPrice,price,size,dealSize,dealFunds,averagePrice,fee,feeCurrency,remark,tags,orderStatus,";
       const string coinbaseOrdersHeaderLine = "Timestamp,Transaction Type,Asset,Quantity Transacted,Spot Price Currency,Spot Price at Transaction,Subtotal,Total (inclusive of fees),Fees,Notes";
+      const string decentralizedFillsHeaderLine = "id,date,transaction type,sent total,sent fee,sent coin type,received amount,received coin type,notes";
       var headerFields = Csv.Parse(lines[0]).Select(x => x.Trim()).ToList();
       if (headerFields.SequenceEqual(Csv.Parse(coinbaseProFillsHeaderLine)))
       {
@@ -67,6 +68,10 @@ namespace CryptoProfiteer
       else if (headerFields.SequenceEqual(Csv.Parse(kucoinOrdersHeaderLine)))
       {
         throw new Exception("Invalid CSV header - looks like a Kucoin Orders export, but this software only accepts Kucoin Trades exports");
+      }
+      else if (headerFields.SequenceEqual(Csv.Parse(decentralizedFillsHeaderLine)))
+      {
+        PostDecentralizedFillsCsv(lines);
       }
       else
       {
@@ -91,6 +96,7 @@ namespace CryptoProfiteer
               "Coinbase orders CSV: " + coinbaseOrdersHeaderLine,
               "Coinbase Pro fills CSV: " + coinbaseProFillsHeaderLine,
               "Kucoin trades CSV: " + kucoinTradesHeaderLine,
+              "Decentralized fills CSV: " + decentralizedFillsHeaderLine,
             }));
         }
       }
@@ -450,6 +456,106 @@ namespace CryptoProfiteer
           };
           transactions.Add(transaction);
         }
+      }
+
+      if (transactions.Count > 0)
+      {
+        _dataService.ImportTransactions(transactions);
+      }
+    }
+    
+    private void PostDecentralizedFillsCsv(List<string> lines)
+    {
+      var headerFields = Csv.Parse(lines[0]).Select(x => x.Trim()).ToList();
+
+      int IndexOrBust(string name)
+      {
+        int index = headerFields.IndexOf(name);
+        if (index < 0)
+        {
+          throw new Exception("CSV header lacks required '" + name + "' field");
+        }
+        return index;
+      }
+
+      var idIndex = IndexOrBust("id");
+      var transactionTypeIndex = IndexOrBust("transaction type");
+      var dateIndex = IndexOrBust("date");
+      var receivedAmountIndex = IndexOrBust("received amount");
+      var receivedCoinTypeIndex = IndexOrBust("received coin type");
+      var feeIndex = IndexOrBust("sent fee");
+      var totalCostIndex = IndexOrBust("sent total");
+      var sentCoinTypeIndex = IndexOrBust("sent coin type");
+
+      var transactions = new List<PersistedTransaction>();
+      int lineNumber = 1;
+      foreach (var line in lines.Skip(1))
+      {
+        lineNumber++;
+        var fields = Csv.Parse(line).Select(x => x.Trim()).ToList();
+        if (fields.Count == 0) continue;
+        if (fields.Count != headerFields.Count)
+        {
+          throw new Exception($"CSV line {lineNumber} has {fields.Count} fields; different from header line which has {headerFields.Count} fields; aborting.");
+        }
+
+        if (!Enum.TryParse<TransactionType>(fields[transactionTypeIndex], ignoreCase: true, out var transactionType) ||
+            (transactionType != TransactionType.Buy && transactionType != TransactionType.Sell))
+        {
+          throw new Exception($"CSV line {lineNumber} has unrecognized field {transactionTypeIndex + 1} \"{fields[transactionTypeIndex]}\"; expected one of \"buy\", \"sell\"");
+        }
+
+        if (!DateTime.TryParse(fields[dateIndex], CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var date))
+        {
+          throw new Exception($"CSV line {lineNumber} has non-date/time field {dateIndex + 1} \"{fields[dateIndex]}\"; expected date/time such as \"{DateTime.Now.ToString("o")}\"");
+        }
+        if (date.Kind != DateTimeKind.Utc)
+        {
+          throw new Exception($"CSV line {lineNumber} date/time field was incorrectly interpreted as {date.Kind}");
+        }
+
+        if (!Decimal.TryParse(fields[receivedAmountIndex], NumberStyles.Float, CultureInfo.InvariantCulture, out var coinCount))
+        {
+          throw new Exception($"CSV line {lineNumber} has non-numeric field {receivedAmountIndex + 1} \"{fields[receivedAmountIndex]}\"; expected numeric value such as \"3.17\"");
+        }
+        coinCount = Math.Abs(coinCount);
+
+        if (!Decimal.TryParse(fields[feeIndex], NumberStyles.Float, CultureInfo.InvariantCulture, out var fee))
+        {
+          throw new Exception($"CSV line {lineNumber} has non-numeric field {feeIndex + 1} \"{fields[feeIndex]}\"; expected numeric value such as \"3.17\"");
+        }
+        fee = Math.Abs(fee);
+
+        if (!Decimal.TryParse(fields[totalCostIndex], NumberStyles.Float, CultureInfo.InvariantCulture, out var totalCost))
+        {
+          throw new Exception($"CSV line {lineNumber} has non-numeric field {totalCostIndex + 1} \"{fields[totalCostIndex]}\"; expected numeric value such as \"3.17\"");
+        }
+        totalCost = Math.Abs(totalCost);
+        
+        if (fee > totalCost)
+        {
+          throw new Exception($"CSV line {lineNumber} has fee (field {feeIndex + 1} \"{fee}\") greater than totalCost (field {totalCostIndex + 1} \"{totalCost}\")");
+        }
+
+        Decimal perCoinPrice;
+        try { perCoinPrice = (totalCost - fee) / coinCount; } catch { throw new Exception("Unable to determine perCoinPrice for (totalCost - fee) / coinCount at CSV line {lineNumber}"); }
+        var coinType = fields[receivedCoinTypeIndex];
+        var paymentCoinType = fields[sentCoinTypeIndex];
+
+        var transaction = new PersistedTransaction
+        {
+          TradeId = "D-" + fields[idIndex],
+          TransactionType = transactionType,
+          Exchange = CryptoExchange.None,
+          Time = date,
+          CoinType = coinType,
+          CoinCount = coinCount,
+          PerCoinCost = perCoinPrice,
+          Fee = fee,
+          TotalCost = totalCost,
+          PaymentCoinType = paymentCoinType,
+        };
+        transactions.Add(transaction);
       }
 
       if (transactions.Count > 0)
