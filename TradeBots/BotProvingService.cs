@@ -32,8 +32,12 @@ namespace CryptoProfiteer.TradeBots
     {
       var result = new BotProofResult();
       
-      if (botName != "ThreeUpsThenDownBot") throw new Exception("unsupported bot name; only 'ThreeUpsThenDownBot' is supported now");
-      var bot = new ThreeUpsThenDownBot(coinType, granularity);
+      ITradeBot bot = botName switch
+      {
+        "ThreeUpsThenDownBot" => new ThreeUpsThenDownBot(coinType, granularity),
+        "RangeFinderBot" => new RangeFinderBot(coinType, granularity),
+        _ => throw new Exception("unsupported bot name")
+      };
       
       var heldUsd = initialUsd;
       var heldCoins = 0m;
@@ -99,8 +103,9 @@ namespace CryptoProfiteer.TradeBots
                   PerCoinPriceBeforeFee = perCoinPrice,
                 });
                 result.BotStates.Add(new BotState
-                { 
-                  Time = currentTime,
+                {
+                  Action = $"Bought at price=${perCoinPrice} ({coinsPurchased} {coinType} for ${buyResult.UsdToSpend.Value})",
+                  Time = currentTime.ToLocalTime(),
                   Usd = heldUsd,
                   CoinCount = heldCoins,
                   Note = buyResult.Note,
@@ -141,7 +146,8 @@ namespace CryptoProfiteer.TradeBots
                 });
                 result.BotStates.Add(new BotState
                 {
-                  Time = currentTime,
+                  Action = $"Sold at price=${perCoinPrice} ({sellResult.CoinCountToSell.Value} {coinType} for ${usdGained})",
+                  Time = currentTime.ToLocalTime(),
                   Usd = heldUsd,
                   CoinCount = heldCoins,
                   Note = sellResult.Note,
@@ -169,7 +175,7 @@ namespace CryptoProfiteer.TradeBots
         bot.Sold(new SoldArgs
         {
           EarnedUsd = usdGained,
-          SoldCoinCount = heldCoins,
+          SoldCoinCount = coinCountToSell,
           Usd = heldUsd,
           CoinCount = heldCoins,
           FeeUsd = fee,
@@ -178,10 +184,11 @@ namespace CryptoProfiteer.TradeBots
         });
         result.BotStates.Add(new BotState
         {
-          Time = currentTime,
+          Action = $"Sold at price=${price} ({coinCountToSell} {coinType} for ${usdGained})",
+          Time = currentTime.ToLocalTime(),
           Usd = heldUsd,
           CoinCount = heldCoins,
-          Note = $"Forced to sell at CurrentPrice ({price}) because we're at the end of the simulation",
+          Note = $"Forced to sell at end of simulation",
         });
       }
       

@@ -35,7 +35,7 @@ namespace CryptoProfiteer.TradeBots
     // a non-null return value doesn't complete a purchase; it just instructs the system how much to buy if it can
     public WantsToBuyResult WantsToBuy(WantsToBuyArgs args)
     {
-      // don't sell while I'm holding more coins than USD
+      // don't buy while I'm holding more coins than USD
       // (calculated this way to compensate for coinbase not doing full purcahses/sales)
       if (args.CoinCountToLikelyUsd > args.Usd) return default;
       
@@ -131,10 +131,10 @@ namespace CryptoProfiteer.TradeBots
     }
     
     // notifies the bot of the latest-fetched current crypto price
-    public void ApplyCurrentPrice(CurrentPriceArgs args)
-    {
-      // this will never be invoked because this bot didn't specify that it wanted this info in GetConfig()
-    }
+    //public void ApplyCurrentPrice(CurrentPriceArgs args)
+    //{
+    //  // this will never be invoked because this bot didn't specify that it wanted this info in GetConfig()
+    //}
     
     // Notifies the bot of the latest-produced ticker candle
     public void ApplyNextCandle(NextCandleArgs args)

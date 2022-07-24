@@ -29,7 +29,8 @@
         <label class="input-group-text" for="botNameSelector">Bot Name</label>
       </div>
       <select class="custom-select" id="botNameSelector">
-        <option value="ThreeUpsThenDownBot" selected>Three Ups Then Down Bot</option>
+        <option value="RangeFinderBot" selected>Range Finder Bot</option>
+        <option value="ThreeUpsThenDownBot">Three Ups Then Down Bot</option>
       </select>
     </div>
 
@@ -49,19 +50,29 @@
     @{
       foreach (var coinType in Model.CoinTypes.OrderBy(x => x.MachineName))
       {
-        <option value="@coinType.MachineName" selected=@(coinType.MachineName == "BTC" ? "true" : null)>@coinType.FriendlyName</option>
+        if (coinType.MachineName == "AVAX")
+        {
+          <option value="@coinType.MachineName" selected>@coinType.FriendlyName</option>
+        }
+        else
+        {
+          <option value="@coinType.MachineName">@coinType.FriendlyName</option>
+        }
       }
     }
       </select>
     </div>
 
+    @{
+      var currentDate = DateTime.Now.ToString("yyyy-MM-dd");
     <div class="input-group mb-3">
       <div class="input-group-prepend">
         <span class="input-group-text" id="startDateDescription">Start Date</span>
       </div>
-      <input type="text" class="form-control" id="startDateInput" placeholder="ex: 2022-01-01" 
-        aria-label="Start Date" aria-describedby="startDateDescription" data-date='2022-01-01' value="2022-01-01">
+      <input type="text" class="form-control" id="startDateInput" placeholder="ex: @(currentDate)" 
+        aria-label="Start Date" aria-describedby="startDateDescription" data-date='@(currentDate)' value="@(currentDate)">
     </div>
+    }
 
     <div class="input-group mb-3">
       <div class="input-group-prepend">
@@ -95,9 +106,7 @@
   </div>
 </div>
 
-<button id='go-button' type="button" class="btn btn-primary btn-sm"
-  onclick="simulate()"
->
+<button id='go-button' type="button" class="btn btn-primary btn-sm" onclick="simulate()">
   Go!
 </button>
 
@@ -129,7 +138,7 @@ async function simulate()
     let hours = document.getElementById('durationSelector').value;
     try { hours = Number(hours); } catch { alert('invalid non-numeric duration'); return; }
 
-    startTime += "T00:00:00Z";
+    //startTime += "T00:00:00Z";
     let startDate = new Date(startTime)
     let endDate = new Date(startTime);
     endDate.setHours(endDate.getHours() + hours);

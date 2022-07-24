@@ -25,7 +25,7 @@ namespace CryptoProfiteer.TradeBots
     void Sold(SoldArgs args);
     
     // notifies the bot of the latest-fetched current crypto price
-    void ApplyCurrentPrice(CurrentPriceArgs args);
+    //void ApplyCurrentPrice(CurrentPriceArgs args);
     
     // Notifies the bot of the latest-produced ticker candle
     void ApplyNextCandle(NextCandleArgs args);
