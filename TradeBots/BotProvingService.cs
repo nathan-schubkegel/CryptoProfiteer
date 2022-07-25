@@ -14,7 +14,9 @@ namespace CryptoProfiteer.TradeBots
 {
   public interface IBotProvingService
   {
-    Task<BotProofResult> Prove(string botName, string coinType, Decimal initialUsd, DateTime startTime, DateTime endTime, CandleGranularity granularity, CancellationToken stoppingToken);
+    Task<BotProofResult> Prove(string botName, string coinType, Decimal initialUsd,
+      DateTime startTime, DateTime endTime, CandleGranularity granularity,
+      Dictionary<string, string> botArgs, CancellationToken stoppingToken);
   }
 
   public class BotProvingService: IBotProvingService
@@ -28,7 +30,9 @@ namespace CryptoProfiteer.TradeBots
       _logger = logger;
     }
     
-    public async Task<BotProofResult> Prove(string botName, string coinType, Decimal initialUsd, DateTime startTime, DateTime endTime, CandleGranularity granularity, CancellationToken stoppingToken)
+    public async Task<BotProofResult> Prove(string botName, string coinType, Decimal initialUsd, 
+      DateTime startTime, DateTime endTime, CandleGranularity granularity, 
+      Dictionary<string, string> botArgs, CancellationToken stoppingToken)
     {
       var result = new BotProofResult();
       
@@ -36,6 +40,7 @@ namespace CryptoProfiteer.TradeBots
       {
         "ThreeUpsThenDownBot" => new ThreeUpsThenDownBot(coinType, granularity),
         "RangeFinderBot" => new RangeFinderBot(coinType, granularity),
+        "MovingAverageSurferBot" => new MovingAverageSurferBot(coinType, granularity, int.Parse(botArgs["movingAverage"])),
         _ => throw new Exception("unsupported bot name")
       };
       

@@ -20,6 +20,17 @@
 <script src='/lib/vanillajs-datepicker/dist/js/datepicker.js'></script>
 <link rel="stylesheet" href="/lib/vanillajs-datepicker/dist/css/datepicker.css">
 
+<script>
+function onBotNameSelectorChanged()
+{
+  let botNameSelector = document.getElementById('botNameSelector');
+  var botName = botNameSelector.options[botNameSelector.selectedIndex].value;
+  let movingAverage = document.getElementById('movingAverageDiv');
+  movingAverage.style.display = botName === 'MovingAverageSurferBot' ? '' : 'none';
+}
+onBotNameSelectorChanged();
+</script>
+
 <div class="card border-dark mb-3" style="max-width: 600px; border-color:lightgrey">
   <div class="card-header"><h5 class="card-title">Options</h5></div>
   <div class="card-body text-dark">
@@ -28,9 +39,25 @@
       <div class="input-group-prepend">
         <label class="input-group-text" for="botNameSelector">Bot Name</label>
       </div>
-      <select class="custom-select" id="botNameSelector">
-        <option value="RangeFinderBot" selected>Range Finder Bot</option>
+      <select class="custom-select" id="botNameSelector" onchange='onBotNameSelectorChanged()'>
+        <option value="MovingAverageSurferBot" selected>Moving Average Surfer</option>
+        <option value="RangeFinderBot">Range Finder Bot</option>
         <option value="ThreeUpsThenDownBot">Three Ups Then Down Bot</option>
+      </select>
+    </div>
+    
+    <div class="input-group mb-3" id='movingAverageDiv'>
+      <div class="input-group-prepend">
+        <label class="input-group-text" for="movingAverageSelector">Moving Average</label>
+      </div>
+      <select class="custom-select" id="movingAverageSelector">
+        <option value="9" selected>9 Candles</option>
+        <option value="21">21 Candles</option>
+        <option value="50">50 Candles</option>
+        <option value="80">80 Candles</option>
+        <option value="100">100 Candles</option>
+        <option value="200">200 Candles</option>
+        <option value="300">300 Candles</option>
       </select>
     </div>
 
@@ -142,6 +169,9 @@ async function simulate()
     let startDate = new Date(startTime)
     let endDate = new Date(startTime);
     endDate.setHours(endDate.getHours() + hours);
+    
+    // extra args; varies per botName
+    let movingAverage = document.getElementById('movingAverageSelector').value;
   
     let r = await fetch('/api/proveBot', {
       method: 'POST',
@@ -152,7 +182,10 @@ async function simulate()
         botName,
         granularity,
         initialUsd,
-        coinType
+        coinType,
+        botArgs: {
+          movingAverage
+        }
       })
     });
 

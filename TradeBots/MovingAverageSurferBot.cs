@@ -21,15 +21,15 @@ namespace CryptoProfiteer.TradeBots
     private class MovingAverage
     {
       public int IntendedCandleCount;
-      public Deque<decimal> Prices = new Deque<decimal>();
-      public Deque<decimal> Averages = new Deque<decimal>();
+      public Dequeue<decimal> Prices = new Dequeue<decimal>();
+      public Dequeue<decimal> Averages = new Dequeue<decimal>();
       public PriceDirection Slope;
       
       public void AddCandle(Candle candle)
       {
-        Prices.AddEnd(candle.Close);
-        while (Candles.Count > IntendedCandleCount) Prices.RemoveFront();
-        Averages.AddEnd(Prices.Average());
+        Prices.AddBack(candle.Close);
+        while (Prices.Count > IntendedCandleCount) Prices.RemoveFront();
+        Averages.AddBack(Prices.Average());
         while (Averages.Count > IntendedCandleCount) Averages.RemoveFront();
         if (Averages.Count == 1)
         {
@@ -45,19 +45,17 @@ namespace CryptoProfiteer.TradeBots
       }
     }
     
-    // TODO: stopped here
-    
     private readonly ConfigResult _config;
-    private readonly List< _countOfCandlesToMeasure = 50;
-    private readonly List<Candle> _candles = new List<Candle>();
-
-    private Decimal? _targetPurchaseCoinPrice;
-    private Decimal _targetSellCoinPrice;
-    private Decimal _lossPreventionSellCoinPrice;
+    private readonly int _movingAverageCandleCount;
+    private MovingAverage _thing = new MovingAverage();
+    private const decimal _lossPreventionPricePercent = 0.95m;
+    private decimal _lossPreventionSellCoinPrice;
     private bool _bought = false;
 
-    public MovingAverageSurferBot(string coinType, CandleGranularity granularity)
+    public MovingAverageSurferBot(string coinType, CandleGranularity granularity, int movingAverageCandleCount)
     {
+      _movingAverageCandleCount = movingAverageCandleCount;
+      _thing = new MovingAverage { IntendedCandleCount = movingAverageCandleCount };
       _config = new ConfigResult
       {
         CoinType = coinType,
@@ -75,18 +73,18 @@ namespace CryptoProfiteer.TradeBots
     public WantsToBuyResult WantsToBuy(WantsToBuyArgs args)
     {
       // don't buy if I haven't measured enough
-      if (_targetPurchaseCoinPrice == null) return default;
+      if (_thing.Averages.Count < _thing.IntendedCandleCount) return default;
       
       // don't buy if I already bought
       if (_bought) return default;
       
-      // buy when the price gets low enough
-      if (args.PerCoinPrice <= _targetPurchaseCoinPrice.Value)
+      // buy when the moving average slope is positive
+      if (_thing.Slope == PriceDirection.Rising)
       {
         return new WantsToBuyResult
         {
           UsdToSpend = args.Usd,
-          Note = $"buying because price looks low",
+          Note = $"buying because moving average slope is flat/up",
         };
       }
       
@@ -100,13 +98,13 @@ namespace CryptoProfiteer.TradeBots
       // don't sell if I haven't purchased coins yet
       if (!_bought) return default;
       
-      // sell when the price gets high enough
-      if (args.PerCoinPrice >= _targetSellCoinPrice)
+      // sell when the moving average slope becomes negative
+      if (_thing.Slope == PriceDirection.Falling)
       {
         return new WantsToSellResult
         {
           CoinCountToSell = args.CoinCount,
-          Note = $"selling because price looks high",
+          Note = $"selling because moving average slope is flat/down",
         };
       }
       
@@ -127,34 +125,20 @@ namespace CryptoProfiteer.TradeBots
     public void Bought(BoughtArgs args)
     {
       _bought = true;
+      _lossPreventionSellCoinPrice = args.PerCoinPriceBeforeFee * _lossPreventionPricePercent;
     }
     
     // notifies the bot that it successfully sold X coins for Y dollars
     public void Sold(SoldArgs args)
     {
       _bought = false;
-      _targetPurchaseCoinPrice = null;
-      _candles.Clear();
+      _thing = new MovingAverage { IntendedCandleCount = _movingAverageCandleCount };
     }
     
     // Notifies the bot of the latest-produced ticker candle
     public void ApplyNextCandle(NextCandleArgs args)
     {
-      if (_bought)
-      {
-        return;
-      }
-
-      if (_candles.Count < _countOfCandlesToMeasure)
-      {
-        _candles.Add(args.Candle);
-        if (_candles.Count == _countOfCandlesToMeasure)
-        {
-          _targetPurchaseCoinPrice = _candles.Select(x => x.Close).Min();
-          _targetSellCoinPrice = _candles.Select(x => x.Close).Max();
-          _lossPreventionSellCoinPrice = _targetSellCoinPrice - ((_targetPurchaseCoinPrice.Value - _targetSellCoinPrice) * _percentOfMeasuredRangeToGetOut);
-        }
-      }
+      _thing.AddCandle(args.Candle);
     }
   }
 }

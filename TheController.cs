@@ -715,6 +715,7 @@ namespace CryptoProfiteer
       public string Granularity { get; set; }
       public string InitialUsd { get; set; }
       public string CoinType { get; set; }
+      public Dictionary<string, string> BotArgs { get; set; }
     }
     
     public class ProveBotOutputs
@@ -732,6 +733,7 @@ namespace CryptoProfiteer
         startTime: DateTime.Parse(inputs.StartTime, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal),
         endTime: DateTime.Parse(inputs.EndTime, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal),
         granularity: Enum.Parse<CandleGranularity>(inputs.Granularity, ignoreCase: true),
+        botArgs: inputs.BotArgs,
         stoppingToken: HttpContext.RequestAborted
       );
       return new ProveBotOutputs { Result = result };

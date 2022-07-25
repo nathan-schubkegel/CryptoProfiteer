@@ -1,15 +1,19 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+
 namespace CryptoProfiteer
 {
   /// <summary>
   /// A double-ended queue data structure with O(1) AddFront, AddBack, RemoveFront, RemoveBack
   /// </summary>
-  public class Deque<T>
+  public class Dequeue<T> : IEnumerable<T>
   {
     private T[] _buffer;
     private int _startIndex;
     private int _count;
 
-    public Deque()
+    public Dequeue()
     {
       _buffer = new T[16];
     }
@@ -47,7 +51,7 @@ namespace CryptoProfiteer
       _startIndex = index;
     }
     
-    public void AddEnd(T item)
+    public void AddBack(T item)
     {
       GrowBeforeAddIfNeeded();
       _count++;
@@ -71,7 +75,7 @@ namespace CryptoProfiteer
 
     public void RemoveFront()
     {
-      if (_count == 0) throw new Exception("Can't remove from empty deque");
+      if (_count == 0) throw new Exception("Can't remove from empty Dequeue");
 
       // prevent memory leaks
       _buffer[GetBufferIndex(0)] = default;
@@ -81,9 +85,9 @@ namespace CryptoProfiteer
       if (_startIndex == _buffer.Length) _startIndex = 0;
     }
 
-    public void RemoveEnd()
+    public void RemoveBack()
     {
-      if (_count == 0) throw new Exception("Can't remove from empty deque");
+      if (_count == 0) throw new Exception("Can't remove from empty Dequeue");
 
       // prevent memory leaks
       _buffer[GetBufferIndex(_count - 1)] = default;
@@ -93,17 +97,17 @@ namespace CryptoProfiteer
 
     public T PeekFront()
     {
-      if (_count == 0) throw new Exception("Can't peek in empty deque");
+      if (_count == 0) throw new Exception("Can't peek in empty Dequeue");
       return _buffer[GetBufferIndex(0)];
     }
 
-    public T PeekEnd()
+    public T PeekBack()
     {
-      if (_count == 0) throw new Exception("Can't peek in empty deque");
+      if (_count == 0) throw new Exception("Can't peek in empty Dequeue");
       return _buffer[GetBufferIndex(_count - 1)];
     }
     
-    public this[int index]
+    public T this[int index]
     {
       get
       {
@@ -116,6 +120,70 @@ namespace CryptoProfiteer
         if (index < 0 || index >= _count) throw new Exception("invalid index");
         _buffer[GetBufferIndex(index)] = value;
       }
+    }
+    
+    public IEnumerator<T> GetEnumerator()
+    {
+      return new Enumerator(this);
+    }
+    
+    IEnumerator IEnumerable.GetEnumerator()
+    {
+      return new Enumerator(this);
+    }
+    
+    public class Enumerator : IEnumerator<T>, IEnumerator
+    {
+      Dequeue<T> _thing;
+      int _index = -1;
+      
+      public Enumerator(Dequeue<T> thing) { _thing = thing; }
+      
+      public bool MoveNext()
+      {
+        if (_index + 1 >= _thing.Count) return false;
+        _index++;
+        return true;
+      }
+      
+      public T Current => _thing[_index];
+      
+      Object IEnumerator.Current => _thing[_index];
+      
+      public void Reset()
+      {
+        _index = -1;
+      }
+      
+      public void Dispose()
+      {
+        _thing = null;
+      }
+    }
+    
+    static Dequeue()
+    {
+      void assert(bool condition, string message)
+      {
+        if (!condition) throw new Exception(message);
+      }
+      
+      var a = new Dequeue<int>();
+      a.AddFront(3);
+      a.AddBack(4);
+      a.AddFront(5);
+      a.AddBack(6);
+      assert(a.Count == 4, "count of 'a'");
+      assert(a[0] == 5, "a[0] should == 5");
+      assert(a[1] == 3, "a[1] should == 3");
+      assert(a[2] == 4, "a[2] should == 4");
+      assert(a[3] == 6, "a[3] should == 6");
+      
+      a.RemoveFront();
+      a.RemoveBack();
+      assert(a.Count == 2, "count of 'a' round 2");
+      assert(a[0] == 3, "a[0] should == 3");
+      assert(a[1] == 4, "a[1] should == 4");
     }
   }
 }
