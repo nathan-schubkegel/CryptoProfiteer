@@ -47,14 +47,20 @@ namespace CryptoProfiteer.TradeBots
     
     private readonly ConfigResult _config;
     private readonly int _movingAverageCandleCount;
+    private readonly decimal _targetGainPercent;
+    private readonly decimal _lossPreventionPercent;
     private MovingAverage _thing = new MovingAverage();
-    private const decimal _lossPreventionPricePercent = 0.95m;
+    private decimal _targetSaleCoinPrice;
     private decimal _lossPreventionSellCoinPrice;
     private bool _bought = false;
 
-    public MovingAverageSurferBot(string coinType, CandleGranularity granularity, int movingAverageCandleCount)
+    public MovingAverageSurferBot(string coinType, CandleGranularity granularity,
+      int movingAverageCandleCount, decimal targetGainPercent, decimal lossPreventionPercent)
     {
       _movingAverageCandleCount = movingAverageCandleCount;
+      _targetGainPercent = targetGainPercent;
+      _lossPreventionPercent = lossPreventionPercent;
+      
       _thing = new MovingAverage { IntendedCandleCount = movingAverageCandleCount };
       _config = new ConfigResult
       {
@@ -98,13 +104,13 @@ namespace CryptoProfiteer.TradeBots
       // don't sell if I haven't purchased coins yet
       if (!_bought) return default;
       
-      // sell when the moving average slope becomes negative
-      if (_thing.Slope == PriceDirection.Falling)
+      // sell when the target price is reached AND the moving average turns down
+      if (args.PerCoinPrice >= _targetSaleCoinPrice && _thing.Slope == PriceDirection.Falling)
       {
         return new WantsToSellResult
         {
           CoinCountToSell = args.CoinCount,
-          Note = $"selling because moving average slope is flat/down",
+          Note = $"selling because target profit met, and moving average slope is flat/down",
         };
       }
       
@@ -125,7 +131,8 @@ namespace CryptoProfiteer.TradeBots
     public void Bought(BoughtArgs args)
     {
       _bought = true;
-      _lossPreventionSellCoinPrice = args.PerCoinPriceBeforeFee * _lossPreventionPricePercent;
+      _targetSaleCoinPrice = args.PerCoinPriceBeforeFee * (1 + _targetGainPercent);
+      _lossPreventionSellCoinPrice = args.PerCoinPriceBeforeFee * (1 - _lossPreventionPercent);
     }
     
     // notifies the bot that it successfully sold X coins for Y dollars

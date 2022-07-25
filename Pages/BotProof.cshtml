@@ -26,7 +26,12 @@ function onBotNameSelectorChanged()
   let botNameSelector = document.getElementById('botNameSelector');
   var botName = botNameSelector.options[botNameSelector.selectedIndex].value;
   let movingAverage = document.getElementById('movingAverageDiv');
-  movingAverage.style.display = botName === 'MovingAverageSurferBot' ? '' : 'none';
+  let targetGain = document.getElementById('targetGainDiv');
+  let lossPrevention = document.getElementById('lossPreventionDiv');
+  movingAverage.style.display = 
+    targetGain.style.display = 
+    lossPrevention.style.display =
+    (botName === 'ThreeUpsThenDownBot' || botName === 'RangeFinderBot' ? 'none' : '');
 }
 onBotNameSelectorChanged();
 </script>
@@ -58,6 +63,58 @@ onBotNameSelectorChanged();
         <option value="100">100 Candles</option>
         <option value="200">200 Candles</option>
         <option value="300">300 Candles</option>
+      </select>
+    </div>
+    
+    <div class="input-group mb-3" id='targetGainDiv'>
+      <div class="input-group-prepend">
+        <label class="input-group-text" for="targetGainSelector">Target Gain</label>
+      </div>
+      <select class="custom-select" id="targetGainSelector">
+        <option value="0.01">sell at 1% gain</option>
+        <option value="0.02">sell at 2% gain</option>
+        <option value="0.03">sell at 3% gain</option>
+        <option value="0.04">sell at 4% gain</option>
+        <option value="0.05" selected>sell at 5% gain</option>
+        <option value="0.06">sell at 6% gain</option>
+        <option value="0.07">sell at 7% gain</option>
+        <option value="0.08">sell at 8% gain</option>
+        <option value="0.09">sell at 9% gain</option>
+        <option value="0.10">sell at 10% gain</option>
+        <option value="0.15">sell at 15% gain</option>
+        <option value="0.20">sell at 20% gain</option>
+        <option value="0.25">sell at 25% gain</option>
+        <option value="0.30">sell at 30% gain</option>
+        <option value="0.40">sell at 40% gain</option>
+        <option value="0.50">sell at 50% gain</option>
+        <option value="0.75">sell at 75% gain</option>
+        <option value="1.00">sell at 100% gain</option>
+      </select>
+    </div>
+    
+    <div class="input-group mb-3" id='lossPreventionDiv'>
+      <div class="input-group-prepend">
+        <label class="input-group-text" for="lossPreventionSelector">Loss Prevention</label>
+      </div>
+      <select class="custom-select" id="lossPreventionSelector">
+        <option value="0.01">sell at 1% loss</option>
+        <option value="0.02">sell at 2% loss</option>
+        <option value="0.03">sell at 3% loss</option>
+        <option value="0.04">sell at 4% loss</option>
+        <option value="0.05" selected>sell at 5% loss</option>
+        <option value="0.06">sell at 6% loss</option>
+        <option value="0.08">sell at 8% loss</option>
+        <option value="0.07">sell at 7% loss</option>
+        <option value="0.09">sell at 9% loss</option>
+        <option value="0.10">sell at 10% loss</option>
+        <option value="0.15">sell at 15% loss</option>
+        <option value="0.20">sell at 20% loss</option>
+        <option value="0.25">sell at 25% loss</option>
+        <option value="0.30">sell at 30% loss</option>
+        <option value="0.40">sell at 40% loss</option>
+        <option value="0.50">sell at 50% loss</option>
+        <option value="0.75">sell at 75% loss</option>
+        <option value="1.00">sell at 100% loss</option>
       </select>
     </div>
 
@@ -172,6 +229,8 @@ async function simulate()
     
     // extra args; varies per botName
     let movingAverage = document.getElementById('movingAverageSelector').value;
+    let targetGainPercent = document.getElementById('targetGainSelector').value;
+    let lossPreventionPercent = document.getElementById('lossPreventionSelector').value;
   
     let r = await fetch('/api/proveBot', {
       method: 'POST',
@@ -184,7 +243,9 @@ async function simulate()
         initialUsd,
         coinType,
         botArgs: {
-          movingAverage
+          movingAverage,
+          targetGainPercent,
+          lossPreventionPercent
         }
       })
     });

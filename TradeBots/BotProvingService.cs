@@ -40,7 +40,11 @@ namespace CryptoProfiteer.TradeBots
       {
         "ThreeUpsThenDownBot" => new ThreeUpsThenDownBot(coinType, granularity),
         "RangeFinderBot" => new RangeFinderBot(coinType, granularity),
-        "MovingAverageSurferBot" => new MovingAverageSurferBot(coinType, granularity, int.Parse(botArgs["movingAverage"])),
+        "MovingAverageSurferBot" => new MovingAverageSurferBot(coinType, granularity,
+          int.Parse(botArgs["movingAverage"]),
+          Decimal.Parse(botArgs["targetGainPercent"], NumberStyles.Float, CultureInfo.InvariantCulture),
+          Decimal.Parse(botArgs["lossPreventionPercent"], NumberStyles.Float, CultureInfo.InvariantCulture)
+        ),
         _ => throw new Exception("unsupported bot name")
       };
       
