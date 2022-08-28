@@ -7,9 +7,52 @@ namespace CryptoProfiteer
   // NOTE: this type is JSON serialized/deserialized
   public class PersistedTransaction
   {
+    [JsonProperty("id")]
+    public string Id { get; set; }
+    
+    [JsonProperty("oaId")]
+    public string OrderAggregationId { get; set; }
+    
+    [JsonProperty("type")]
+    public TransactionType TransactionType { get; set; }
+    
+    [JsonProperty("exch")]
+    public CryptoExchange Exchange { get; set; }
+    
+    [JsonProperty("time")]
+    public DateTime Time { get; set; }
+    
+    [JsonProperty("rCoin")]
+    public string ReceivedCoinType { get; set; }
+    
+    [JsonProperty("pCoin")]
+    public string PaymentCoinType { get; set; }
+    
+    [JsonProperty("rCount")]
+    public Decimal ReceivedCoinCount
+    { 
+      get => _receivedCoinCount;
+      set => _receivedCoinCount = Math.Abs(value); // always positive - just fix mistakes
+    }
+    private Decimal _receivedCoinCount;
+    
+    [JsonProperty("pCount")]
+    public Decimal PaymentCoinCount
+    { 
+      get => _paymentCoinCount;
+      set => _paymentCoinCount = Math.Abs(value); // always positive - just fix mistakes
+    }
+    private Decimal _paymentCoinCount;
+    
+    public PersistedTransaction Clone() => (PersistedTransaction)MemberwiseClone();
+  }
+  
+  // NOTE: this type is JSON serialized/deserialized
+  public class PersistedTransaction_v04
+  {
     public string TradeId { get; set; }
     public string OrderAggregationId { get; set; }
-    public TransactionType TransactionType { get; set; }
+    public TransactionType_v04 TransactionType { get; set; }
     public CryptoExchange Exchange { get; set; }
     public DateTime Time { get; set; }
     public string CoinType { get; set; }
@@ -19,6 +62,43 @@ namespace CryptoProfiteer
     public Decimal Fee { get; set; }
     public Decimal TotalCost { get; set; }
     
-    public PersistedTransaction Clone() => (PersistedTransaction)MemberwiseClone();
+    public PersistedTransaction_v04 Clone() => (PersistedTransaction_v04)MemberwiseClone();
+    public PersistedTransaction ToLatest() => new PersistedTransaction
+    {
+      Id = TradeId,
+      OrderAggregationId = OrderAggregationId,
+      TransactionType = TransactionType switch
+      {
+        TransactionType_v04.Buy => TransactionType.Trade,
+        TransactionType_v04.Sell => TransactionType.Trade,
+        TransactionType_v04.Adjustment => TransactionType.Adjustment,
+      },
+      Exchange = Exchange,
+      Time = Time,
+      ReceivedCoinType = TransactionType switch
+      {
+        TransactionType_v04.Buy => CoinType,
+        TransactionType_v04.Sell => PaymentCoinType,
+        TransactionType_v04.Adjustment => CoinType,
+      },
+      PaymentCoinType = TransactionType switch
+      {
+        TransactionType_v04.Buy => PaymentCoinType,
+        TransactionType_v04.Sell => CoinType,
+        TransactionType_v04.Adjustment => CoinType,
+      },
+      ReceivedCoinCount = TransactionType switch
+      {
+        TransactionType_v04.Buy => CoinCount,
+        TransactionType_v04.Sell => TotalCost,
+        TransactionType_v04.Adjustment => CoinCount > 0 ? CoinCount : 0,
+      },
+      PaymentCoinCount = TransactionType switch
+      {
+        TransactionType_v04.Buy => TotalCost,
+        TransactionType_v04.Sell => CoinCount,
+        TransactionType_v04.Adjustment => CoinCount < 0 ? CoinCount : 0,
+      },
+    };
   }
 }

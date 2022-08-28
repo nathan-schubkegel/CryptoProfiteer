@@ -7,40 +7,43 @@ namespace CryptoProfiteer
   public class Transaction
   {
     private readonly PersistedTransaction _data;
-    private readonly FriendlyName _friendlyName;
-    private readonly IHistoricalCoinPriceService _currencyConverter;
-    public IHistoricalCoinPriceService CurrencyConverter => _currencyConverter;
+    private readonly Services _services;
     
-    private Decimal? _perCoinCostUsd;
-    private Decimal? _feeUsd;
-    private Decimal? _totalCostUsd;
+    private Decimal? _receivedValueUsd;
+    private Decimal? _paymentValueUsd;
 
-    public Transaction(PersistedTransaction data, FriendlyName friendlyName, IHistoricalCoinPriceService currencyConverter)
+    public Transaction(PersistedTransaction data, Services services)
     {
       _data = data;
-      _friendlyName = friendlyName;
-      _currencyConverter = currencyConverter;
+      _services = services;
 
       // start work to learn historical prices
-      _ = PerCoinCostUsd;
+      _ = ReceivedValueUsd;
+      _ = PaymentValueUsd;
     }
     
-    public string TradeId => _data.TradeId;
+    public string Id => _data.Id;
     public string OrderAggregationId => _data.OrderAggregationId;
     public TransactionType TransactionType => _data.TransactionType;
     public CryptoExchange Exchange => _data.Exchange;
     public DateTime Time => _data.Time;
-    public string CoinType => _data.CoinType;
+    
+    public string ReceivedCoinType => _data.ReceivedCoinType;
     public string PaymentCoinType => _data.PaymentCoinType;
-    public string FriendlyName => _friendlyName.Value;
-    public Decimal CoinCount => _data.CoinCount;
-    public Decimal PerCoinCost => _data.PerCoinCost;
-    public Decimal Fee => _data.Fee;
-    public Decimal TotalCost => _data.TotalCost;
 
-    public Decimal? PerCoinCostUsd => _perCoinCostUsd == null ? (_perCoinCostUsd = _currencyConverter.ToUsd(PerCoinCost, PaymentCoinType, Time, Exchange)) : _perCoinCostUsd;
-    public Decimal? FeeUsd => _feeUsd == null ? (_feeUsd = _currencyConverter.ToUsd(Fee, PaymentCoinType, Time, Exchange)) : _feeUsd;
-    public Decimal? TotalCostUsd => _totalCostUsd == null ? (_totalCostUsd = _currencyConverter.ToUsd(TotalCost, PaymentCoinType, Time, Exchange)) : _totalCostUsd;
+    public Decimal ReceivedCoinCount => _data.ReceivedCoinCount;
+    public Decimal PaymentCoinCount => _data.PaymentCoinCount;
+
+    public Decimal? ReceivedValueUsd => _receivedValueUsd == null ? (_receivedValueUsd = _services.HistoricalCoinPriceService.ToUsd(ReceivedCoinCount, ReceivedCoinType, Time, Exchange)) : _receivedValueUsd;
+    public Decimal? PaymentValueUsd => _paymentValueUsd == null ? (_paymentValueUsd = _services.HistoricalCoinPriceService.ToUsd(PaymentCoinCount, PaymentCoinType, Time, Exchange)) : _paymentValueUsd;
+    
+    // TODO: these probably make sense, but it's hard for me to reason about them
+    //public Decimal PaymentCoinExchangeRate => 
+    //public Decimal ReceivedCoinExchangeRate => 
+    
+    // TODO: same here
+    //public Decimal? PaymentCoinExchangeRateUsd => 
+    //public Decimal? ReceivedCoinExchangeRateUsd => 
 
     public PersistedTransaction ClonePersistedData() => _data.Clone();
   }

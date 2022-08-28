@@ -20,7 +20,7 @@ namespace CryptoProfiteer
 {
   public interface IHistoricalCoinPriceService
   {
-    Decimal? ToUsd(Decimal cost, string coinType, DateTime time, CryptoExchange exchange);
+    Decimal? ToUsd(Decimal coinCount, string coinType, DateTime time, CryptoExchange exchange);
 
     IEnumerable<PersistedHistoricalCoinPrice> ClonePersistedData();
 
