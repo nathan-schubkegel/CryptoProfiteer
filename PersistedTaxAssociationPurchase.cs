@@ -14,6 +14,7 @@ namespace CryptoProfiteer
     [JsonProperty("oId")]
     public string OrderId { get; set; }
     
+    // The amount of coins received by the order that are used as cost basis for the tax association
     [JsonProperty("count")]
     public Decimal ContributingCoinCount
     {
@@ -21,6 +22,7 @@ namespace CryptoProfiteer
       set => _contributingCoinCount = Math.Abs(value); // always positive - just fix mistakes
     }
     
+    // The value of 'ContributingCoinCount' in USD received by the order that are used as cost basis for the tax association
     [JsonProperty("cost")]
     public int ContributingCost
     {

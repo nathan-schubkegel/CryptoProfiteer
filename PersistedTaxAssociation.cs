@@ -9,8 +9,14 @@ namespace CryptoProfiteer
   // NOTE: this type is JSON serialized/deserialized
   public class PersistedTaxAssociation
   {
-    // NOTE: this object is identified by SaleOrderId
+    // a unique ID is unnecessary, but I already have so much code using 'Id', so meh this is an easy compromise
+    [JsonIgnore]
+    public string Id => SaleOrderId;
+    
+    [JsonProperty("oId")]
     public string SaleOrderId { get; set; }
+    
+    [JsonProperty("purchases")]
     public List<PersistedTaxAssociationPurchase> Purchases { get; set; }
     
     public PersistedTaxAssociation Clone() => new PersistedTaxAssociation

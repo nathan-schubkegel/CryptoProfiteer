@@ -41,6 +41,7 @@ namespace CryptoProfiteer
     private readonly IFriendlyNameService _friendlyNameService;
     private readonly IHistoricalCoinPriceService _historicalCoinPriceService;
     private readonly IPriceService _priceService;
+    private readonly Services _services;
 
     public IReadOnlyDictionary<string, Transaction> Transactions { get; private set; } = new Dictionary<string, Transaction>();
     public IReadOnlyDictionary<string, Order> Orders { get; private set; } = new Dictionary<string, Order>();
@@ -51,13 +52,15 @@ namespace CryptoProfiteer
       ILogger<DataService> logger,
       IHistoricalCoinPriceService historicalCoinPriceService,
       IFriendlyNameService friendlyNameService,
-      IPriceService priceService)
+      IPriceService priceService,
+      Services services)
     {
       _logger = logger;
       _historicalCoinPriceService = historicalCoinPriceService;
       _friendlyNameService = friendlyNameService;
       _priceService = priceService;
       _priceService.CoinPricesUpdated += OnCoinPricesUpdated;
+      _services = services;
     }
 
     public void ImportTransactions(IEnumerable<PersistedTransaction> importedTransactions)
@@ -67,10 +70,9 @@ namespace CryptoProfiteer
         var newTransactions = new Dictionary<string, Transaction>(Transactions);
         foreach (var t in importedTransactions)
         {
-          newTransactions[t.TradeId] = new Transaction(
+          newTransactions[t.Id] = new Transaction(
             t ?? throw new Exception("invalid null transaction"),
-            _friendlyNameService.GetOrCreateFriendlyName(t.CoinType),
-            _historicalCoinPriceService);
+            _services);
         }
 
         var newOrders = BuildOrders(newTransactions);
@@ -90,14 +92,17 @@ namespace CryptoProfiteer
       var newOrders = new Dictionary<string, Order>();
       var orderTransactions = new List<Transaction>();
       
-      // kucoin transactions are aggregated perfectly by order id; so group those with zeal
-      foreach (var kGroup in transactions.Values.Where(x => x.OrderAggregationId != null).GroupBy(x => x.OrderAggregationId))
+      // some transactions (like from kucoin) are aggregated perfectly by order id; so group those with zeal
+      foreach (var kGroup in transactions.Values.Where(x => x.OrderAggregationId != null)
+        .GroupBy(x => (x.PaymentCoinType, x.ReceivedCoinType, x.Exchange, x.TransactionType, x.OrderAggregationId)))
       {
-        var order = new Order(kGroup.ToList(), _friendlyNameService.GetOrCreateFriendlyName(kGroup.First().CoinType));
+        var order = new Order(kGroup.ToList(), _services);
         newOrders[order.Id] = order;
       }
 
-      foreach (var tGroup in transactions.Values.Where(x => x.OrderAggregationId == null).GroupBy(x => (x.CoinType, x.PaymentCoinType, x.Exchange, x.TransactionType)))
+      // some transactions (like fills from coinbase pro without associated account statements) have no order id
+      foreach (var tGroup in transactions.Values.Where(x => x.OrderAggregationId == null)
+        .GroupBy(x => (x.PaymentCoinType, x.ReceivedCoinType, x.Exchange, x.TransactionType, x.OrderAggregationId)))
       {
         foreach (var t in tGroup.OrderBy(x => x.Time))
         {
@@ -116,14 +121,14 @@ namespace CryptoProfiteer
             continue;
           }
           
-          var order = new Order(orderTransactions, _friendlyNameService.GetOrCreateFriendlyName(orderTransactions[0].CoinType));
+          var order = new Order(orderTransactions, _services);
           newOrders[order.Id] = order;
           orderTransactions.Clear();
           orderTransactions.Add(t);
         }
         if (orderTransactions.Count > 0)
         {
-          var order = new Order(orderTransactions, _friendlyNameService.GetOrCreateFriendlyName(orderTransactions[0].CoinType));
+          var order = new Order(orderTransactions, _services);
           newOrders[order.Id] = order;
           orderTransactions.Clear();
         }
@@ -139,26 +144,14 @@ namespace CryptoProfiteer
       var coinCounts = new Dictionary<string, Decimal>();
       foreach (var t in transactions.Values)
       {
-        // account for coin type
-        var coins = coinCounts.GetValueOrDefault(t.CoinType, 0m);
-        switch (t.TransactionType)
-        {
-          case TransactionType.Sell: coins -= Math.Abs(t.CoinCount); break;
-          case TransactionType.Buy: coins += Math.Abs(t.CoinCount); break;
-          case TransactionType.Adjustment: coins += t.CoinCount; break;
-          default: throw new Exception("Unrecognized transaction type" + t.TransactionType);
-        }
-        coinCounts[t.CoinType] = coins;
+        // account for received coin type
+        var coins = coinCounts.GetValueOrDefault(t.ReceivedCoinType, 0m);
+        coins += t.ReceivedCoinCount;
+        coinCounts[t.ReceivedCoinType] = coins;
         
         // account for payment coin type
         coins = coinCounts.GetValueOrDefault(t.PaymentCoinType, 0m);
-        switch (t.TransactionType)
-        {
-          case TransactionType.Sell: coins += Math.Abs(t.TotalCost); break;
-          case TransactionType.Buy: coins -= Math.Abs(t.TotalCost); break;
-          case TransactionType.Adjustment: if (t.PaymentCoinType != "USD") throw new Exception("adjustments are supposed to be always \"paid\" in USD"); break;
-          default: throw new Exception("Unrecognized transaction type " + t.TransactionType);
-        }
+        coins -= t.PaymentCoinCount;
         coinCounts[t.PaymentCoinType] = coins;
       }
       

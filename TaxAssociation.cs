@@ -22,16 +22,11 @@ namespace CryptoProfiteer
       foreach (var purchase in data.Purchases)
       {
         var order = allOrders.GetValueOrDefault(purchase.OrderId) ?? throw new Exception("Tax association purchase data refers to order that does not exist");
+        if (order.ReceivedCoinType != saleOrder.PaymentCoinType) throw new Exception("Tax association purchase data refers to order that sold a different coin type");
         purchases.Add(new TaxAssociationPurchase(purchase, order));
       }
       Purchases = purchases;
-
-      // FUTURE: somebody should make sure these contributing costs loaded from file are all negative
-      // (currently it's done in DataService.UpdateTaxAssociation() when they're created)
       TotalCostBought = Purchases.Sum(p => p.ContributingCost);
-
-      // FUTURE: somebody should make sure these contributing counts loaded from file are all positive
-      // (currently it's done in DataService.UpdateTaxAssociation() when they're created)
       CoinCountBought = Purchases.Sum(p => p.ContributingCoinCount);
     }
 
