@@ -188,7 +188,7 @@ namespace CryptoProfiteer
         var coinType = fields[coinTypeIndex];
         var paymentCoinType = fields[paymentTypeIndex];
 
-        var transaction = new PersistedTransaction
+        var transaction = new PersistedTransaction_v04
         {
           TradeId = "C-" + fields[createdAtIndex], // assuming that my coinbase transactions are all time-unique
           TransactionType = transactionType,
@@ -201,7 +201,7 @@ namespace CryptoProfiteer
           TotalCost = totalCost,
           PaymentCoinType = paymentCoinType,
         };
-        transactions.Add(transaction);
+        transactions.Add(transaction.ToLatest());
       }
 
       if (transactions.Count > 0)
@@ -290,7 +290,7 @@ namespace CryptoProfiteer
           throw new Exception($"CSV line {lineNumber} has unexpected field {product + 1} \"{fields[product]}\"; based on other fields, expected \"{expectedProduct}\"");
         }
 
-        var transaction = new PersistedTransaction
+        var transaction = new PersistedTransaction_v04
         {
           TradeId = "CP-" + fields[tradeIdIndex],
           TransactionType = transactionType,
@@ -303,7 +303,7 @@ namespace CryptoProfiteer
           TotalCost = totalCost,
           PaymentCoinType = paymentCoinType,
         };
-        transactions.Add(transaction);
+        transactions.Add(transaction.ToLatest());
       }
 
       if (transactions.Count > 0)
@@ -517,7 +517,7 @@ namespace CryptoProfiteer
           // (but CryptoProfiteer is built assuming negative values for buys, like coinbase reports)
           if (transactionType == TransactionType.Buy) totalCost = -Math.Abs(totalCost);
 
-          var transaction = new PersistedTransaction
+          var transaction = new PersistedTransaction_v04
           {
             TradeId = "K-" + orderId + "-" + fillNumber,
             OrderAggregationId = "K-" + orderId,
@@ -531,7 +531,7 @@ namespace CryptoProfiteer
             TotalCost = totalCost,
             PaymentCoinType = paymentCoinType
           };
-          transactions.Add(transaction);
+          transactions.Add(transaction.ToLatest());
         }
       }
 
@@ -619,7 +619,7 @@ namespace CryptoProfiteer
         var coinType = fields[receivedCoinTypeIndex];
         var paymentCoinType = fields[sentCoinTypeIndex];
 
-        var transaction = new PersistedTransaction
+        var transaction = new PersistedTransaction_v04
         {
           TradeId = "D-" + fields[idIndex],
           TransactionType = transactionType,
@@ -632,7 +632,7 @@ namespace CryptoProfiteer
           TotalCost = totalCost,
           PaymentCoinType = paymentCoinType,
         };
-        transactions.Add(transaction);
+        transactions.Add(transaction.ToLatest());
       }
 
       if (transactions.Count > 0)
