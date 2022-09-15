@@ -1,0 +1,62 @@
+@page
+@using System.Globalization;
+@using System.Threading;
+@using System.Threading.Tasks;
+@model CandlesModel
+@{
+  ViewData["Title"] = "Candles";
+}
+
+<style>
+.table > thead > tr:first-child > th {
+    border: none;
+}
+</style>
+
+<h1>
+  @ViewData["Title"]
+</h1>
+
+<table class="table table-sm">
+  <thead>
+    <tr>
+      <th scope="col">Date</th>
+      <th scope="col"></th>
+      <th scope="col">Name</th>
+      <th scope="col">Count</th>
+      <th scope="col">Per Coin</th>
+      <th scope="col">Fee</th>
+      <th scope="col">Total</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>uh</td>
+      <td>oh</td>
+      <td>er</td>
+      <td>um</td>
+      <td>dur</td>
+      <td>buh</td>
+      <td>oof</td>
+    </tr>
+  </tbody>
+</table>
+
+@{
+  var when = DateTime.Parse("2022-01-06T06:07:54.31Z", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
+  var data = await Model.CandleService.TryGetCandleRangeAsync(PersistedCandleRangeId.CoinbasePro("BTC", when, CandleGranularity.Minutes), CancellationToken.None);
+  <text>@data.Id.CoinType @data.Id.Exchange @data.Id.StartTime.ToLocalTime() @data.Id.Count @data.Id.Granularity<br></text>
+  for (int i = 0; i < data.Count; i++)
+  {
+    var candleIsh = data.TryGetCandle(i);
+    if (candleIsh == null)
+    {
+      <text>null<br></text>
+    }
+    else
+    {
+      var candle = candleIsh.Value;
+      <text>Open=@candle.Open Close=@candle.Close High=@candle.High Low=@candle.Low<br></text>
+    }
+  }
+}
