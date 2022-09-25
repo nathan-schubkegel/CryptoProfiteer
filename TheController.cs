@@ -150,10 +150,10 @@ namespace CryptoProfiteer
           continue;
         }
         
-        if (!Enum.TryParse<TransactionType>(fields[buySellIndex], ignoreCase: true, out var transactionType) ||
-            (transactionType != TransactionType.Buy && transactionType != TransactionType.Sell))
+        if (!Enum.TryParse<TransactionType_v04>(fields[buySellIndex], ignoreCase: true, out var transactionType) ||
+            (transactionType != TransactionType_v04.Buy && transactionType != TransactionType_v04.Sell))
         {
-          throw new Exception($"CSV line {lineNumber} has unrecognized field {buySellIndex + 1} \"{fields[buySellIndex]}\"; expected one of " + string.Join(",", Enum.GetNames(typeof(TransactionType)).Select(x => "\"" + x + "\"")));
+          throw new Exception($"CSV line {lineNumber} has unrecognized field {buySellIndex + 1} \"{fields[buySellIndex]}\"; expected one of " + string.Join(",", Enum.GetNames(typeof(TransactionType_v04)).Select(x => "\"" + x + "\"")));
         }
 
         if (!DateTime.TryParse(fields[createdAtIndex], CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var createdAtTime))
@@ -247,10 +247,10 @@ namespace CryptoProfiteer
           throw new Exception($"CSV line {lineNumber} has {fields.Count} fields; different from header line which has {headerFields.Count} fields; aborting.");
         }
 
-        if (!Enum.TryParse<TransactionType>(fields[buySellIndex], ignoreCase: true, out var transactionType) ||
-            (transactionType != TransactionType.Buy && transactionType != TransactionType.Sell))
+        if (!Enum.TryParse<TransactionType_v04>(fields[buySellIndex], ignoreCase: true, out var transactionType) ||
+            (transactionType != TransactionType_v04.Buy && transactionType != TransactionType_v04.Sell))
         {
-          throw new Exception($"CSV line {lineNumber} has unrecognized field {buySellIndex + 1} \"{fields[buySellIndex]}\"; expected one of " + string.Join(",", Enum.GetNames(typeof(TransactionType)).Select(x => "\"" + x + "\"")));
+          throw new Exception($"CSV line {lineNumber} has unrecognized field {buySellIndex + 1} \"{fields[buySellIndex]}\"; expected one of " + string.Join(",", Enum.GetNames(typeof(TransactionType_v04)).Select(x => "\"" + x + "\"")));
         }
 
         if (!DateTime.TryParse(fields[createdAtIndex], CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var createdAtTime))
@@ -452,10 +452,10 @@ namespace CryptoProfiteer
             throw new Exception($"CSV line {lineNumber} has {fields.Count} fields; different from header line which has {headerFields.Count} fields; aborting.");
           }
 
-          if (!Enum.TryParse<TransactionType>(fields[buySellIndex], ignoreCase: true, out var transactionType) ||
-              (transactionType != TransactionType.Buy && transactionType != TransactionType.Sell))
+          if (!Enum.TryParse<TransactionType_v04>(fields[buySellIndex], ignoreCase: true, out var transactionType) ||
+              (transactionType != TransactionType_v04.Buy && transactionType != TransactionType_v04.Sell))
           {
-            throw new Exception($"CSV line {lineNumber} has unrecognized field {buySellIndex + 1} \"{fields[buySellIndex]}\"; expected one of " + string.Join(",", Enum.GetNames(typeof(TransactionType)).Select(x => "\"" + x + "\"")));
+            throw new Exception($"CSV line {lineNumber} has unrecognized field {buySellIndex + 1} \"{fields[buySellIndex]}\"; expected one of " + string.Join(",", Enum.GetNames(typeof(TransactionType_v04)).Select(x => "\"" + x + "\"")));
           }
 
           if (!DateTime.TryParseExact(fields[createdAtIndex], "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var createdAtTime))
@@ -511,11 +511,11 @@ namespace CryptoProfiteer
           // kucoin reporting is weird because total price is not strictly reported
           // for "sell" transactions, total price = dealFunds, and that minus fee is added to your value
           // for "buy" transactions, total price = dealFunds + fee
-          var totalCost = transactionType == TransactionType.Sell ? dealFunds : dealFunds + fee;
+          var totalCost = transactionType == TransactionType_v04.Sell ? dealFunds : dealFunds + fee;
           
           // kucoin reports postive values for both buys and sells
           // (but CryptoProfiteer is built assuming negative values for buys, like coinbase reports)
-          if (transactionType == TransactionType.Buy) totalCost = -Math.Abs(totalCost);
+          if (transactionType == TransactionType_v04.Buy) totalCost = -Math.Abs(totalCost);
 
           var transaction = new PersistedTransaction_v04
           {
@@ -576,8 +576,8 @@ namespace CryptoProfiteer
           throw new Exception($"CSV line {lineNumber} has {fields.Count} fields; different from header line which has {headerFields.Count} fields; aborting.");
         }
 
-        if (!Enum.TryParse<TransactionType>(fields[transactionTypeIndex], ignoreCase: true, out var transactionType) ||
-            (transactionType != TransactionType.Buy && transactionType != TransactionType.Sell))
+        if (!Enum.TryParse<TransactionType_v04>(fields[transactionTypeIndex], ignoreCase: true, out var transactionType) ||
+            (transactionType != TransactionType_v04.Buy && transactionType != TransactionType_v04.Sell))
         {
           throw new Exception($"CSV line {lineNumber} has unrecognized field {transactionTypeIndex + 1} \"{fields[transactionTypeIndex]}\"; expected one of \"buy\", \"sell\"");
         }

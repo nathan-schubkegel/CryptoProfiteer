@@ -13,6 +13,7 @@ namespace CryptoProfiteer
 {
   public interface IDataService
   {
+    IEnumerable<string> CoinTypes { get; }
     IReadOnlyDictionary<string, Transaction> Transactions { get; }
     IReadOnlyDictionary<string, Order> Orders { get; }
     IReadOnlyDictionary<string, CoinSummary> CoinSummaries { get; }
@@ -43,6 +44,7 @@ namespace CryptoProfiteer
     private readonly IPriceService _priceService;
     private readonly Services _services;
 
+    public IEnumerable<string> CoinTypes { get; private set; } = Enumerable.Empty<string>();
     public IReadOnlyDictionary<string, Transaction> Transactions { get; private set; } = new Dictionary<string, Transaction>();
     public IReadOnlyDictionary<string, Order> Orders { get; private set; } = new Dictionary<string, Order>();
     public IReadOnlyDictionary<string, CoinSummary> CoinSummaries { get; private set; } = new Dictionary<string, CoinSummary>();
@@ -75,10 +77,11 @@ namespace CryptoProfiteer
             _services);
         }
 
-        var newOrders = BuildOrders(newTransactions);
+        var (newOrders, newCoinTypes) = BuildOrdersAndCoinTypes(newTransactions);
         var newCoinSummaries = BuildCoinSummaries(newTransactions);
         var newTaxAssociations = ImportTaxAssociations(new List<PersistedTaxAssociation>(0), newOrders);
         
+        CoinTypes = newCoinTypes;
         Transactions = newTransactions;
         Orders = newOrders;
         CoinSummaries = newCoinSummaries;
@@ -86,9 +89,10 @@ namespace CryptoProfiteer
       }
     }
 
-    private Dictionary<string, Order> BuildOrders(
+    private (Dictionary<string, Order>, HashSet<string>) BuildOrdersAndCoinTypes(
       IReadOnlyDictionary<string, Transaction> transactions)
     {
+      var coinTypes = new HashSet<string>();
       var newOrders = new Dictionary<string, Order>();
       var orderTransactions = new List<Transaction>();
       
@@ -98,6 +102,8 @@ namespace CryptoProfiteer
       {
         var order = new Order(kGroup.ToList(), _services);
         newOrders[order.Id] = order;
+        coinTypes.Add(order.PaymentCoinType);
+        coinTypes.Add(order.ReceivedCoinType);
       }
 
       // some transactions (like fills from coinbase pro without associated account statements) have no order id
@@ -123,6 +129,9 @@ namespace CryptoProfiteer
           
           var order = new Order(orderTransactions, _services);
           newOrders[order.Id] = order;
+          coinTypes.Add(order.PaymentCoinType);
+          coinTypes.Add(order.ReceivedCoinType);
+
           orderTransactions.Clear();
           orderTransactions.Add(t);
         }
@@ -130,11 +139,14 @@ namespace CryptoProfiteer
         {
           var order = new Order(orderTransactions, _services);
           newOrders[order.Id] = order;
+          coinTypes.Add(order.PaymentCoinType);
+          coinTypes.Add(order.ReceivedCoinType);
+
           orderTransactions.Clear();
         }
       }
 
-      return newOrders;
+      return (newOrders, coinTypes);
     }
     
     private Dictionary<string, CoinSummary> BuildCoinSummaries(
@@ -263,7 +275,6 @@ namespace CryptoProfiteer
 
           data = new PersistedTaxAssociation
           {
-            Id = Guid.NewGuid().ToString(),
             SaleOrderId = saleOrderId,
             Purchases = new List<PersistedTaxAssociationPurchase>(0),
           };
@@ -301,18 +312,22 @@ namespace CryptoProfiteer
             throw new Exception("Cannot add unrecognized purchase order id \"" + orderId + "\" to tax association");
           }
           
-          if (order.TransactionType != TransactionType.Buy)
+          if (order.TransactionType != TransactionType.Trade)
           {
-            throw new Exception("cannot add 'sell' order id \"" + orderId + "\" to tax association purchase orders");
+            throw new Exception("cannot add order id \"" + orderId + "\" to tax association purchase orders because it is a " + order.TransactionType + "(only Trade allowed)");
           }
           
+          if (order.ReceivedCoinType == "USD")
+          {
+            throw new Exception("cannot add order id \"" + orderId + "\" to tax association purchase orders because USD was received with this order (it was clearly a sale)");
+          }
+
           // make new purchase data
           var newPurchase = new PersistedTaxAssociationPurchase
           {
             OrderId = orderId,
-            // fix polarity because it's easier here than in the front-end
-            ContributingCoinCount = Math.Abs(contributingCoinCount),
-            ContributingCost = -Math.Abs(contributingCost),
+            ContributingCoinCount = contributingCoinCount,
+            ContributingCost = contributingCost,
           };
 
           // add or replace purchase in list
@@ -329,7 +344,6 @@ namespace CryptoProfiteer
 
         var newData = new PersistedTaxAssociation
         {
-          Id = data.Id,
           Purchases = revisedPurchases,
           SaleOrderId = saleOrderId,
         };
@@ -368,7 +382,7 @@ namespace CryptoProfiteer
     {
       lock (_lock)
       {
-        if (!Transactions.Values.Any(x => x.CoinType == coinType))
+        if (!Transactions.Values.Any(x => x.PaymentCoinType == coinType || x.ReceivedCoinType == coinType))
         {
           throw new Exception("Unrecognized coin type; you can only adjust coins that you already own.");
         }
@@ -376,16 +390,14 @@ namespace CryptoProfiteer
         var id = "adjustment-" + Guid.NewGuid().ToString();
         ImportTransactions(new [] { new PersistedTransaction
         {
-          TradeId = id,
+          Id = id,
           TransactionType = TransactionType.Adjustment,
           Exchange = CryptoExchange.None,
           Time = DateTime.UtcNow,
-          CoinType = coinType,
-          PaymentCoinType = "USD",
-          CoinCount = coinCount,
-          PerCoinCost = 0m,
-          Fee = 0m,
-          TotalCost = 0m,
+          PaymentCoinType = coinCount < 0 ? coinType : "USD",
+          PaymentCoinCount = coinCount < 0 ? coinCount : 0m,
+          ReceivedCoinType = coinCount >= 0 ? coinType : "USD",
+          ReceivedCoinCount = coinCount >= 0 ? coinCount : 0m,
         }});
         return id;
       }

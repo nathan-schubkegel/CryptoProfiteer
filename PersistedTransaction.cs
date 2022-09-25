@@ -69,10 +69,10 @@ namespace CryptoProfiteer
       OrderAggregationId = OrderAggregationId,
       TransactionType = TransactionType switch
       {
-        TransactionType_v04.Buy => TransactionType.Trade,
-        TransactionType_v04.Sell => TransactionType.Trade,
-        TransactionType_v04.Adjustment => TransactionType.Adjustment,
-        default => throw new NotImplementedException(),
+        TransactionType_v04.Buy => CryptoProfiteer.TransactionType.Trade,
+        TransactionType_v04.Sell => CryptoProfiteer.TransactionType.Trade,
+        TransactionType_v04.Adjustment => CryptoProfiteer.TransactionType.Adjustment,
+        _ => throw new NotImplementedException(),
       },
       Exchange = Exchange,
       Time = Time,
@@ -81,28 +81,28 @@ namespace CryptoProfiteer
         TransactionType_v04.Buy => CoinType,
         TransactionType_v04.Sell => PaymentCoinType,
         TransactionType_v04.Adjustment => CoinType,
-        default => throw new NotImplementedException(),
+        _ => throw new NotImplementedException(),
       },
       PaymentCoinType = TransactionType switch
       {
         TransactionType_v04.Buy => PaymentCoinType,
         TransactionType_v04.Sell => CoinType,
         TransactionType_v04.Adjustment => CoinType,
-        default => throw new NotImplementedException(),
+        _ => throw new NotImplementedException(),
       },
       ReceivedCoinCount = TransactionType switch
       {
         TransactionType_v04.Buy => CoinCount,
         TransactionType_v04.Sell => TotalCost,
         TransactionType_v04.Adjustment => CoinCount > 0 ? CoinCount : 0,
-        default => throw new NotImplementedException(),
+        _ => throw new NotImplementedException(),
       },
       PaymentCoinCount = TransactionType switch
       {
         TransactionType_v04.Buy => TotalCost,
         TransactionType_v04.Sell => CoinCount,
         TransactionType_v04.Adjustment => CoinCount < 0 ? CoinCount : 0,
-        default => throw new NotImplementedException(),
+        _ => throw new NotImplementedException(),
       },
     };
   }

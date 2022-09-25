@@ -24,6 +24,26 @@ namespace CryptoProfiteer
       reader.Dispose();
     }
     
+    public static void AddToBucket<TKey, TValue>(this Dictionary<TKey, List<TValue>> dictionary, TKey key, TValue value)
+    {
+      if (!dictionary.TryGetValue(key, out var bucket))
+      {
+        bucket = new List<TValue>();
+        dictionary[key] = bucket;
+      }
+      bucket.Add(value);
+    }
+    
+    public static void AddToBucket<TKey, TValue>(this Dictionary<TKey, HashSet<TValue>> dictionary, TKey key, TValue value)
+    {
+      if (!dictionary.TryGetValue(key, out var bucket))
+      {
+        bucket = new HashSet<TValue>();
+        dictionary[key] = bucket;
+      }
+      bucket.Add(value);
+    }
+    
     public static DateTime ChopSecondsAndSmaller(this DateTime time)
     {
       // expected format: 2021-01-06T06:07:54.31Z

@@ -10,6 +10,7 @@ namespace CryptoProfiteer
     private readonly Services _services;
     private Decimal? _receivedValueUsd;
     private Decimal? _paymentValueUsd;
+    private int? _taxablePaymentValueUsd;
     private Decimal? _receivedPerCoinCostUsd;
     private Decimal? _paymentPerCoinCostUsd;
 
@@ -27,11 +28,14 @@ namespace CryptoProfiteer
 
     public Decimal? ReceivedValueUsd => _receivedValueUsd == null ? (_receivedValueUsd = _services.HistoricalCoinPriceService.ToUsd(ReceivedCoinCount, ReceivedCoinType, Time, Exchange)) : _receivedValueUsd;
     public Decimal? PaymentValueUsd => _paymentValueUsd == null ? (_paymentValueUsd = _services.HistoricalCoinPriceService.ToUsd(PaymentCoinCount, PaymentCoinType, Time, Exchange)) : _paymentValueUsd;
+    public int? TaxablePaymentValueUsd => _taxablePaymentValueUsd == null ?
+      PaymentValueUsd != null ? (_taxablePaymentValueUsd = (int)Math.Round(PaymentValueUsd.Value, MidpointRounding.AwayFromZero)) : null
+      : _taxablePaymentValueUsd;
 
-    public Decimal? ReceivedPerCoinCostUsd => _receivedPerCoinCostUsd == null ? (_receivedValueUsd == null ? null : MathOrNull(() => _receivedPerCoinCostUsd = _receivedValueUsd / ReceivedCoinCount)) : _receivedPerCoinCostUsd;
-    public Decimal? PaymentPerCoinCostUsd => _paymentPerCoinCostUsd == null ? (_paymentValueUsd == null ? null : MathOrNull(() => _paymentPerCoinCostUsd = _paymentValueUsd / PaymentCoinCount)) : _paymentPerCoinCostUsd;
+    public Decimal? ReceivedPerCoinCostUsd => _receivedPerCoinCostUsd == null ? (_receivedValueUsd == null ? null : MathOrNull(() => _receivedPerCoinCostUsd = _receivedValueUsd.Value / ReceivedCoinCount)) : _receivedPerCoinCostUsd;
+    public Decimal? PaymentPerCoinCostUsd => _paymentPerCoinCostUsd == null ? (_paymentValueUsd == null ? null : MathOrNull(() => _paymentPerCoinCostUsd = _paymentValueUsd.Value / PaymentCoinCount)) : _paymentPerCoinCostUsd;
 
-    private Decimal? MathOrNull(Func<Decimal> math)
+    private Decimal? MathOrNull(Func<Decimal?> math)
     {
       try
       {
@@ -42,12 +46,10 @@ namespace CryptoProfiteer
         return (Decimal?)null;
       }
     }
+    
+    public bool IsTaxableSale => TransactionType == TransactionType.Trade && PaymentCoinType != "USD";
+    public bool IsTaxablePurchase => TransactionType == TransactionType.Trade && ReceivedCoinType != "USD";
 
-    // TODO: some int? Tax cost
-    //public int? TaxableTotalCostUsd => _taxableTotalCostUsd == null ? 
-    //  TotalCostUsd != null ? (_taxableTotalCostUsd = (int)Math.Round(TotalCostUsd.Value, MidpointRounding.AwayFromZero)) : null
-    //  : _taxableTotalCostUsd;
-      
     public Order(List<Transaction> transactions, Services services)
     {
       _services = services;

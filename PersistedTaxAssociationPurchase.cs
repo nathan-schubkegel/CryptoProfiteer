@@ -21,6 +21,7 @@ namespace CryptoProfiteer
       get => _contributingCoinCount;
       set => _contributingCoinCount = Math.Abs(value); // always positive - just fix mistakes
     }
+    private Decimal _contributingCoinCount;
     
     // The value of 'ContributingCoinCount' in USD received by the order that are used as cost basis for the tax association
     [JsonProperty("cost")]
@@ -29,6 +30,7 @@ namespace CryptoProfiteer
       get => _contributingCost;
       set => _contributingCost = Math.Abs(value); // always positive - just fix mistakes
     }
+    private int _contributingCost;
 
     public PersistedTaxAssociationPurchase Clone() => (PersistedTaxAssociationPurchase)MemberwiseClone();
   }

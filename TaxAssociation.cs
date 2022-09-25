@@ -31,13 +31,13 @@ namespace CryptoProfiteer
     }
 
     public string Id => _data.Id;
-    public string CoinType => Sale.Order.CoinType;
+    public string CoinType => Sale.Order.PaymentCoinType;
     public DateTime Time => Sale.Order.Time;
-    public string FriendlyName => Sale.Order.FriendlyName;
+    //public string FriendlyName => Sale.Order.FriendlyName;
     public IReadOnlyList<TaxAssociationPurchase> Purchases { get; }
     public TaxAssociationSale Sale { get; }
     public int TotalCostBought { get; }
-    public int TotalCostSold => Sale.Order.TaxableTotalCostUsd ?? 0;
+    public int TotalCostSold => Sale.Order.TaxablePaymentValueUsd ?? 0;
     public bool IsNetGain => TotalCostBought + TotalCostSold >= 0;
     public int PercentNetGainLoss
     {
@@ -54,7 +54,7 @@ namespace CryptoProfiteer
       }
     }
     public Decimal CoinCountBought { get; }
-    public Decimal CoinCountSold => Sale.Order.CoinCount;
+    public Decimal CoinCountSold => Sale.Order.PaymentCoinCount;
 
     public PersistedTaxAssociation ClonePersistedData() => _data.Clone();
   }

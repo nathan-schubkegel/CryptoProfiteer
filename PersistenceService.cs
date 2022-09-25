@@ -65,7 +65,7 @@ namespace CryptoProfiteer
       {
         Transactions = dataToSave.Transactions
           .OrderBy(x => x.Time)
-          .ThenBy(x => x.TradeId)
+          .ThenBy(x => x.Id)
           .ToList(),
           
         TaxAssociations = dataToSave.TaxAssociations

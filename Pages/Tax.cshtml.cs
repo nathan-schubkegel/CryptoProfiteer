@@ -22,14 +22,14 @@ namespace CryptoProfiteer.Pages
     public IEnumerable<Order> SalesNeedingTaxAssociation(string sortBy = null)
     {
       var coveredPurchases = new HashSet<string>(_data.TaxAssociations.Values.Select(t => t.Sale.Order.Id));
-      var values = _data.Orders.Values.Where(o => o.TransactionType == TransactionType.Sell && !coveredPurchases.Contains(o.Id));
+      var values = _data.Orders.Values.Where(o => o.IsTaxableSale && !coveredPurchases.Contains(o.Id));
       switch (sortBy)
       {
         default:
-        case "date": return values.OrderByDescending(x => x.Time).ThenBy(x => x.CoinType);
-        case "dateAscending": return values.OrderBy(x => x.Time).ThenBy(x => x.CoinType);
-        case "coinType": return values.OrderBy(x => x.CoinType).ThenByDescending(x => x.Time);
-        case "coinTypeDescending": return values.OrderByDescending(x => x.CoinType).ThenByDescending(x => x.Time);
+        case "date": return values.OrderByDescending(x => x.Time).ThenBy(x => x.PaymentCoinType);
+        case "dateAscending": return values.OrderBy(x => x.Time).ThenBy(x => x.PaymentCoinType);
+        case "coinType": return values.OrderBy(x => x.PaymentCoinType).ThenByDescending(x => x.Time);
+        case "coinTypeDescending": return values.OrderByDescending(x => x.PaymentCoinType).ThenByDescending(x => x.Time);
       }
     }
     
@@ -50,23 +50,23 @@ namespace CryptoProfiteer.Pages
       }
 
       var values = _data.Orders.Values
-        .Where(o => o.TransactionType == TransactionType.Buy)
+        .Where(o => o.IsTaxablePurchase)
         .Where(o => !coinCountUsedPerPurchase.TryGetValue(o.Id, out var coinCountUsed) ||
-                    coinCountUsed != o.CoinCount)
-        .Select(o => 
+                    coinCountUsed != o.ReceivedCoinCount)
+        .Select(o =>
           (
             order: o,
-            coinCountRemaining: Math.Max(0m, o.CoinCount - coinCountUsedPerPurchase.GetValueOrDefault(o.Id, 0m)),
-            costRemaining: o.TaxableTotalCostUsd == null ? (int?)null : Math.Max(0, Math.Abs(o.TaxableTotalCostUsd.Value) - Math.Abs(costUsedPerPurchase.GetValueOrDefault(o.Id, 0)))
+            coinCountRemaining: Math.Max(0m, o.ReceivedCoinCount - coinCountUsedPerPurchase.GetValueOrDefault(o.Id, 0m)),
+            costRemaining: o.TaxablePaymentValueUsd == null ? (int?)null : Math.Max(0, o.TaxablePaymentValueUsd.Value - costUsedPerPurchase.GetValueOrDefault(o.Id, 0))
           ));
 
       switch (sortBy)
       {
         default:
-        case "date": return values.OrderByDescending(x => x.order.Time).ThenBy(x => x.order.CoinType);
-        case "dateAscending": return values.OrderBy(x => x.order.Time).ThenBy(x => x.order.CoinType);
-        case "coinType": return values.OrderBy(x => x.order.CoinType).ThenByDescending(x => x.order.Time);
-        case "coinTypeDescending": return values.OrderByDescending(x => x.order.CoinType).ThenByDescending(x => x.order.Time);
+        case "date": return values.OrderByDescending(x => x.order.Time).ThenBy(x => x.order.ReceivedCoinType);
+        case "dateAscending": return values.OrderBy(x => x.order.Time).ThenBy(x => x.order.ReceivedCoinType);
+        case "coinType": return values.OrderBy(x => x.order.ReceivedCoinType).ThenByDescending(x => x.order.Time);
+        case "coinTypeDescending": return values.OrderByDescending(x => x.order.ReceivedCoinType).ThenByDescending(x => x.order.Time);
       }
     }
 
