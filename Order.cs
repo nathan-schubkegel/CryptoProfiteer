@@ -32,8 +32,8 @@ namespace CryptoProfiteer
       PaymentValueUsd != null ? (_taxablePaymentValueUsd = (int)Math.Round(PaymentValueUsd.Value, MidpointRounding.AwayFromZero)) : null
       : _taxablePaymentValueUsd;
 
-    public Decimal? ReceivedPerCoinCostUsd => _receivedPerCoinCostUsd == null ? (_receivedValueUsd == null ? null : MathOrNull(() => _receivedPerCoinCostUsd = _receivedValueUsd.Value / ReceivedCoinCount)) : _receivedPerCoinCostUsd;
-    public Decimal? PaymentPerCoinCostUsd => _paymentPerCoinCostUsd == null ? (_paymentValueUsd == null ? null : MathOrNull(() => _paymentPerCoinCostUsd = _paymentValueUsd.Value / PaymentCoinCount)) : _paymentPerCoinCostUsd;
+    public Decimal? ReceivedPerCoinCostUsd => _receivedPerCoinCostUsd == null ? (ReceivedValueUsd == null ? null : MathOrNull(() => _receivedPerCoinCostUsd = ReceivedValueUsd.Value / ReceivedCoinCount)) : _receivedPerCoinCostUsd;
+    public Decimal? PaymentPerCoinCostUsd => _paymentPerCoinCostUsd == null ? (PaymentValueUsd == null ? null : MathOrNull(() => _paymentPerCoinCostUsd = PaymentValueUsd.Value / PaymentCoinCount)) : _paymentPerCoinCostUsd;
 
     private Decimal? MathOrNull(Func<Decimal?> math)
     {

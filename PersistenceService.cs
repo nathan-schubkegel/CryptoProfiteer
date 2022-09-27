@@ -91,7 +91,7 @@ namespace CryptoProfiteer
       _logger.LogInformation("Saving " + _dataFilePath);
       try
       {
-        File.WriteAllText(_dataFilePath, newData);
+        File.WriteAllLines(_dataFilePath, new[]{ toSave.FirstLine, newData });
       }
       catch (Exception ex)
       {

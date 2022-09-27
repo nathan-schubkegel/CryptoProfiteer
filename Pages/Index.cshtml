@@ -65,6 +65,13 @@ const nextSortByCashValue = sortBy === 'cashValue' ? 'cashValueAscending' : 'cas
   </thead>
   <tbody>
 @{
+  string FormatPricePerCoinUsd(Decimal? rate)
+  {
+    return rate == null ? null : 
+      rate < 0.10m ? $"${rate.Value}" :
+      rate.Value.ToString("c");
+  }
+
   var ordersByCoinType = Model.OrdersByCoinType("date");
 
   string sortBy = HttpContext.Request.Query.TryGetValue("sortBy", out var sortByValues) ? sortByValues[0] : null;
@@ -77,7 +84,7 @@ const nextSortByCashValue = sortBy === 'cashValue' ? 'cashValueAscending' : 'cas
         </a>
       </td>
       <td>@s.CoinCount.ToString("G29")</td>
-      <td>@s.CoinPrice?.PerCoinCostUsd.ToString("c")</td>
+      <td>@FormatPricePerCoinUsd(s.CoinPrice?.PerCoinCostUsd)</td>
       <td>@s.CashValue?.ToString("c")</td>
     </tr>
     <tr class="collapse" id="collapse-@s.CoinType">
@@ -87,53 +94,74 @@ const nextSortByCashValue = sortBy === 'cashValue' ? 'cashValueAscending' : 'cas
             <thead>
               <tr>
                 <th scope="col">Date</th>
-                <th scope="col">Count</th>
-                <th scope="col">Per Coin</th>
-                <th scope="col">Total</th>
+                <th scope="col">Change</th>
+                <th scope="col">Rate</th>
                 <th scope="col">Description</th>
               </tr>
             </thead>
             <tbody>
 @{
+    string FormatCoinCount(Decimal coinCount, string coinType)
+    {
+      if (coinType == "USD" || coinType == "USDT" || coinType == "USDC")
+      {
+        return $"{coinCount.ToString("c")} {coinType}";
+      }
+      return $"{coinCount.ToString("G29")} {coinType}";
+    }
+
     void PrintDescription(Order o)
     {
-      if (o.TransactionType == TransactionType.Buy) 
-      { 
-        <text>Bought @o.CoinType@{if (o.PaymentCoinType != "USD") { <text> for @o.TotalCost.ToString("g") @o.PaymentCoinType</text> } }</text>
-      }
-      else if (o.TransactionType == TransactionType.Sell)
+      if (o.TransactionType == TransactionType.Trade)
       {
-        <text>Sold @o.CoinType@{if (o.PaymentCoinType != "USD") { <text> for @o.TotalCost @o.PaymentCoinType</text> } }</text>
+        if (o.ReceivedCoinType == s.CoinType)
+        {
+          <text>Bought for @FormatCoinCount(o.PaymentCoinCount, o.PaymentCoinType)</text>
+        }
+        else
+        {
+          <text>Sold for @FormatCoinCount(o.ReceivedCoinCount, o.ReceivedCoinType)</text>
+        }
       }
       else if (o.TransactionType == TransactionType.Adjustment)
       {
         <text>Adjustment</text>
       }
     }
-  
+
+    string FormatChange(Order o)
+    {
+      if (o.PaymentCoinType == s.CoinType)
+      {
+        return $"-{FormatCoinCount(o.PaymentCoinCount, s.CoinType)}";
+      }
+      else // o.ReceivedCoinType == s.CoinType
+      {
+        return FormatCoinCount(o.ReceivedCoinCount, s.CoinType);
+      }
+    }
+
+    string FormatExchangeRate(Order o)
+    {
+      if (o.PaymentCoinType == s.CoinType)
+      {
+        return FormatPricePerCoinUsd(o.PaymentPerCoinCostUsd);
+      }
+      else // o.ReceivedCoinType == s.CoinType
+      {
+        return FormatPricePerCoinUsd(o.ReceivedPerCoinCostUsd);
+      }
+    }
+
     var orders = ordersByCoinType[s.CoinType];
     foreach (var o in orders)
     {
-      if (o.CoinType == s.CoinType)
-      {
               <tr>
                 <td>@o.Time.ToLocalTime().ToString("g")</td>
-                <td>@o.CoinCount.ToString("G29")</td>
-                <td>$@(o.PerCoinCostUsd?.ToString() ?? "<unknown>")</td>
-                <td>@(o.TotalCostUsd?.ToString("c") ?? "<unknown>")</td>
+                <td>@FormatChange(o)</td>
+                <td>@FormatExchangeRate(o) per @s.CoinType</td>
                 <td>@{PrintDescription(o);}</td>
               </tr>
-      }
-      else if (o.PaymentCoinType == s.CoinType)
-      {
-              <tr>
-                <td>@o.Time.ToLocalTime().ToString("g")</td>
-                <td>@Math.Abs(o.TotalCost).ToString("G29")</td>
-                <td>$@(o.PerPaymentCoinCostUsd?.ToString() ?? "<unknown>")</td>
-                <td>@(o.PaymentCoinTotalCostUsd?.ToString("c") ?? "<unknown>")</td>
-                <td>@{PrintDescription(o);}</td>
-              </tr>
-      }
     }
 }
             </tbody>

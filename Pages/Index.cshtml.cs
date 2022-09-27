@@ -53,6 +53,9 @@ namespace CryptoProfiteer.Pages
           result[o.PaymentCoinType] = bucket;
         }
         bucket.Add(o);
+        
+        // account for adjustments to USD
+        if (bucket.Count >= 2 && bucket[bucket.Count - 1] == bucket[bucket.Count - 2]) bucket.RemoveAt(bucket.Count - 1);
       }
       
       foreach (var coinType in result.Keys.ToList())
