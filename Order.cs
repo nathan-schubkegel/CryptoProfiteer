@@ -26,14 +26,31 @@ namespace CryptoProfiteer
     public Decimal ReceivedCoinCount { get; }
     public Decimal PaymentCoinCount { get; }
 
-    public Decimal? ReceivedValueUsd => _receivedValueUsd == null ? (_receivedValueUsd = _services.HistoricalCoinPriceService.ToUsd(ReceivedCoinCount, ReceivedCoinType, Time, Exchange)) : _receivedValueUsd;
-    public Decimal? PaymentValueUsd => _paymentValueUsd == null ? (_paymentValueUsd = _services.HistoricalCoinPriceService.ToUsd(PaymentCoinCount, PaymentCoinType, Time, Exchange)) : _paymentValueUsd;
+    public Decimal? ReceivedValueUsd => _receivedValueUsd == null
+      ? (_receivedValueUsd = _services.HistoricalCoinPriceService.ToUsd(ReceivedCoinCount, ReceivedCoinType, Time, Exchange))
+      : _receivedValueUsd;
+
+    public Decimal? PaymentValueUsd => _paymentValueUsd == null
+      ? (_paymentValueUsd = _services.HistoricalCoinPriceService.ToUsd(PaymentCoinCount, PaymentCoinType, Time, Exchange))
+      : _paymentValueUsd;
+
     public int? TaxablePaymentValueUsd => _taxablePaymentValueUsd == null ?
-      PaymentValueUsd != null ? (_taxablePaymentValueUsd = (int)Math.Round(PaymentValueUsd.Value, MidpointRounding.AwayFromZero)) : null
+      PaymentValueUsd != null 
+        ? (_taxablePaymentValueUsd = (int)Math.Round(PaymentValueUsd.Value, MidpointRounding.AwayFromZero)) 
+        : null
       : _taxablePaymentValueUsd;
 
-    public Decimal? ReceivedPerCoinCostUsd => _receivedPerCoinCostUsd == null ? (ReceivedValueUsd == null ? null : MathOrNull(() => _receivedPerCoinCostUsd = ReceivedValueUsd.Value / ReceivedCoinCount)) : _receivedPerCoinCostUsd;
-    public Decimal? PaymentPerCoinCostUsd => _paymentPerCoinCostUsd == null ? (PaymentValueUsd == null ? null : MathOrNull(() => _paymentPerCoinCostUsd = PaymentValueUsd.Value / PaymentCoinCount)) : _paymentPerCoinCostUsd;
+    public Decimal? ReceivedPerCoinCostUsd => _receivedPerCoinCostUsd == null ? 
+      ReceivedValueUsd == null 
+        ? null 
+        : MathOrNull(() => _receivedPerCoinCostUsd = ReceivedValueUsd.Value / ReceivedCoinCount)
+      : _receivedPerCoinCostUsd;
+
+    public Decimal? PaymentPerCoinCostUsd => _paymentPerCoinCostUsd == null ? 
+      PaymentValueUsd == null 
+        ? null 
+        : MathOrNull(() => _paymentPerCoinCostUsd = PaymentValueUsd.Value / PaymentCoinCount)
+      : _paymentPerCoinCostUsd;
 
     private Decimal? MathOrNull(Func<Decimal?> math)
     {

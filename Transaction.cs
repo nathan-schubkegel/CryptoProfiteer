@@ -34,8 +34,13 @@ namespace CryptoProfiteer
     public Decimal ReceivedCoinCount => _data.ReceivedCoinCount;
     public Decimal PaymentCoinCount => _data.PaymentCoinCount;
 
-    public Decimal? ReceivedValueUsd => _receivedValueUsd == null ? (_receivedValueUsd = _services.HistoricalCoinPriceService.ToUsd(ReceivedCoinCount, ReceivedCoinType, Time, Exchange)) : _receivedValueUsd;
-    public Decimal? PaymentValueUsd => _paymentValueUsd == null ? (_paymentValueUsd = _services.HistoricalCoinPriceService.ToUsd(PaymentCoinCount, PaymentCoinType, Time, Exchange)) : _paymentValueUsd;
+    public Decimal? ReceivedValueUsd => _receivedValueUsd == null
+      ? (_receivedValueUsd = _services.HistoricalCoinPriceService.ToUsd(ReceivedCoinCount, ReceivedCoinType, Time, Exchange))
+      : _receivedValueUsd;
+
+    public Decimal? PaymentValueUsd => _paymentValueUsd == null
+      ? (_paymentValueUsd = _services.HistoricalCoinPriceService.ToUsd(PaymentCoinCount, PaymentCoinType, Time, Exchange))
+      : _paymentValueUsd;
     
     // TODO: these probably make sense, but it's hard for me to reason about them
     //public Decimal PaymentCoinExchangeRate => 
