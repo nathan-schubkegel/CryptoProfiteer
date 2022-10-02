@@ -127,14 +127,43 @@ namespace CryptoProfiteer
     {
       if (PaymentCoinType == contextualCoinType)
       {
-        return PaymentPerCoinCostUsd.FormatPricePerCoinUsd() + " per " + PaymentCoinType;
+        if (PaymentPerCoinCostUsd != null)
+        {
+          return PaymentPerCoinCostUsd.FormatPricePerCoinUsd() + " per " + PaymentCoinType;
+        }
+        else if (ReceivedPerCoinCostUsd != null)
+        {
+          // infer the payment exchange rate via the received value exchange rate
+          var totalValueUsd = ReceivedPerCoinCostUsd.Value * ReceivedCoinCount;
+          var paymentPerCoinCostUsd = MathOrNull(() => totalValueUsd / PaymentCoinCount);
+          return paymentPerCoinCostUsd.FormatPricePerCoinUsd() + " per " + PaymentCoinType;
+        }
+        else
+        {
+          return PaymentPerCoinCostUsd.FormatPricePerCoinUsd() + " per " + PaymentCoinType;
+        }
       }
       else if (ReceivedCoinType == contextualCoinType)
       {
-        return ReceivedPerCoinCostUsd.FormatPricePerCoinUsd() + " per " + ReceivedCoinType;
+        if (ReceivedPerCoinCostUsd != null)
+        {
+          return ReceivedPerCoinCostUsd.FormatPricePerCoinUsd() + " per " + ReceivedCoinType;
+        }
+        else if (PaymentPerCoinCostUsd != null)
+        {
+          // infer the received value exchange rate via the payment exchange rate
+          var totalValueUsd = PaymentPerCoinCostUsd.Value * PaymentCoinCount;
+          var receivedPerCoinCostUsd = MathOrNull(() => totalValueUsd / ReceivedCoinCount);
+          return receivedPerCoinCostUsd.FormatPricePerCoinUsd() + " per " + ReceivedCoinType;
+        }
+        else
+        {
+          return ReceivedPerCoinCostUsd.FormatPricePerCoinUsd() + " per " + ReceivedCoinType;
+        }
       }
       else
       {
+        // tee hee! spooky recursion, assumes ReceivedCoinType and PaymentCoinType are never null!
         return FormatExchangeRateUsd(ReceivedCoinType) + " / " + FormatExchangeRateUsd(PaymentCoinType);
       }
     }
