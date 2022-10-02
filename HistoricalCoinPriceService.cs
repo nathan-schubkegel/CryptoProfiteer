@@ -73,13 +73,13 @@ namespace CryptoProfiteer
       
       if (!_coinTypesSupportedByWhichExchanges.ContainsKey(coinType))
       {
-        if (coinType == coinTypeToLog) _logger.LogInformation($"Declining ToUsd({coinTypeToLog}) because _supportedCoinTypes doesn't have {{coinTypeToLog}}");
+        if (coinType == coinTypeToLog) _logger.LogInformation($"Declining ToUsd({coinTypeToLog}, {exchange}) because _supportedCoinTypes doesn't have {{coinTypeToLog}}");
         return null;
       }
       
       if (time > DateTime.UtcNow)
       {
-        if (coinType == coinTypeToLog) _logger.LogInformation($"Declining ToUsd({coinTypeToLog}) because time is in the future");
+        if (coinType == coinTypeToLog) _logger.LogInformation($"Declining ToUsd({coinTypeToLog}, {exchange}) because time is in the future");
         return null;
       }
       
@@ -87,7 +87,8 @@ namespace CryptoProfiteer
       {
         if (pricePerCoin == null)
         {
-          if (coinType == coinTypeToLog) _logger.LogInformation($"Declining ToUsd({coinTypeToLog}) because null pricePerCoin is stored");
+          // this means the exchange had no data for that coin for that time
+          if (coinType == coinTypeToLog) _logger.LogInformation($"Declining ToUsd({coinTypeToLog}, {exchange}) because null pricePerCoin is stored (that means the exchange has no data for the requested time)");
           return null;
         }
         if (coinType == coinTypeToLog) _logger.LogInformation($"Successfully returning stored ToUsd({coinTypeToLog})");
@@ -271,147 +272,40 @@ namespace CryptoProfiteer
 
               if ((exchange == CryptoExchange.CoinbasePro || exchange == CryptoExchange.Coinbase))
               {
-                var request = new HttpRequestMessage(HttpMethod.Get, $"https://api.exchange.coinbase.com/products/{coinType}-USD/candles" +
-                  $"?granularity=60" +
-                  $"&start={time.Subtract(TimeSpan.FromMinutes(2)).ToString("o")}" +
-                  $"&end={time.Add(TimeSpan.FromMinutes(3)).ToString("o")}");
-                request.Headers.Add("Accept", "application/json");
-                request.Headers.Add("User-Agent", HttpClientSingleton.UserAgent);
-                await _httpClientSingleton.UseAsync($"fetching coinbase historical price of {coinType} at {time}", stoppingToken, async http => 
+                var newPrice = await FetchCoinbaseHistoricalPrice(coinType, time, stoppingToken);
+                
+                // if this exchange has no data for that time period, see if the other does!
+                if (newPrice == null && supportedExchanges.Contains(CryptoExchange.Kucoin))
                 {
-                  var response = await http.SendAsync(request);
-                  string responseBody = await response.Content.ReadAsStringAsync();
-                  if (!response.IsSuccessStatusCode)
-                  {
-                    throw new HttpRequestException($"coinbase pro api for {coinType} candle at={time.ToString("o")} returned {response.StatusCode}: {responseBody}");
-                  }
-                  
-                  _logger.LogTrace("HistoricalCoinPriceService processed coinbase request for {0} at {1} from {2}, producing this data: {3}",
-                    coinType, time, exchange, responseBody);
-
-                  Decimal? newPrice;
-                  var jArray = JArray.Parse(responseBody);
-                  if (jArray.Count == 0)
-                  {
-                    // I think this means there were no trades (on record) for this time period
-                    newPrice = null;
-                  }
-                  else
-                  {
-                    /*
-                    Apparently it just returns an array of arrays of numbers.
-                    0 - time - bucket start time
-                    1 - low - lowest price during the bucket interval
-                    2 - high - highest price during the bucket interval
-                    3 - open - opening price (first trade) in the bucket interval
-                    4 - close - closing price (last trade) in the bucket interval
-                    5 - volume - volume of trading activity during the bucket interval
-                    */
-                    Decimal bestPrice = 0m;
-                    TimeSpan closestDifference = DateTime.MaxValue.Subtract(DateTime.MinValue);
-                    if (jArray.Count == 0) throw new Exception($"No sale history found for {coinType} at {time} on {exchange}");
-                    foreach (JArray candle in jArray)
-                    {
-                      var unixEpochSeconds = candle[0].Value<long>();
-                      var candleTime = SomeUtils.UnixEpochSecondsToDateTime(unixEpochSeconds);
-                      var difference = candleTime.Subtract(time);
-                      if (difference < closestDifference)
-                      {
-                        var low = candle[1].Value<Decimal>();
-                        var high = candle[2].Value<Decimal>();
-                        bestPrice = (low + high) / 2;
-                        closestDifference = difference;
-                      }
-                    }
-                    newPrice = bestPrice;
-                  }
-
-                  // TODO: could maybe try to synchronize changes to _historicalPrices here vs. in ImportPersistedData()
-                  var newDictionary = new Dictionary<(string CoinType, DateTime Time, CryptoExchange Exchange), Decimal?>(_historicalPrices);
-                  newDictionary[(coinType, time, exchange)] = newPrice;
-                  _historicalPrices = newDictionary;
-                  _logger.LogInformation($"determined pricePerCoinUsd = {(newPrice?.ToString() ?? "null")} for {coinType} at {time}");
-                });
+                  newPrice = await FetchKucoinHistoricalPrice(coinType, time, stoppingToken);
+                }
+                
+                // TODO: could maybe try to synchronize changes to _historicalPrices here vs. in ImportPersistedData()
+                var newDictionary = new Dictionary<(string CoinType, DateTime Time, CryptoExchange Exchange), Decimal?>(_historicalPrices);
+                newDictionary[(coinType, time, exchange)] = newPrice;
+                _historicalPrices = newDictionary;
+                _logger.LogInformation($"determined pricePerCoinUsd = {(newPrice?.ToString() ?? "null")} for {coinType} at {time}");
               }
               else if (exchange == CryptoExchange.Kucoin)
               {
-                var url = $"https://api.kucoin.com/api/v1/market/candles";
-                var request = new HttpRequestMessage(HttpMethod.Get, url +
-                  // Type of candlestick patterns: 1min, 3min, 5min, 15min, 30min, 1hour, 2hour, 4hour, 6hour, 8hour, 12hour, 1day, 1week
-                  $"?type=1min" +
-                  // long	[Optional] Start time (second), default is 0
-                  $"&startAt={time.Subtract(TimeSpan.FromMinutes(2)).ToUnixEpochSeconds()}" +
-                  // long [Optional] End time (second), default is 0
-                  $"&endAt={time.Add(TimeSpan.FromMinutes(3)).ToUnixEpochSeconds()}" +
-                  $"&symbol={coinType}-USDT");
-                request.Headers.Add("Accept", "application/json");
-                request.Headers.Add("User-Agent", HttpClientSingleton.UserAgent);
-                await _httpClientSingleton.UseAsync($"fetching kucoin historical price of {coinType} at {time}", stoppingToken, async http => 
+                var newPrice = await FetchKucoinHistoricalPrice(coinType, time, stoppingToken);
+                
+                // if this exchange has no data for that time period, see if the other does!
+                if (newPrice == null && supportedExchanges.Contains(CryptoExchange.Coinbase))
                 {
-                  var response = await http.SendAsync(request);
-                  string responseBody = await response.Content.ReadAsStringAsync();
-                  if (!response.IsSuccessStatusCode)
-                  {
-                    throw new HttpRequestException($"kucoin api for {coinType} candle at={time.ToString("o")} returned {response.StatusCode}: {responseBody}");
-                  }
-                  
-                  _logger.LogTrace("HistoricalCoinPriceService processed kucoin request for {0} at {1} from {2}, producing this data: {3}",
-                    coinType, time, exchange, responseBody);
-                    
-                  var root = JObject.Parse(responseBody);
-                  var code = root.SelectToken("code")?.Value<string>();
-                  if (code != "200000")
-                  {
-                    throw new HttpRequestException($"kucoin candles api returned non-success code=\"{code}\" with response body={responseBody}");
-                  }
-                  var data = (JArray)root["data"];
+                  newPrice = await FetchCoinbaseHistoricalPrice(coinType, time, stoppingToken);
+                }
 
-
-                  Decimal? newPrice;
-                  if (data.Count == 0)
-                  {
-                    // I think this means there were no trades (on record) for this time period
-                    newPrice = null;
-                  }
-                  else
-                  {
-                    /*
-                    Apparently it just returns an array of arrays of numbers.
-                    [
-                        "1545904980",             //Start time of the candle cycle (seconds since unix epoch)
-                        "0.058",                  //opening price
-                        "0.049",                  //closing price
-                        "0.058",                  //highest price
-                        "0.049",                  //lowest price
-                        "0.018",                  //Transaction volume
-                        "0.000945"                //Transaction amount
-                    ],
-                    */
-                    Decimal bestPrice = 0m;
-                    TimeSpan closestDifference = DateTime.MaxValue.Subtract(DateTime.MinValue);
-                    if (data.Count == 0) throw new Exception($"No sale history found for {coinType} at {time} on {exchange}");
-                    foreach (JArray candle in data)
-                    {
-                      var unixEpochSeconds = candle[0].Value<long>();
-                      var candleTime = SomeUtils.UnixEpochSecondsToDateTime(unixEpochSeconds);
-                      var difference = candleTime.Subtract(time);
-                      if (difference < closestDifference)
-                      {
-                        var low = candle[4].Value<Decimal>();
-                        var high = candle[3].Value<Decimal>();
-                        bestPrice = (low + high) / 2;
-                        closestDifference = difference;
-                      }
-                    }
-                    newPrice = bestPrice;
-                  }
-
-                  // TODO: could maybe try to synchronize changes to _historicalPrices here vs. in ImportPersistedData()
-                  var newDictionary = new Dictionary<(string CoinType, DateTime Time, CryptoExchange Exchange), Decimal?>(_historicalPrices);
-                  newDictionary[(coinType, time, exchange)] = newPrice;
-                  _historicalPrices = newDictionary;
-                  _logger.LogInformation($"determined pricePerCoinUsd = {(newPrice?.ToString() ?? "null")} for {coinType} at {time} on {exchange}");
-                });
+                // TODO: could maybe try to synchronize changes to _historicalPrices here vs. in ImportPersistedData()
+                var newDictionary = new Dictionary<(string CoinType, DateTime Time, CryptoExchange Exchange), Decimal?>(_historicalPrices);
+                newDictionary[(coinType, time, exchange)] = newPrice;
+                _historicalPrices = newDictionary;
+                _logger.LogInformation($"determined pricePerCoinUsd = {(newPrice?.ToString() ?? "null")} for {coinType} at {time} on {exchange}");
+              }
+              else
+              {
+                if (coinType == coinTypeToLog) _logger.LogInformation($"Not fetching price of {coinTypeToLog} because exchange isn't supported: {exchange}");
+                continue;
               }
             }
             catch
@@ -435,6 +329,149 @@ namespace CryptoProfiteer
           _logger.LogError(ex, $"{ex.GetType().Name} while fetching historical coin prices: {ex.Message}");
         }
       }
+    }
+    
+    private async Task<Decimal?> FetchCoinbaseHistoricalPrice(string coinType, DateTime time, CancellationToken stoppingToken)
+    {
+      Decimal? newPrice = null;
+
+      var request = new HttpRequestMessage(HttpMethod.Get, $"https://api.exchange.coinbase.com/products/{coinType}-USD/candles" +
+        $"?granularity=60" +
+        $"&start={time.Subtract(TimeSpan.FromMinutes(2)).ToString("o")}" +
+        $"&end={time.Add(TimeSpan.FromMinutes(3)).ToString("o")}");
+      request.Headers.Add("Accept", "application/json");
+      request.Headers.Add("User-Agent", HttpClientSingleton.UserAgent);
+      await _httpClientSingleton.UseAsync($"fetching coinbase historical price of {coinType} at {time}", stoppingToken, async http => 
+      {
+        var response = await http.SendAsync(request);
+        string responseBody = await response.Content.ReadAsStringAsync();
+        if (!response.IsSuccessStatusCode)
+        {
+          throw new HttpRequestException($"coinbase pro api for {coinType} candle at={time.ToString("o")} returned {response.StatusCode}: {responseBody}");
+        }
+        
+        _logger.LogTrace("HistoricalCoinPriceService processed coinbase request for {0} at {1} from {2}, producing this data: {3}",
+          coinType, time, CryptoExchange.Coinbase, responseBody);
+
+        var jArray = JArray.Parse(responseBody);
+        if (jArray.Count == 0)
+        {
+          // I think this means there were no trades (on record) for this time period
+          newPrice = null;
+        }
+        else
+        {
+          /*
+          Apparently it just returns an array of arrays of numbers.
+          0 - time - bucket start time
+          1 - low - lowest price during the bucket interval
+          2 - high - highest price during the bucket interval
+          3 - open - opening price (first trade) in the bucket interval
+          4 - close - closing price (last trade) in the bucket interval
+          5 - volume - volume of trading activity during the bucket interval
+          */
+          Decimal bestPrice = 0m;
+          TimeSpan closestDifference = DateTime.MaxValue.Subtract(DateTime.MinValue);
+          if (jArray.Count == 0) throw new Exception($"No sale history found for {coinType} at {time} on {CryptoExchange.Coinbase}");
+          foreach (JArray candle in jArray)
+          {
+            var unixEpochSeconds = candle[0].Value<long>();
+            var candleTime = SomeUtils.UnixEpochSecondsToDateTime(unixEpochSeconds);
+            var difference = candleTime.Subtract(time);
+            if (difference < closestDifference)
+            {
+              var low = candle[1].Value<Decimal>();
+              var high = candle[2].Value<Decimal>();
+              bestPrice = (low + high) / 2;
+              closestDifference = difference;
+            }
+          }
+          newPrice = bestPrice;
+        }
+      });
+      
+      return newPrice;
+    }
+    
+    private async Task<Decimal?> FetchKucoinHistoricalPrice(string coinType, DateTime time, CancellationToken stoppingToken)
+    {
+      await Task.Delay(2000); // wait even more than _httpClientSingleton forces
+      // to try to avoid 429 "too many requests" errors. Kucoin seems to be stingy with candles requests.
+      // this might go away if I plugged in an API key to the request?
+
+      Decimal? newPrice = null;
+
+      var url = $"https://api.kucoin.com/api/v1/market/candles";
+      var request = new HttpRequestMessage(HttpMethod.Get, url +
+        // Type of candlestick patterns: 1min, 3min, 5min, 15min, 30min, 1hour, 2hour, 4hour, 6hour, 8hour, 12hour, 1day, 1week
+        $"?type=1min" +
+        // long	[Optional] Start time (second), default is 0
+        $"&startAt={time.Subtract(TimeSpan.FromMinutes(2)).ToUnixEpochSeconds()}" +
+        // long [Optional] End time (second), default is 0
+        $"&endAt={time.Add(TimeSpan.FromMinutes(3)).ToUnixEpochSeconds()}" +
+        $"&symbol={coinType}-USDT");
+      request.Headers.Add("Accept", "application/json");
+      request.Headers.Add("User-Agent", HttpClientSingleton.UserAgent);
+      await _httpClientSingleton.UseAsync($"fetching kucoin historical price of {coinType} at {time}", stoppingToken, async http => 
+      {
+        var response = await http.SendAsync(request);
+        string responseBody = await response.Content.ReadAsStringAsync();
+        if (!response.IsSuccessStatusCode)
+        {
+          throw new HttpRequestException($"kucoin api for {coinType} candle at={time.ToString("o")} returned {response.StatusCode}: {responseBody}");
+        }
+        
+        _logger.LogTrace("HistoricalCoinPriceService processed kucoin request for {0} at {1} from {2}, producing this data: {3}",
+          coinType, time, CryptoExchange.Kucoin, responseBody);
+          
+        var root = JObject.Parse(responseBody);
+        var code = root.SelectToken("code")?.Value<string>();
+        if (code != "200000")
+        {
+          throw new HttpRequestException($"kucoin candles api returned non-success code=\"{code}\" with response body={responseBody}");
+        }
+        var data = (JArray)root["data"];
+
+        if (data.Count == 0)
+        {
+          // I think this means there were no trades (on record) for this time period
+          newPrice = null;
+        }
+        else
+        {
+          /*
+          Apparently it just returns an array of arrays of numbers.
+          [
+              "1545904980",             //Start time of the candle cycle (seconds since unix epoch)
+              "0.058",                  //opening price
+              "0.049",                  //closing price
+              "0.058",                  //highest price
+              "0.049",                  //lowest price
+              "0.018",                  //Transaction volume
+              "0.000945"                //Transaction amount
+          ],
+          */
+          Decimal bestPrice = 0m;
+          TimeSpan closestDifference = DateTime.MaxValue.Subtract(DateTime.MinValue);
+          if (data.Count == 0) throw new Exception($"No sale history found for {coinType} at {time} on {CryptoExchange.Kucoin}");
+          foreach (JArray candle in data)
+          {
+            var unixEpochSeconds = candle[0].Value<long>();
+            var candleTime = SomeUtils.UnixEpochSecondsToDateTime(unixEpochSeconds);
+            var difference = candleTime.Subtract(time);
+            if (difference < closestDifference)
+            {
+              var low = candle[4].Value<Decimal>();
+              var high = candle[3].Value<Decimal>();
+              bestPrice = (low + high) / 2;
+              closestDifference = difference;
+            }
+          }
+          newPrice = bestPrice;
+        }
+      });
+
+      return newPrice;
     }
     
     private void AddToCoinTypesSupportedByWhichExchanges(CryptoExchange exchange, HashSet<string> coinTypes)
