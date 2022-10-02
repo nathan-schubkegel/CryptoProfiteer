@@ -64,6 +64,12 @@ namespace CryptoProfiteer
       return dateTime.AddSeconds(unixEpochSeconds);
     }
     
+    public static long ToUnixEpochSeconds(this DateTime time)
+    {
+      DateTime start = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
+      return (long)(time.ToUniversalTime() - start).TotalSeconds;
+    }
+    
     public static Decimal SetMaxDecimals(this Decimal input, int maxDecimalDigits)
     {
       if (maxDecimalDigits > 0)
@@ -89,6 +95,25 @@ namespace CryptoProfiteer
       // NOTE: Hans Passant suggested it can be done like this (where 100 = 2 decimal places)
       // value = Math.Truncate(100 * value) / 100;
       // but I like my ugly code better - less potential loss - ha, as if that matters... 29 digits of room to use!
+    }
+    
+    public static string FormatPricePerCoinUsd(this Decimal? rate)
+    {
+      return rate == null ? "$<unknown>" : FormatPricePerCoinUsd(rate.Value);
+    }
+    
+    public static string FormatPricePerCoinUsd(this Decimal rate)
+    {
+      return rate < 0.10m ? $"${rate}" : rate.ToString("c");
+    }
+    
+    public static string FormatCoinCount(this Decimal coinCount, string coinType)
+    {
+      if (coinType == "USD" || coinType == "USDT" || coinType == "USDC")
+      {
+        return $"{coinCount.ToString("c")} {coinType}";
+      }
+      return $"{coinCount.ToString("G29")} {coinType}";
     }
   }
 }

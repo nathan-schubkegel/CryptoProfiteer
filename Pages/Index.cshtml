@@ -65,13 +65,6 @@ const nextSortByCashValue = sortBy === 'cashValue' ? 'cashValueAscending' : 'cas
   </thead>
   <tbody>
 @{
-  string FormatPricePerCoinUsd(Decimal? rate)
-  {
-    return rate == null ? null : 
-      rate < 0.10m ? $"${rate.Value}" :
-      rate.Value.ToString("c");
-  }
-
   var ordersByCoinType = Model.OrdersByCoinType("date");
 
   string sortBy = HttpContext.Request.Query.TryGetValue("sortBy", out var sortByValues) ? sortByValues[0] : null;
@@ -84,7 +77,7 @@ const nextSortByCashValue = sortBy === 'cashValue' ? 'cashValueAscending' : 'cas
         </a>
       </td>
       <td>@s.CoinCount.ToString("G29")</td>
-      <td>@FormatPricePerCoinUsd(s.CoinPrice?.PerCoinCostUsd)</td>
+      <td>@s.CoinPrice?.PerCoinCostUsd.FormatPricePerCoinUsd()</td>
       <td>@s.CashValue?.ToString("c")</td>
     </tr>
     <tr class="collapse" id="collapse-@s.CoinType">
@@ -96,71 +89,19 @@ const nextSortByCashValue = sortBy === 'cashValue' ? 'cashValueAscending' : 'cas
                 <th scope="col">Date</th>
                 <th scope="col">Change</th>
                 <th scope="col">Rate</th>
-                <th scope="col">Description</th>
+                <th scope="col">Explanation</th>
               </tr>
             </thead>
             <tbody>
 @{
-    string FormatCoinCount(Decimal coinCount, string coinType)
-    {
-      if (coinType == "USD" || coinType == "USDT" || coinType == "USDC")
-      {
-        return $"{coinCount.ToString("c")} {coinType}";
-      }
-      return $"{coinCount.ToString("G29")} {coinType}";
-    }
-
-    void PrintDescription(Order o)
-    {
-      if (o.TransactionType == TransactionType.Trade)
-      {
-        if (o.ReceivedCoinType == s.CoinType)
-        {
-          <text>Bought for @FormatCoinCount(o.PaymentCoinCount, o.PaymentCoinType)</text>
-        }
-        else
-        {
-          <text>Sold for @FormatCoinCount(o.ReceivedCoinCount, o.ReceivedCoinType)</text>
-        }
-      }
-      else if (o.TransactionType == TransactionType.Adjustment)
-      {
-        <text>Adjustment</text>
-      }
-    }
-
-    string FormatChange(Order o)
-    {
-      if (o.PaymentCoinType == s.CoinType)
-      {
-        return $"-{FormatCoinCount(o.PaymentCoinCount, s.CoinType)}";
-      }
-      else // o.ReceivedCoinType == s.CoinType
-      {
-        return FormatCoinCount(o.ReceivedCoinCount, s.CoinType);
-      }
-    }
-
-    string FormatExchangeRate(Order o)
-    {
-      if (o.PaymentCoinType == s.CoinType)
-      {
-        return FormatPricePerCoinUsd(o.PaymentPerCoinCostUsd);
-      }
-      else // o.ReceivedCoinType == s.CoinType
-      {
-        return FormatPricePerCoinUsd(o.ReceivedPerCoinCostUsd);
-      }
-    }
-
     var orders = ordersByCoinType[s.CoinType];
     foreach (var o in orders)
     {
               <tr>
                 <td>@o.Time.ToLocalTime().ToString("g")</td>
-                <td>@FormatChange(o)</td>
-                <td>@FormatExchangeRate(o) per @s.CoinType</td>
-                <td>@{PrintDescription(o);}</td>
+                <td>@o.FormatCoinCountChange(s.CoinType)</td>
+                <td>@o.FormatExchangeRateUsd(s.CoinType)</td>
+                <td>@o.FormatExplanation(s.CoinType)</td>
               </tr>
     }
 }

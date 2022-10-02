@@ -85,5 +85,58 @@ namespace CryptoProfiteer
         ReceivedCoinCount += t.ReceivedCoinCount;
       }
     }
+
+    public string FormatExplanation(string contextualCoinType = null)
+    {
+      if (TransactionType == TransactionType.Trade)
+      {
+        if (contextualCoinType == null)
+        {
+          return $"Exchanged {PaymentCoinCount.FormatCoinCount(PaymentCoinType)} for {ReceivedCoinCount.FormatCoinCount(ReceivedCoinType)}";
+        }
+        else if (ReceivedCoinType == contextualCoinType)
+        {
+          return $"Bought for {PaymentCoinCount.FormatCoinCount(PaymentCoinType)}";
+        }
+        else
+        {
+          return $"Sold for {ReceivedCoinCount.FormatCoinCount(ReceivedCoinType)}";
+        }
+      }
+      else return TransactionType.ToString();
+    }
+
+    public string FormatCoinCountChange(string contextualCoinType = null)
+    {
+      if (PaymentCoinType == contextualCoinType)
+      {
+        return $"-{PaymentCoinCount.FormatCoinCount(PaymentCoinType)}";
+      }
+      else if (ReceivedCoinType == contextualCoinType)
+      {
+        return ReceivedCoinCount.FormatCoinCount(ReceivedCoinType);
+      }
+      else
+      {
+        return "+" + ReceivedCoinCount.FormatCoinCount(ReceivedCoinType) +
+          " / -" + PaymentCoinCount.FormatCoinCount(PaymentCoinType);
+      }
+    }
+
+    public string FormatExchangeRateUsd(string contextualCoinType = null)
+    {
+      if (PaymentCoinType == contextualCoinType)
+      {
+        return PaymentPerCoinCostUsd.FormatPricePerCoinUsd() + " per " + PaymentCoinType;
+      }
+      else if (ReceivedCoinType == contextualCoinType)
+      {
+        return ReceivedPerCoinCostUsd.FormatPricePerCoinUsd() + " per " + ReceivedCoinType;
+      }
+      else
+      {
+        return FormatExchangeRateUsd(ReceivedCoinType) + " / " + FormatExchangeRateUsd(PaymentCoinType);
+      }
+    }
   }
 }
