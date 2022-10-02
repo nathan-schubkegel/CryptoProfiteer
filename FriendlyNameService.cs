@@ -99,12 +99,16 @@ namespace CryptoProfiteer
         try
         {
           var url = $"https://api.pro.coinbase.com/currencies";
-          var response = await http.GetAsync(url);
+          var request = new HttpRequestMessage(HttpMethod.Get, url);
+          request.Headers.Add("Accept", "application/json");
+          request.Headers.Add("User-Agent", HttpClientSingleton.UserAgent);
+          var response = await http.SendAsync(request);
           string responseBody = await response.Content.ReadAsStringAsync();
           if (!response.IsSuccessStatusCode)
           {
             throw new HttpRequestException($"coinbase currencies api returned {response.StatusCode}: {responseBody}");
           }
+
           var data = JArray.Parse(responseBody);
           foreach (var currency in data)
           {
@@ -140,14 +144,14 @@ namespace CryptoProfiteer
           {
             throw new HttpRequestException($"kucoin currencies api returned {response.StatusCode}: {responseBody}");
           }
-          var data = JObject.Parse(responseBody);
-          var code = data.SelectToken("code")?.Value<string>();
+          var root = JObject.Parse(responseBody);
+          var code = root.SelectToken("code")?.Value<string>();
           if (code != "200000")
           {
-            throw new HttpRequestException($"kucoin currencies api returned non-success code=\"{code}\"");
+            throw new HttpRequestException($"kucoin candles api returned non-success code=\"{code}\" with response body={responseBody}");
           }
-          var currencies = (JArray)data["data"];
-          foreach (JObject currency in currencies)
+          var data = (JArray)root["data"];
+          foreach (JObject currency in data)
           {
             var coinType = currency["currency"].Value<string>();
             var friendlyName = currency["fullName"].Value<string>();
