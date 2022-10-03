@@ -494,20 +494,25 @@ namespace CryptoProfiteer
     
     public IEnumerable<PersistedHistoricalCoinPrice> ClonePersistedData()
     {
-      return _historicalPrices.Select(x => new PersistedHistoricalCoinPrice
-      {
-        CoinType = x.Key.CoinType,
-        Time = x.Key.Time,
-        Exchange = x.Key.Exchange,
-        PricePerCoinUsd = x.Value
-      });
+      return _historicalPrices
+        // don't save "The exchange didn't have price info" forever
+        .Where(x => x.Value != null)
+        .Select(x => new PersistedHistoricalCoinPrice
+        {
+          CoinType = x.Key.CoinType,
+          Time = x.Key.Time,
+          Exchange = x.Key.Exchange,
+          PricePerCoinUsd = x.Value
+        });
     }
     
     public void ImportPersistedData(IEnumerable<PersistedHistoricalCoinPrice> persistedData)
     {
       // TODO: could maybe try to synchronize changes to _historicalPrices here vs. in ExecuteAsync()
       var newDictionary = new Dictionary<(string CoinType, DateTime Time, CryptoExchange Exchange), Decimal?>(_historicalPrices);
-      foreach (var p in persistedData)
+      foreach (var p in persistedData
+        // don't load "The exchange didn't have price info" that might have been saved before
+        .Where(x => x.PricePerCoinUsd != null))
       {
         newDictionary[(p.CoinType, p.Time, p.Exchange)] = p.PricePerCoinUsd;
       }
