@@ -65,24 +65,18 @@ namespace CryptoProfiteer
     public Decimal? ToUsd(Decimal coinCount, string coinType, DateTime time, CryptoExchange exchange)
     {
       time = time.ChopSecondsAndSmaller();
-      
+
       if (coinType == "USD")
       {
         return coinCount;
       }
-      
-      if (!_coinTypesSupportedByWhichExchanges.ContainsKey(coinType))
-      {
-        if (coinType == coinTypeToLog) _logger.LogInformation($"Declining ToUsd({coinTypeToLog}, {exchange}) because _supportedCoinTypes doesn't have {{coinTypeToLog}}");
-        return null;
-      }
-      
+
       if (time > DateTime.UtcNow)
       {
         if (coinType == coinTypeToLog) _logger.LogInformation($"Declining ToUsd({coinTypeToLog}, {exchange}) because time is in the future");
         return null;
       }
-      
+
       if (_historicalPrices.TryGetValue((coinType, time, exchange), out var pricePerCoin))
       {
         if (pricePerCoin == null)
@@ -94,19 +88,25 @@ namespace CryptoProfiteer
         if (coinType == coinTypeToLog) _logger.LogInformation($"Successfully returning stored ToUsd({coinTypeToLog})");
         return coinCount * pricePerCoin;
       }
-      
+
       if (_failedPrices.TryGetValue((coinType, time, exchange), out var whenLastTried))
       {
         // for now, just never try twice
         if (coinType == coinTypeToLog) _logger.LogInformation($"Declining ToUsd({coinTypeToLog}) because it failed once");
         return null;
       }
-      
-      if (coinType == coinTypeToLog) _logger.LogInformation($"Declining ToUsd({coinTypeToLog}) because it isn't known yet; queuing...");
+
+      if (!_coinTypesSupportedByWhichExchanges.ContainsKey(coinType))
+      {
+        if (coinType == coinTypeToLog) _logger.LogInformation($"Declining ToUsd({coinTypeToLog}, {exchange}) because _coinTypesSupportedByWhichExchanges doesn't have {{coinTypeToLog}}");
+        return null;
+      }
+
+      if (coinType == coinTypeToLog) _logger.LogInformation($"Declining ToUsd({coinTypeToLog}) because that coin+time+exchange hasn't been fetched yet; queuing...");
 
       ImmutableInterlocked.Update(ref _neededPrices, t => t.Add((coinType, time, exchange)));
       _signal.Writer.TryWrite(null);
-      
+
       return null;
     }
     
