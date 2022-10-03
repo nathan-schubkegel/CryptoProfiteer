@@ -44,14 +44,14 @@ namespace CryptoProfiteer
 
         if (SomeUtils.IsBasicallyUsd(o.PaymentCoinType) && !SomeUtils.IsBasicallyUsd(o.ReceivedCoinType))
         {
-          return $"Bought {o.ReceivedCoinCount.FormatCoinCount(o.ReceivedCoinType)} for {o.PaymentCoinCount.FormatCoinCount(o.PaymentCoinType)}";
+          return $"Bought {o.ReceivedCoinType}";
         }
         else if (!SomeUtils.IsBasicallyUsd(o.PaymentCoinType) && SomeUtils.IsBasicallyUsd(o.ReceivedCoinType))
         {
-          return $"Sold {o.PaymentCoinCount.FormatCoinCount(o.PaymentCoinType)} for {o.ReceivedCoinCount.FormatCoinCount(o.ReceivedCoinType)}";
+          return $"Sold {o.PaymentCoinType}";
         }
 
-        return $"Exchange; acquired {o.ReceivedCoinCount.FormatCoinCount(o.ReceivedCoinType)}, paid {o.PaymentCoinCount.FormatCoinCount(o.PaymentCoinType)}";
+        return $"Acquired {o.ReceivedCoinType}, Paid {o.PaymentCoinType}";
       }
       else return o.TransactionType.ToString();
     }
@@ -79,7 +79,7 @@ namespace CryptoProfiteer
       {
         return string.Empty;
       }
-      
+
       if (o.PaymentCoinType == contextualCoinType)
       {
         if (o.PaymentPerCoinCostUsd != null)
@@ -118,8 +118,24 @@ namespace CryptoProfiteer
       }
       else
       {
-        // tee hee! spooky recursion, assumes ReceivedCoinType and PaymentCoinType are never null!
-        return o.FormatExchangeRateUsd(o.ReceivedCoinType) + " / " + o.FormatExchangeRateUsd(o.PaymentCoinType);
+        // don't print USDT value if it's basically $1.00
+        if (SomeUtils.IsBasicallyUsd(o.PaymentCoinType) && !SomeUtils.IsBasicallyUsd(o.ReceivedCoinType) &&
+            o.PaymentPerCoinCostUsd > 0.99m && o.PaymentPerCoinCostUsd < 1.01m)
+        {
+          // tee hee! spooky recursion, assumes ReceivedCoinType and PaymentCoinType are never null!
+          return o.FormatExchangeRateUsd(o.ReceivedCoinType);
+        }
+        else if (!SomeUtils.IsBasicallyUsd(o.PaymentCoinType) && SomeUtils.IsBasicallyUsd(o.ReceivedCoinType) &&
+          o.ReceivedPerCoinCostUsd > 0.99m && o.ReceivedPerCoinCostUsd < 1.01m)
+        {
+          // tee hee! spooky recursion, assumes ReceivedCoinType and PaymentCoinType are never null!
+          return o.FormatExchangeRateUsd(o.PaymentCoinType);
+        }
+        else
+        {
+          // tee hee! spooky recursion, assumes ReceivedCoinType and PaymentCoinType are never null!
+          return o.FormatExchangeRateUsd(o.ReceivedCoinType) + " / " + o.FormatExchangeRateUsd(o.PaymentCoinType);
+        }
       }
     }
     

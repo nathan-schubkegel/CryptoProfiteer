@@ -98,8 +98,16 @@ namespace CryptoProfiteer
 
       if (!_coinTypesSupportedByWhichExchanges.ContainsKey(coinType))
       {
-        if (coinType == coinTypeToLog) _logger.LogInformation($"Declining ToUsd({coinTypeToLog}, {exchange}) because _coinTypesSupportedByWhichExchanges doesn't have {{coinTypeToLog}}");
+        if (coinType == coinTypeToLog) _logger.LogInformation($"Declining ToUsd({coinTypeToLog}, {exchange}) because _coinTypesSupportedByWhichExchanges doesn't have {coinTypeToLog}");
         return null;
+      }
+      
+      // Kucoin's base currency is USDT, so there's no "USDT-USD" pair on Kucoin
+      // so _coinTypesSupportedByWhichExchanges doesn't think Kucoin supports USDT
+      // so if anyone asks for the price of USDT on Kucoin... just ask Coinbase
+      if (coinType == "USDT" && exchange == CryptoExchange.Kucoin)
+      {
+        return ToUsd(coinCount, coinType, time, CryptoExchange.CoinbasePro);
       }
 
       if (coinType == coinTypeToLog) _logger.LogInformation($"Declining ToUsd({coinTypeToLog}) because that coin+time+exchange hasn't been fetched yet; queuing...");

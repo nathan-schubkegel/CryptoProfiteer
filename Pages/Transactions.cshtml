@@ -202,7 +202,6 @@ function filterBy(coinType)
   <thead>
     <tr>
       <th scope="col">Date</th>
-      <th scope="col">Type</th>
       <th scope="col">Coin Types</th>
       <th scope="col">Change</th>
       <th scope="col">Rate</th>
@@ -216,10 +215,6 @@ function filterBy(coinType)
 
     <tr>
       <td>@t.Time.ToLocalTime().ToString("g")</td>
-      <td>@{ 
-        if (t.TransactionType != TransactionType.Adjustment) { <text>@t.TransactionType</text> }
-        else { <button type="button" class="btn btn-primary" onclick="deleteAdjustment('@t.Id', this.parentElement)">Delete Adjustment</button> }
-      }</td>
       <td id='coin-types' style="white-space: nowrap">
         <button id='received-coin-type-filter-button' type="button" class="btn btn-secondary btn-sm"
           onclick='filterBy("@t.ReceivedCoinType")'
@@ -236,7 +231,12 @@ function filterBy(coinType)
       </td>
       <td>@t.FormatCoinCountChange()</td>
       <td>@t.FormatExchangeRateUsd()</td>
-      <td>@t.FormatExplanation()</td>
+      <td>@t.FormatExplanation()@{
+        if (t.TransactionType == TransactionType.Adjustment)
+        {
+          <button type="button" class="btn btn-primary" onclick="deleteAdjustment('@t.Id', this.parentElement)">Delete Adjustment</button>
+        }
+      }</td>
     </tr>
 }
   </tbody>
