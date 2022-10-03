@@ -5,7 +5,7 @@ using System.Globalization;
 
 namespace CryptoProfiteer
 {
-  public class Order
+  public class Order : ITransactionish
   {
     private readonly Services _services;
     private Decimal? _receivedValueUsd;
@@ -52,7 +52,7 @@ namespace CryptoProfiteer
         : MathOrNull(() => _paymentPerCoinCostUsd = PaymentValueUsd.Value / PaymentCoinCount)
       : _paymentPerCoinCostUsd;
 
-    private Decimal? MathOrNull(Func<Decimal?> math)
+    private static Decimal? MathOrNull(Func<Decimal?> math)
     {
       try
       {
@@ -83,88 +83,6 @@ namespace CryptoProfiteer
 
         PaymentCoinCount += t.PaymentCoinCount;
         ReceivedCoinCount += t.ReceivedCoinCount;
-      }
-    }
-
-    public string FormatExplanation(string contextualCoinType = null)
-    {
-      if (TransactionType == TransactionType.Trade)
-      {
-        if (contextualCoinType == null)
-        {
-          return $"Exchanged {PaymentCoinCount.FormatCoinCount(PaymentCoinType)} for {ReceivedCoinCount.FormatCoinCount(ReceivedCoinType)}";
-        }
-        else if (ReceivedCoinType == contextualCoinType)
-        {
-          return $"Bought for {PaymentCoinCount.FormatCoinCount(PaymentCoinType)}";
-        }
-        else
-        {
-          return $"Sold for {ReceivedCoinCount.FormatCoinCount(ReceivedCoinType)}";
-        }
-      }
-      else return TransactionType.ToString();
-    }
-
-    public string FormatCoinCountChange(string contextualCoinType = null)
-    {
-      if (PaymentCoinType == contextualCoinType)
-      {
-        return $"-{PaymentCoinCount.FormatCoinCount(PaymentCoinType)}";
-      }
-      else if (ReceivedCoinType == contextualCoinType)
-      {
-        return ReceivedCoinCount.FormatCoinCount(ReceivedCoinType);
-      }
-      else
-      {
-        return "+" + ReceivedCoinCount.FormatCoinCount(ReceivedCoinType) +
-          " / -" + PaymentCoinCount.FormatCoinCount(PaymentCoinType);
-      }
-    }
-
-    public string FormatExchangeRateUsd(string contextualCoinType = null)
-    {
-      if (PaymentCoinType == contextualCoinType)
-      {
-        if (PaymentPerCoinCostUsd != null)
-        {
-          return PaymentPerCoinCostUsd.FormatPricePerCoinUsd() + " per " + PaymentCoinType;
-        }
-        else if (ReceivedPerCoinCostUsd != null)
-        {
-          // infer the payment exchange rate via the received value exchange rate
-          var totalValueUsd = ReceivedPerCoinCostUsd.Value * ReceivedCoinCount;
-          var paymentPerCoinCostUsd = MathOrNull(() => totalValueUsd / PaymentCoinCount);
-          return paymentPerCoinCostUsd.FormatPricePerCoinUsd() + " per " + PaymentCoinType;
-        }
-        else
-        {
-          return PaymentPerCoinCostUsd.FormatPricePerCoinUsd() + " per " + PaymentCoinType;
-        }
-      }
-      else if (ReceivedCoinType == contextualCoinType)
-      {
-        if (ReceivedPerCoinCostUsd != null)
-        {
-          return ReceivedPerCoinCostUsd.FormatPricePerCoinUsd() + " per " + ReceivedCoinType;
-        }
-        else if (PaymentPerCoinCostUsd != null)
-        {
-          // infer the received value exchange rate via the payment exchange rate
-          var totalValueUsd = PaymentPerCoinCostUsd.Value * PaymentCoinCount;
-          var receivedPerCoinCostUsd = MathOrNull(() => totalValueUsd / ReceivedCoinCount);
-          return receivedPerCoinCostUsd.FormatPricePerCoinUsd() + " per " + ReceivedCoinType;
-        }
-        else
-        {
-          return ReceivedPerCoinCostUsd.FormatPricePerCoinUsd() + " per " + ReceivedCoinType;
-        }
-      }
-      else
-      {
-        // tee hee! spooky recursion, assumes ReceivedCoinType and PaymentCoinType are never null!
-        return FormatExchangeRateUsd(ReceivedCoinType) + " / " + FormatExchangeRateUsd(PaymentCoinType);
       }
     }
   }

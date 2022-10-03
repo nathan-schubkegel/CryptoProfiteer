@@ -169,18 +169,29 @@ function filterBy(coinType)
 {
   let body = document.getElementById('transaction-rows');
   for (var row of Array.from(body.children)) {
-    let cell = row.children.namedItem('coin-type');
-    let button = cell.children.namedItem('coin-type-filter-button');
-    if (filteredBy) {
-      row.style.display = '';
-      button.className = button.className.replace('btn-primary', 'btn-secondary');
+    let cell = row.children.namedItem('coin-types');
+    let button_a = cell.children.namedItem('payment-coin-type-filter-button');
+    let button_b = cell.children.namedItem('received-coin-type-filter-button');
+
+    if (filteredBy !== coinType) // this is how the user turns on or changes filtering
+    {
+      row.style.display = (button_a.value === coinType || button_b.value === coinType)
+        ? ''
+        : 'none';
+
+      button_a.className = (button_a.value === coinType)
+        ? button_a.className.replace('btn-secondary', 'btn-primary')
+        : button_a.className.replace('btn-primary', 'btn-secondary');
+
+      button_b.className = (button_b.value === coinType)
+        ? button_b.className.replace('btn-secondary', 'btn-primary')
+        : button_b.className.replace('btn-primary', 'btn-secondary');
     }
-    else if (button.value === coinType) {
+    else // this is how the user turns off filtering
+    {
       row.style.display = '';
-      button.className = button.className.replace('btn-secondary', 'btn-primary');
-    }
-    else {
-      row.style.display = 'none';
+      button_a.className = button_a.className.replace('btn-primary', 'btn-secondary');
+      button_b.className = button_a.className.replace('btn-primary', 'btn-secondary');      
     }
   }
   filteredBy = filteredBy ? '' : coinType;
@@ -190,13 +201,12 @@ function filterBy(coinType)
 <table class="table table-sm ">
   <thead>
     <tr>
-      <th scope="col"></th>
-      <th scope="col"></th>
-      <th scope="col">Name</th>
-      <th scope="col">Count</th>
-      <th scope="col">Per Coin</th>
-      <th scope="col">Fee</th>
-      <th scope="col">Total</th>
+      <th scope="col">Date</th>
+      <th scope="col">Type</th>
+      <th scope="col">Coin Types</th>
+      <th scope="col">Change</th>
+      <th scope="col">Rate</th>
+      <th scope="col">Explanation</th>
     </tr>
   </thead>
   <tbody id='transaction-rows'>
@@ -208,20 +218,25 @@ function filterBy(coinType)
       <td>@t.Time.ToLocalTime().ToString("g")</td>
       <td>@{ 
         if (t.TransactionType != TransactionType.Adjustment) { <text>@t.TransactionType</text> }
-        else { <button type="button" class="btn btn-primary" onclick="deleteAdjustment('@t.TradeId', this.parentElement)">Delete Adjustment</button> }
+        else { <button type="button" class="btn btn-primary" onclick="deleteAdjustment('@t.Id', this.parentElement)">Delete Adjustment</button> }
       }</td>
-      <td id='coin-type'>
-        <button id='coin-type-filter-button' type="button" class="btn btn-secondary btn-sm"
-          onclick='filterBy("@t.CoinType")'
-          value='@t.CoinType'
+      <td id='coin-types' style="white-space: nowrap">
+        <button id='received-coin-type-filter-button' type="button" class="btn btn-secondary btn-sm"
+          onclick='filterBy("@t.ReceivedCoinType")'
+          value='@t.ReceivedCoinType'
         >
-          @t.FriendlyName
+          @t.ReceivedCoinType
+        </button>
+        <button id='payment-coin-type-filter-button' type="button" class="btn btn-secondary btn-sm"
+          onclick='filterBy("@t.PaymentCoinType")'
+          value='@t.PaymentCoinType'
+        >
+          @t.PaymentCoinType
         </button>
       </td>
-      <td>@t.CoinCount.ToString("G29")</td>
-      <td>$@(t.PerCoinCostUsd?.ToString() ?? "<unknown>")@{ if (isTrade) { <text> USD<br>(@t.PerCoinCost.ToString() @t.PaymentCoinType)</text> } }</td>
-      <td>@(t.FeeUsd?.ToString("c") ?? "<unknown>")@{ if (isTrade) { <text> USD<br>(@t.Fee.ToString() @t.PaymentCoinType)</text> } }</td>
-      <td>@(t.TotalCostUsd?.ToString("c") ?? "<unknown>")@{ if (isTrade) { <text> USD<br>(@t.TotalCost.ToString() @t.PaymentCoinType)</text> } }</td>
+      <td>@t.FormatCoinCountChange()</td>
+      <td>@t.FormatExchangeRateUsd()</td>
+      <td>@t.FormatExplanation()</td>
     </tr>
 }
   </tbody>

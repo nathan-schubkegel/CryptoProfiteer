@@ -4,13 +4,15 @@ using Newtonsoft.Json.Converters;
 
 namespace CryptoProfiteer
 {
-  public class Transaction
+  public class Transaction : ITransactionish
   {
     private readonly PersistedTransaction _data;
     private readonly Services _services;
     
     private Decimal? _receivedValueUsd;
     private Decimal? _paymentValueUsd;
+    private Decimal? _receivedPerCoinCostUsd;
+    private Decimal? _paymentPerCoinCostUsd;
 
     public Transaction(PersistedTransaction data, Services services)
     {
@@ -20,6 +22,8 @@ namespace CryptoProfiteer
       // start work to learn historical prices
       _ = ReceivedValueUsd;
       _ = PaymentValueUsd;
+      _ = ReceivedPerCoinCostUsd;
+      _ = PaymentPerCoinCostUsd;
     }
     
     public string Id => _data.Id;
@@ -42,13 +46,29 @@ namespace CryptoProfiteer
       ? (_paymentValueUsd = _services.HistoricalCoinPriceService.ToUsd(PaymentCoinCount, PaymentCoinType, Time, Exchange))
       : _paymentValueUsd;
     
-    // TODO: these probably make sense, but it's hard for me to reason about them
-    //public Decimal PaymentCoinExchangeRate => 
-    //public Decimal ReceivedCoinExchangeRate => 
-    
-    // TODO: same here
-    //public Decimal? PaymentCoinExchangeRateUsd => 
-    //public Decimal? ReceivedCoinExchangeRateUsd => 
+    public Decimal? ReceivedPerCoinCostUsd => _receivedPerCoinCostUsd == null ? 
+      ReceivedValueUsd == null 
+        ? null 
+        : MathOrNull(() => _receivedPerCoinCostUsd = ReceivedValueUsd.Value / ReceivedCoinCount)
+      : _receivedPerCoinCostUsd;
+
+    public Decimal? PaymentPerCoinCostUsd => _paymentPerCoinCostUsd == null ? 
+      PaymentValueUsd == null 
+        ? null 
+        : MathOrNull(() => _paymentPerCoinCostUsd = PaymentValueUsd.Value / PaymentCoinCount)
+      : _paymentPerCoinCostUsd;
+      
+    private static Decimal? MathOrNull(Func<Decimal?> math)
+    {
+      try
+      {
+        return math();
+      }
+      catch
+      {
+        return (Decimal?)null;
+      }
+    }
 
     public PersistedTransaction ClonePersistedData() => _data.Clone();
   }

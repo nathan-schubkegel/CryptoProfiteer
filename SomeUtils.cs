@@ -109,11 +109,14 @@ namespace CryptoProfiteer
     
     public static string FormatCoinCount(this Decimal coinCount, string coinType)
     {
-      if (coinType == "USD" || coinType == "USDT" || coinType == "USDC")
+      if (IsBasicallyUsd(coinType))
       {
         return $"{coinCount.ToString("c")} {coinType}";
       }
       return $"{coinCount.ToString("G29")} {coinType}";
     }
+    
+    public static bool IsBasicallyUsd(string coinType) => 
+      coinType == "USD" || coinType == "USDT" || coinType == "USDC";
   }
 }
