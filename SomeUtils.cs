@@ -107,13 +107,35 @@ namespace CryptoProfiteer
       return rate < 0.10m ? $"${rate}" : rate.ToString("c");
     }
     
-    public static string FormatCoinCount(this Decimal coinCount, string coinType)
+    public static string FormatCoinCount(this Decimal coinCount, string coinType, bool showCoinType = true)
     {
       if (IsBasicallyUsd(coinType))
       {
-        return $"{coinCount.ToString("c")} {coinType}";
+        return showCoinType
+          ? $"{coinCount.ToString("c")} {coinType}"
+          : coinCount.ToString("c");
       }
-      return $"{coinCount.ToString("G29")} {coinType}";
+      return showCoinType
+        ? $"{coinCount.ToString("G29")} {coinType}"
+        : coinCount.ToString("G29");
+    }
+    
+    public static string FormatCoinCount(this Decimal? coinCount, string coinType, bool showCoinType = true)
+    {
+      if (IsBasicallyUsd(coinType))
+      {
+        var moneys = coinCount?.ToString("c") ?? "$<unknown>";
+        return showCoinType
+          ? $"{moneys} {coinType}"
+          : moneys;
+      }
+      else
+      {
+        var moneys = coinCount?.ToString("G29") ?? "<unknown>";
+        return showCoinType
+          ? $"{moneys} {coinType}"
+          : moneys;
+      }
     }
     
     public static bool IsBasicallyUsd(string coinType) => 

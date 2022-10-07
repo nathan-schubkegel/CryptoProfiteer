@@ -139,6 +139,30 @@ namespace CryptoProfiteer
       }
     }
     
+    public static Decimal? GetInferredPaymentPerCoinCostUsd(this ITransactionish o)
+    {
+      if (o.ReceivedPerCoinCostUsd != null)
+      {
+        // infer the payment exchange rate via the received value exchange rate
+        var totalValueUsd = o.ReceivedPerCoinCostUsd.Value * o.ReceivedCoinCount;
+        var paymentPerCoinCostUsd = MathOrNull(() => totalValueUsd / o.PaymentCoinCount);
+        return paymentPerCoinCostUsd;
+      }
+      return null;
+    }
+    
+    public static Decimal? GetInferredReceivedPerCoinCostUsd(this ITransactionish o)
+    {
+      if (o.PaymentPerCoinCostUsd != null)
+      {
+        // infer the received value exchange rate via the payment exchange rate
+        var totalValueUsd = o.PaymentPerCoinCostUsd.Value * o.PaymentCoinCount;
+        var receivedPerCoinCostUsd = MathOrNull(() => totalValueUsd / o.ReceivedCoinCount);
+        return receivedPerCoinCostUsd;
+      }
+      return null;
+    }
+    
     private static Decimal? MathOrNull(Func<Decimal?> math)
     {
       try

@@ -10,6 +10,7 @@ namespace CryptoProfiteer
     private readonly Services _services;
     private Decimal? _receivedValueUsd;
     private Decimal? _paymentValueUsd;
+    private int? _taxableReceivedValueUsd;
     private int? _taxablePaymentValueUsd;
     private Decimal? _receivedPerCoinCostUsd;
     private Decimal? _paymentPerCoinCostUsd;
@@ -33,6 +34,12 @@ namespace CryptoProfiteer
     public Decimal? PaymentValueUsd => _paymentValueUsd == null
       ? (_paymentValueUsd = _services.HistoricalCoinPriceService.ToUsd(PaymentCoinCount, PaymentCoinType, Time, Exchange))
       : _paymentValueUsd;
+      
+    public int? TaxableReceivedValueUsd => _taxableReceivedValueUsd == null ?
+      PaymentValueUsd != null 
+        ? (_taxableReceivedValueUsd = (int)Math.Round(ReceivedValueUsd.Value, MidpointRounding.AwayFromZero)) 
+        : null
+      : _taxableReceivedValueUsd;
 
     public int? TaxablePaymentValueUsd => _taxablePaymentValueUsd == null ?
       PaymentValueUsd != null 

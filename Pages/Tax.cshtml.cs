@@ -21,8 +21,8 @@ namespace CryptoProfiteer.Pages
     
     public IEnumerable<Order> SalesNeedingTaxAssociation(string sortBy = null)
     {
-      var coveredPurchases = new HashSet<string>(_data.TaxAssociations.Values.Select(t => t.Sale.Order.Id));
-      var values = _data.Orders.Values.Where(o => o.IsTaxableSale && !coveredPurchases.Contains(o.Id));
+      var coveredSales = new HashSet<string>(_data.TaxAssociations.Values.Select(t => t.Sale.Order.Id));
+      var values = _data.Orders.Values.Where(o => o.IsTaxableSale && !coveredSales.Contains(o.Id));
       switch (sortBy)
       {
         default:
