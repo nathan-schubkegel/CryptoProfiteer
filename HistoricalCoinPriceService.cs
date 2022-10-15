@@ -284,7 +284,7 @@ namespace CryptoProfiteer
               }
               else
               {
-                _logger.LogInformation($"Not fetching price of {coinTypeToLog} because no exchange supports that coin");
+                _logger.LogInformation($"Not fetching price of {coinType} because no exchange supports that coin");
                 var newDictionary = new Dictionary<(string CoinType, DateTime Time), Decimal?>(_historicalPrices);
                 newDictionary[(coinType, time)] = null;
                 _historicalPrices = newDictionary;
@@ -293,7 +293,7 @@ namespace CryptoProfiteer
             }
             catch
             {
-              _logger.LogInformation($"Failed to fetch price of {coinTypeToLog} due to exception; will not try again until the application has restarted.");
+              _logger.LogInformation($"Failed to fetch price of {coinType} due to exception; will not try again until the application has restarted.");
               var newDictionary = new Dictionary<(string CoinType, DateTime Time), Decimal?>(_historicalPrices);
               newDictionary[(coinType, time)] = null;
               _historicalPrices = newDictionary;
@@ -472,12 +472,15 @@ namespace CryptoProfiteer
     
     public IEnumerable<PersistedHistoricalCoinPrice> ClonePersistedData()
     {
-      return _historicalPrices.Select(x => new PersistedHistoricalCoinPrice
-      {
-        CoinType = x.Key.CoinType,
-        Time = x.Key.Time,
-        PricePerCoinUsd = x.Value
-      });
+      return _historicalPrices
+        // don't save "The exchange didn't have price info" forever
+        .Where(x => x.Value != null)
+        .Select(x => new PersistedHistoricalCoinPrice
+        {
+          CoinType = x.Key.CoinType,
+          Time = x.Key.Time,
+          PricePerCoinUsd = x.Value.Value
+        });
     }
     
     public void ImportPersistedData(IEnumerable<PersistedHistoricalCoinPrice> persistedData)

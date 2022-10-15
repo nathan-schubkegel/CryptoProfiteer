@@ -57,6 +57,7 @@ namespace CryptoProfiteer
       return newData;
     }
     
+    [JsonIgnore]
     // it's pretty lame how this class isn't responsible for saving its own data... sorry
     public string FirstLine { get; } = "// file format version [0.5]";
     
@@ -69,13 +70,13 @@ namespace CryptoProfiteer
     
     public List<PersistedTaxAssociation_v04> TaxAssociations { get; set; } = new List<PersistedTaxAssociation_v04>();
     
-    public List<PersistedHistoricalCoinPrice> HistoricalCoinPrices { get; set; } = new List<PersistedHistoricalCoinPrice>();
+    public List<PersistedHistoricalCoinPrice_v04> HistoricalCoinPrices { get; set; } = new List<PersistedHistoricalCoinPrice_v04>();
     
     public PersistenceData ToLatest() => new PersistenceData
     {
       Transactions = Transactions.Select(x => x.ToLatest()).ToList(),
       TaxAssociations = TaxAssociations.Select(x => x.ToLatest()).ToList(),
-      HistoricalCoinPrices = HistoricalCoinPrices,
+      HistoricalCoinPrices = HistoricalCoinPrices.Where(x => x.PricePerCoinUsd != null).Select(x => x.ToLatest()).ToList(),
     };
   }
 }
