@@ -75,7 +75,6 @@ namespace CryptoProfiteer
         HistoricalCoinPrices = historicalCoinPrices
           .OrderBy(x => x.Time)
           .ThenBy(x => x.CoinType)
-          .ThenBy(x => x.Exchange)
           .ToList()
       };
       

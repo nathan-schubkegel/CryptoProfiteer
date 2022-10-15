@@ -39,11 +39,11 @@ namespace CryptoProfiteer
     public Decimal PaymentCoinCount => _data.PaymentCoinCount;
 
     public Decimal? ReceivedValueUsd => _receivedValueUsd == null
-      ? (_receivedValueUsd = _services.HistoricalCoinPriceService.ToUsd(ReceivedCoinCount, ReceivedCoinType, Time, Exchange))
+      ? (_receivedValueUsd = _services.HistoricalCoinPriceService.ToUsd(ReceivedCoinCount, ReceivedCoinType, Time))
       : _receivedValueUsd;
 
     public Decimal? PaymentValueUsd => _paymentValueUsd == null
-      ? (_paymentValueUsd = _services.HistoricalCoinPriceService.ToUsd(PaymentCoinCount, PaymentCoinType, Time, Exchange))
+      ? (_paymentValueUsd = _services.HistoricalCoinPriceService.ToUsd(PaymentCoinCount, PaymentCoinType, Time))
       : _paymentValueUsd;
     
     public Decimal? ReceivedPerCoinCostUsd => _receivedPerCoinCostUsd == null ? 

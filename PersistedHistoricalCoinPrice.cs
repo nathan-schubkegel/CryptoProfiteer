@@ -6,7 +6,10 @@ namespace CryptoProfiteer
   {
     public string CoinType { get; set; }
     public DateTime Time { get; set; }
-    public CryptoExchange Exchange { get; set; }
+    
+    // NOTE FOREVER: this was present in release v04
+    //public CryptoExchange Exchange { get; set; }
+    
     public Decimal? PricePerCoinUsd { get; set; }
   }
 }

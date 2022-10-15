@@ -28,11 +28,11 @@ namespace CryptoProfiteer
     public Decimal PaymentCoinCount { get; }
 
     public Decimal? ReceivedValueUsd => _receivedValueUsd == null
-      ? (_receivedValueUsd = _services.HistoricalCoinPriceService.ToUsd(ReceivedCoinCount, ReceivedCoinType, Time, Exchange))
+      ? (_receivedValueUsd = _services.HistoricalCoinPriceService.ToUsd(ReceivedCoinCount, ReceivedCoinType, Time))
       : _receivedValueUsd;
 
     public Decimal? PaymentValueUsd => _paymentValueUsd == null
-      ? (_paymentValueUsd = _services.HistoricalCoinPriceService.ToUsd(PaymentCoinCount, PaymentCoinType, Time, Exchange))
+      ? (_paymentValueUsd = _services.HistoricalCoinPriceService.ToUsd(PaymentCoinCount, PaymentCoinType, Time))
       : _paymentValueUsd;
       
     public int? TaxableReceivedValueUsd => _taxableReceivedValueUsd == null ?
