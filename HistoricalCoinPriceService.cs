@@ -31,6 +31,7 @@ namespace CryptoProfiteer
 
   public class HistoricalCoinPriceService : BackgroundService, IHistoricalCoinPriceService
   {
+    private readonly IDataService _dataService;
     private readonly IHttpClientSingleton _httpClientSingleton;
     private readonly ILogger<HistoricalCoinPriceService> _logger;
     private readonly Channel<object> _signal = Channel.CreateBounded<object>(1);
@@ -47,10 +48,11 @@ namespace CryptoProfiteer
     private ImmutableHashSet<(string CoinType, DateTime Time)> _neededPrices =
       ImmutableHashSet<(string CoinType, DateTime Time)>.Empty;
       
-    public HistoricalCoinPriceService(ILogger<HistoricalCoinPriceService> logger, IHttpClientSingleton httpClientSingleton)
+    public HistoricalCoinPriceService(ILogger<HistoricalCoinPriceService> logger, IHttpClientSingleton httpClientSingleton, IDataService dataService)
     {
       _logger = logger;
       _httpClientSingleton = httpClientSingleton;
+      _dataService = dataService;
     }
 
 #if false
@@ -458,6 +460,36 @@ namespace CryptoProfiteer
       });
 
       return newPrice;
+    }
+
+    // This method is for when Coinbase and Kucoin refuse to acknowledge the price of LUNA before it crashed.
+    // We can extrapolate its value based on what I traded for it. 
+    // TODO: right now this includes fee costs, but really I need it to exclude those
+    private async Task<Decimal?> FetchInferredHistoricalPrice(string coinType, DateTime time, CancellationToken stoppingToken)
+    {
+      // NOTE: this has already been done for every time that enters this service; see ToUsd()
+      // time = time.ChopSecondsAndSmaller();
+      
+      foreach (var candidateTransaction in _dataService.Orders.Cast<ITransactionish>().Concat(_dataService.Transactions.Cast<ITransactionish>())
+        .Where(x => x.TransactionType == TransactionType.Trade &&
+               x.Time.ChopSecondsAndSmaller() == time // FUTURE: could probably relax this to "same day" if ever needed
+               (x.ReceivedCoinType == coinType || x.PaymentCoinType == coinType)))
+      {
+        var (otherCoinType, otherCoinCount, sameCoinCount) = candidateTransaction.ReceivedCoinType == coinType 
+          ? (candidateTransaction.PaymentCoinType, candidateTransaction.PaymentCoinCount, candidateTransaction.ReceivedCoinCount)
+          : (candidateTransaction.ReceivedCoinType, candidateTransaction.ReceivedCoinCount, candidateTransaction.PaymentCoinCount);
+
+        if (otherCoinType == coinType) continue; // should never happen... but /shrug be safe
+
+        if (_historicalPrices.TryGetValue((otherCoinType, time), out var otherPerCoinCost) && otherPerCoinCost != null)
+        {
+          var otherUsdValue = otherPerCoinCost.Value * otherCoinCount;
+          if (sameCoinCount == 0) continue; // also should never happen
+          var myUsdPerCoinPrice = otherUsdValue / sameCoinCount;
+          return myUsdPerCoinPrice;
+        }
+      }
+      return null;
     }
     
     private void AddToCoinTypesSupportedByWhichExchanges(CryptoExchange exchange, HashSet<string> coinTypes)
