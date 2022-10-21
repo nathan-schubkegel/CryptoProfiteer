@@ -48,6 +48,9 @@ namespace CryptoProfiteer
     private ImmutableHashSet<(string CoinType, DateTime Time)> _neededPrices =
       ImmutableHashSet<(string CoinType, DateTime Time)>.Empty;
       
+    private ImmutableHashSet<(string CoinType, DateTime Time)> _exchangeDeniedPrices =
+      ImmutableHashSet<(string CoinType, DateTime Time)>.Empty;
+      
     public HistoricalCoinPriceService(ILogger<HistoricalCoinPriceService> logger, IHttpClientSingleton httpClientSingleton, IDataService dataService)
     {
       _logger = logger;
@@ -257,40 +260,44 @@ namespace CryptoProfiteer
           {
             try
             {
-              var supportedExchanges = _coinTypesSupportedByWhichExchanges.GetValueOrDefault(coinType) ?? emptyExchangeHashSet;
-              if (supportedExchanges.Contains(CryptoExchange.CoinbasePro) || supportedExchanges.Contains(CryptoExchange.Coinbase))
+              decimal? newPrice = null;
+              if (!_exchangeDeniedPrices.Contains((coinType, time)))
               {
-                var newPrice = await FetchCoinbaseHistoricalPrice(coinType, time, stoppingToken);
-                
-                // if this exchange has no data for that time period, see if the other does!
+                var supportedExchanges = _coinTypesSupportedByWhichExchanges.GetValueOrDefault(coinType) ?? emptyExchangeHashSet;
+                if (supportedExchanges.Contains(CryptoExchange.CoinbasePro) || supportedExchanges.Contains(CryptoExchange.Coinbase))
+                {
+                  newPrice = await FetchCoinbaseHistoricalPrice(coinType, time, stoppingToken);
+                }
                 if (newPrice == null && supportedExchanges.Contains(CryptoExchange.Kucoin))
                 {
                   newPrice = await FetchKucoinHistoricalPrice(coinType, time, stoppingToken);
                 }
-                
-                // TODO: could maybe try to synchronize changes to _historicalPrices here vs. in ImportPersistedData()
-                var newDictionary = new Dictionary<(string CoinType, DateTime Time), Decimal?>(_historicalPrices);
-                newDictionary[(coinType, time)] = newPrice;
-                _historicalPrices = newDictionary;
-                _logger.LogInformation($"determined pricePerCoinUsd = {(newPrice?.ToString() ?? "null")} for {coinType} at {time}");
+                if (newPrice == null)
+                {
+                  _exchangeDeniedPrices = _exchangeDeniedPrices.Add((coinType, time));
+                }
               }
-              else if (supportedExchanges.Contains(CryptoExchange.Kucoin))
-              {
-                var newPrice = await FetchKucoinHistoricalPrice(coinType, time, stoppingToken);
 
+              bool thereIsStillHope = false;
+              if (newPrice == null)
+              {
+                (newPrice, thereIsStillHope) = FetchInferredHistoricalPrice(coinType, time);
+              }
+
+              if (newPrice != null)
+              {
                 // TODO: could maybe try to synchronize changes to _historicalPrices here vs. in ImportPersistedData()
                 var newDictionary = new Dictionary<(string CoinType, DateTime Time), Decimal?>(_historicalPrices);
                 newDictionary[(coinType, time)] = newPrice;
                 _historicalPrices = newDictionary;
                 _logger.LogInformation($"determined pricePerCoinUsd = {(newPrice?.ToString() ?? "null")} for {coinType} at {time}");
               }
-              else
+              else if (!thereIsStillHope)
               {
-                _logger.LogInformation($"Not fetching price of {coinType} because no exchange supports that coin");
+                _logger.LogInformation($"Giving up fetching price of {coinType} at {time} because no exchange supports that coin or any related by transactions");
                 var newDictionary = new Dictionary<(string CoinType, DateTime Time), Decimal?>(_historicalPrices);
                 newDictionary[(coinType, time)] = null;
                 _historicalPrices = newDictionary;
-                continue;
               }
             }
             catch
@@ -465,31 +472,63 @@ namespace CryptoProfiteer
     // This method is for when Coinbase and Kucoin refuse to acknowledge the price of LUNA before it crashed.
     // We can extrapolate its value based on what I traded for it. 
     // TODO: right now this includes fee costs, but really I need it to exclude those
-    private async Task<Decimal?> FetchInferredHistoricalPrice(string coinType, DateTime time, CancellationToken stoppingToken)
+    private (Decimal? price, bool thereIsStillHope) FetchInferredHistoricalPrice(string coinType, DateTime time)
     {
       // NOTE: this has already been done for every time that enters this service; see ToUsd()
       // time = time.ChopSecondsAndSmaller();
       
-      foreach (var candidateTransaction in _dataService.Orders.Cast<ITransactionish>().Concat(_dataService.Transactions.Cast<ITransactionish>())
+      bool thereIsStillHope = false;
+      
+      foreach (var x in _dataService.Transactions.Values
         .Where(x => x.TransactionType == TransactionType.Trade &&
-               x.Time.ChopSecondsAndSmaller() == time // FUTURE: could probably relax this to "same day" if ever needed
-               (x.ReceivedCoinType == coinType || x.PaymentCoinType == coinType)))
+               x.Time.ChopSecondsAndSmaller() == time && // FUTURE: could probably relax this to "same day" if ever needed
+               (x.ReceivedCoinType == coinType || x.PaymentCoinType == coinType) &&
+               (x.ReceivedCoinType != x.PaymentCoinType) && // whut? oh it's just paranoia
+               x.ListPrice != 0m))
       {
-        var (otherCoinType, otherCoinCount, sameCoinCount) = candidateTransaction.ReceivedCoinType == coinType 
-          ? (candidateTransaction.PaymentCoinType, candidateTransaction.PaymentCoinCount, candidateTransaction.ReceivedCoinCount)
-          : (candidateTransaction.ReceivedCoinType, candidateTransaction.ReceivedCoinCount, candidateTransaction.PaymentCoinCount);
-
-        if (otherCoinType == coinType) continue; // should never happen... but /shrug be safe
-
-        if (_historicalPrices.TryGetValue((otherCoinType, time), out var otherPerCoinCost) && otherPerCoinCost != null)
+        // ListPrice is "how many of this coin for 1 of the other kind of coin"
+        if (x.ListPriceCoinType == coinType)
         {
-          var otherUsdValue = otherPerCoinCost.Value * otherCoinCount;
-          if (sameCoinCount == 0) continue; // also should never happen
-          var myUsdPerCoinPrice = otherUsdValue / sameCoinCount;
-          return myUsdPerCoinPrice;
+          if (_historicalPrices.TryGetValue((x.ListPriceOtherCoinType, time), out var otherPerCoinCost) && otherPerCoinCost != null)
+          {
+            // now I have 'otherPerCoinCost' is USD cost per 1 ListPriceOtherCoinType
+            // and I have 'x.ListPrice' is how many CoinType per 1 ListPriceOtherCoinType
+            // so the answer is basic high school math that's hard to express in ASCII, sorry
+            return (otherPerCoinCost / x.ListPrice, false);
+          }
+          else
+          {
+            // request that other price, so we can figure this out at some point
+            if (!_exchangeDeniedPrices.Contains((x.ListPriceOtherCoinType, time)))
+            {
+              ToUsd(1, x.ListPriceOtherCoinType, time);
+              thereIsStillHope = true;
+            }
+          }
+        }
+        else
+        {
+          if (_historicalPrices.TryGetValue((x.ListPriceCoinType, time), out var perCoinCost) && perCoinCost != null)
+          {
+            
+            // now I have 'x.ListPrice' is how many of some other coin for 1 'coinType'
+            // and I have 'perCoinCost' is USD cost per 1 of some other coin
+            // so the answer is basic high school math that's hard to express in ASCII, sorry
+            return (perCoinCost * x.ListPrice, false);
+          }
+          else
+          {
+            // request that other price, so we can figure this out at some point
+            if (!_exchangeDeniedPrices.Contains((x.ListPriceCoinType, time)))
+            {
+              ToUsd(1, x.ListPriceCoinType, time);
+              thereIsStillHope = true;
+            }
+          }
         }
       }
-      return null;
+      
+      return (null, thereIsStillHope);
     }
     
     private void AddToCoinTypesSupportedByWhichExchanges(CryptoExchange exchange, HashSet<string> coinTypes)

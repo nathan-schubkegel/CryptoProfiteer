@@ -10,7 +10,7 @@ namespace CryptoProfiteer
     [JsonProperty("id")]
     public string Id { get; set; }
     
-    [JsonProperty("oaId")]
+    [JsonProperty("oaid")]
     public string OrderAggregationId { get; set; }
     
     [JsonProperty("type")]
@@ -22,13 +22,13 @@ namespace CryptoProfiteer
     [JsonProperty("time")]
     public DateTime Time { get; set; }
     
-    [JsonProperty("rCoin")]
+    [JsonProperty("rcoin")]
     public string ReceivedCoinType { get; set; }
     
-    [JsonProperty("pCoin")]
+    [JsonProperty("pcoin")]
     public string PaymentCoinType { get; set; }
     
-    [JsonProperty("rCount")]
+    [JsonProperty("rcount")]
     public Decimal ReceivedCoinCount
     { 
       get => _receivedCoinCount;
@@ -36,13 +36,16 @@ namespace CryptoProfiteer
     }
     private Decimal _receivedCoinCount;
     
-    [JsonProperty("pCount")]
+    [JsonProperty("pcount")]
     public Decimal PaymentCoinCount
     { 
       get => _paymentCoinCount;
       set => _paymentCoinCount = Math.Abs(value); // always positive - just fix mistakes
     }
     private Decimal _paymentCoinCount;
+    
+    [JsonProperty("price")]
+    public Decimal ListPrice { get; set; } // positive means "1 ReceivedCoin for this many PaymentCoins"; negative means "1 PaymentCoin for this many ReceivedCoins"
     
     public PersistedTransaction Clone() => (PersistedTransaction)MemberwiseClone();
   }
@@ -102,6 +105,14 @@ namespace CryptoProfiteer
         TransactionType_v04.Buy => TotalCost,
         TransactionType_v04.Sell => CoinCount,
         TransactionType_v04.Adjustment => CoinCount < 0 ? CoinCount : 0,
+        _ => throw new NotImplementedException(),
+      },
+      ListPrice = TransactionType switch
+      {
+        // positive means "1 ReceivedCoin for this many PaymentCoins"; negative means "1 PaymentCoin for this many ReceivedCoins"
+        TransactionType_v04.Buy => Math.Abs(PerCoinCost),
+        TransactionType_v04.Sell => -Math.Abs(PerCoinCost),
+        TransactionType_v04.Adjustment => 0m,
         _ => throw new NotImplementedException(),
       },
     };

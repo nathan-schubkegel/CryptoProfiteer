@@ -58,6 +58,12 @@ namespace CryptoProfiteer
         : MathOrNull(() => _paymentPerCoinCostUsd = PaymentValueUsd.Value / PaymentCoinCount)
       : _paymentPerCoinCostUsd;
       
+    public Decimal ListPrice => Math.Abs(_data.ListPrice);
+    
+    // ListPrice is "how many of this coin for 1 of the other kind of coin"
+    public string ListPriceCoinType => _data.ListPrice < 0 ? ReceivedCoinType : PaymentCoinType;
+    public string ListPriceOtherCoinType => _data.ListPrice < 0 ? PaymentCoinType : ReceivedCoinType;
+      
     private static Decimal? MathOrNull(Func<Decimal?> math)
     {
       try
