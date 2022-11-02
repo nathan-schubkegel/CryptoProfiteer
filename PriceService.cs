@@ -49,6 +49,10 @@ namespace CryptoProfiteer
       {
         return result;
       }
+      else if (coinType == "USD")
+      {
+        return new CoinPrice(coinType, 1m, _friendlyNameService.GetOrCreateFriendlyName(coinType), DateTime.UtcNow);
+      }
       else
       {
         lock (_neededPrices)

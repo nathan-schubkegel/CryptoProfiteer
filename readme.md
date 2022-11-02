@@ -3,8 +3,27 @@ CryptoProfiteer
 
 About
 -----
-This project consumes CSV fills reports from Coinbase and Kucoin, allowing me (and my wife) to plan tax impact and profit/loss of historical and proposed crypto transactions.
+This project
+* consumes crypto transactions in CSV exports from Coinbase/Kucoin
+* displays total coin holdings and value
+* records tax impact and calculates profit/loss for tax purposes
 
+User Experience
+-----
+![A screen capture of the application's main page](docs/images/summary_page.png)
+
+![A screen capture of crypto sales that need to be associated with purchases for tax purposes](docs/images/tax_association_worklist.png)
+
+![A screen capture of choosing from available crypto purchases and amounts to associate with a sale for tax purposes](docs/images/tax_association_dialog.png)
+
+![A screen capture of profit, loss, and tax impact](docs/images/tax_association_summary.png)
+
+Design
+-----
+TODO
+
+Development Facts
+-----
 This project avoids using npm or nodejs because I'm sick of hijacked npm accounts and unsafe package updates.
 
 This project avoids using HTTPS because I'm sick of dealing with certificates at work.

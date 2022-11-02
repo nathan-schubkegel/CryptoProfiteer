@@ -20,6 +20,7 @@
   Decimal total = 0m;
   foreach (var coinSummary in Model.Summaries())
   {
+    if (coinSummary.CoinType == "USD") continue;
     if (coinSummary.CashValue == null) nullCount++;
     else total += coinSummary.CashValue.Value;
   }
