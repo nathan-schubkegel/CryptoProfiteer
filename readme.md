@@ -8,15 +8,17 @@ This project
 * displays total coin holdings and value
 * records tax impact and calculates profit/loss for tax purposes
 
-User Experience
+User Experience - Main Page
 -----
-![A screen capture of the application's main page](docs/images/summary_page.png)
+![The application's main page](docs/images/summary_page.png)
 
-![A screen capture of crypto sales that need to be associated with purchases for tax purposes](docs/images/tax_association_worklist.png)
-
-![A screen capture of choosing from available crypto purchases and amounts to associate with a sale for tax purposes](docs/images/tax_association_dialog.png)
-
-![A screen capture of profit, loss, and tax impact](docs/images/tax_association_summary.png)
+User Experience - Tax Calculation
+-----
+![Crypto sales that need to be associated with purchases for tax purposes](docs/images/tax_association_worklist.png)
+-----
+![Choosing from available crypto purchases and amounts to associate with a sale for tax purposes](docs/images/tax_association_dialog.png)
+-----
+![Profit, loss, and tax impact](docs/images/tax_association_summary.png)
 
 Design
 -----
