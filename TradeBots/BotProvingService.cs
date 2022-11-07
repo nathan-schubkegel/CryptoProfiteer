@@ -45,6 +45,7 @@ namespace CryptoProfiteer.TradeBots
           Decimal.Parse(botArgs["targetGainPercent"], NumberStyles.Float, CultureInfo.InvariantCulture),
           Decimal.Parse(botArgs["lossPreventionPercent"], NumberStyles.Float, CultureInfo.InvariantCulture)
         ),
+        "MorningCoffeeBot" => new MorningCoffeeBot(coinType),
         _ => throw new Exception("unsupported bot name")
       };
       
@@ -73,14 +74,16 @@ namespace CryptoProfiteer.TradeBots
         }
         for (int i = 0; i < candleRange.Count && currentTime < endTime && !isSunk; i++)
         {
+          var candleStartTime = currentTime;
           currentTime += TimeSpan.FromSeconds((int)granularity);
+          var candleEndTime = currentTime;
           var candle = candleRange.TryGetCandle(i);
           if (candle != null)
           {
             var perCoinPrice = candle.Value.Close;
 
             lastCandle = candle;
-            bot.ApplyNextCandle(new NextCandleArgs { Time = currentTime, Candle = candle.Value });
+            bot.ApplyNextCandle(new NextCandleArgs { StartTime = candleStartTime, EndTime = candleEndTime, Candle = candle.Value });
             if (heldUsd > 0)
             {
               var buyResult = bot.WantsToBuy(new WantsToBuyArgs
