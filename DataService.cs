@@ -40,7 +40,6 @@ namespace CryptoProfiteer
     private readonly object _lock = new object();
     private readonly ILogger<DataService> _logger;
     private readonly IFriendlyNameService _friendlyNameService;
-    private readonly IHistoricalCoinPriceService _historicalCoinPriceService;
     private readonly IPriceService _priceService;
     private readonly Services _services;
 
@@ -52,13 +51,11 @@ namespace CryptoProfiteer
     
     public DataService(
       ILogger<DataService> logger,
-      IHistoricalCoinPriceService historicalCoinPriceService,
       IFriendlyNameService friendlyNameService,
       IPriceService priceService,
       Services services)
     {
       _logger = logger;
-      _historicalCoinPriceService = historicalCoinPriceService;
       _friendlyNameService = friendlyNameService;
       _priceService = priceService;
       _priceService.CoinPricesUpdated += OnCoinPricesUpdated;

@@ -76,7 +76,7 @@ namespace CryptoProfiteer
     {
       Transactions = Transactions.Select(x => x.ToLatest()).ToList(),
       TaxAssociations = TaxAssociations.Select(x => x.ToLatest()).ToList(),
-      HistoricalCoinPrices = HistoricalCoinPrices.Where(x => x.PricePerCoinUsd != null).Select(x => x.ToLatest()).ToList(),
+      HistoricalCoinPrices = HistoricalCoinPrices.Select(x => x.ToLatest()).ToList(),
     };
   }
 }
