@@ -55,6 +55,7 @@ namespace CryptoProfiteer
       const string coinbaseProAccountStatementHeaderLine = "portfolio,type,time,amount,balance,amount/balance unit,transfer id,trade id,order id";
       const string kucoinTradesHeaderLine = "tradeCreatedAt,orderId,symbol,side,price,size,funds,fee,liquidity,feeCurrency,orderType,";
       const string kucoinOrdersHeaderLine = "orderCreatedAt,id,clientOid,symbol,side,type,stopPrice,price,size,dealSize,dealFunds,averagePrice,fee,feeCurrency,remark,tags,orderStatus,";
+      const string kucoinCompletedTradesHeaderLine = "UID,Account Type,Order ID,Symbol,Side,Order Type,Avg. Filled Price,Filled Amount,Filled Volume,Filled Volume (USDT),Filled Time(UTC+08:00),Fee,Maker/Taker,Fee Currency";
       const string coinbaseOrdersHeaderLine = "Timestamp,Transaction Type,Asset,Quantity Transacted,Spot Price Currency,Spot Price at Transaction,Subtotal,Total (inclusive of fees),Fees,Notes";
       const string decentralizedFillsHeaderLine = "id,date,transaction type,sent total,sent fee,sent coin type,received amount,received coin type,notes";
       var headerFields = Csv.Parse(lines[0]).Select(x => x.Trim()).ToList();
@@ -73,6 +74,10 @@ namespace CryptoProfiteer
       else if (headerFields.SequenceEqual(Csv.Parse(kucoinOrdersHeaderLine)))
       {
         throw new Exception("Invalid CSV header - looks like a Kucoin Orders export, but this software only accepts Kucoin Trades exports");
+      }
+      else if (headerFields.SequenceEqual(Csv.Parse(kucoinCompletedTradesHeaderLine)))
+      {
+        PostKucoinCompletedTradesCsv(lines);
       }
       else if (headerFields.SequenceEqual(Csv.Parse(decentralizedFillsHeaderLine)))
       {
@@ -100,7 +105,8 @@ namespace CryptoProfiteer
               "",
               "Coinbase orders CSV: " + coinbaseOrdersHeaderLine,
               "Coinbase Pro fills CSV: " + coinbaseProFillsHeaderLine,
-              "Kucoin trades CSV: " + kucoinTradesHeaderLine,
+              "Kucoin trades CSV (pre 2023): " + kucoinTradesHeaderLine,
+              "Kucoin completed trades XLSM saved as CSV: " + kucoinCompletedTradesHeaderLine,
               "Decentralized fills CSV: " + decentralizedFillsHeaderLine,
             }));
         }
@@ -150,10 +156,10 @@ namespace CryptoProfiteer
           continue;
         }
         
-        if (!Enum.TryParse<TransactionType>(fields[buySellIndex], ignoreCase: true, out var transactionType) ||
-            (transactionType != TransactionType.Buy && transactionType != TransactionType.Sell))
+        if (!Enum.TryParse<TransactionType_v04>(fields[buySellIndex], ignoreCase: true, out var transactionType) ||
+            (transactionType != TransactionType_v04.Buy && transactionType != TransactionType_v04.Sell))
         {
-          throw new Exception($"CSV line {lineNumber} has unrecognized field {buySellIndex + 1} \"{fields[buySellIndex]}\"; expected one of " + string.Join(",", Enum.GetNames(typeof(TransactionType)).Select(x => "\"" + x + "\"")));
+          throw new Exception($"CSV line {lineNumber} has unrecognized field {buySellIndex + 1} \"{fields[buySellIndex]}\"; expected one of " + string.Join(",", Enum.GetNames(typeof(TransactionType_v04)).Select(x => "\"" + x + "\"")));
         }
 
         if (!DateTime.TryParse(fields[createdAtIndex], CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var createdAtTime))
@@ -188,7 +194,7 @@ namespace CryptoProfiteer
         var coinType = fields[coinTypeIndex];
         var paymentCoinType = fields[paymentTypeIndex];
 
-        var transaction = new PersistedTransaction
+        var transaction = new PersistedTransaction_v04
         {
           TradeId = "C-" + fields[createdAtIndex], // assuming that my coinbase transactions are all time-unique
           TransactionType = transactionType,
@@ -201,7 +207,7 @@ namespace CryptoProfiteer
           TotalCost = totalCost,
           PaymentCoinType = paymentCoinType,
         };
-        transactions.Add(transaction);
+        transactions.Add(transaction.ToLatest());
       }
 
       if (transactions.Count > 0)
@@ -247,10 +253,10 @@ namespace CryptoProfiteer
           throw new Exception($"CSV line {lineNumber} has {fields.Count} fields; different from header line which has {headerFields.Count} fields; aborting.");
         }
 
-        if (!Enum.TryParse<TransactionType>(fields[buySellIndex], ignoreCase: true, out var transactionType) ||
-            (transactionType != TransactionType.Buy && transactionType != TransactionType.Sell))
+        if (!Enum.TryParse<TransactionType_v04>(fields[buySellIndex], ignoreCase: true, out var transactionType) ||
+            (transactionType != TransactionType_v04.Buy && transactionType != TransactionType_v04.Sell))
         {
-          throw new Exception($"CSV line {lineNumber} has unrecognized field {buySellIndex + 1} \"{fields[buySellIndex]}\"; expected one of " + string.Join(",", Enum.GetNames(typeof(TransactionType)).Select(x => "\"" + x + "\"")));
+          throw new Exception($"CSV line {lineNumber} has unrecognized field {buySellIndex + 1} \"{fields[buySellIndex]}\"; expected one of " + string.Join(",", Enum.GetNames(typeof(TransactionType_v04)).Select(x => "\"" + x + "\"")));
         }
 
         if (!DateTime.TryParse(fields[createdAtIndex], CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var createdAtTime))
@@ -290,7 +296,7 @@ namespace CryptoProfiteer
           throw new Exception($"CSV line {lineNumber} has unexpected field {product + 1} \"{fields[product]}\"; based on other fields, expected \"{expectedProduct}\"");
         }
 
-        var transaction = new PersistedTransaction
+        var transaction = new PersistedTransaction_v04
         {
           TradeId = "CP-" + fields[tradeIdIndex],
           TransactionType = transactionType,
@@ -303,7 +309,7 @@ namespace CryptoProfiteer
           TotalCost = totalCost,
           PaymentCoinType = paymentCoinType,
         };
-        transactions.Add(transaction);
+        transactions.Add(transaction.ToLatest());
       }
 
       if (transactions.Count > 0)
@@ -410,7 +416,7 @@ namespace CryptoProfiteer
       var dealFundsIndex = IndexOrBust("funds");
       
       // Kucoin trade history is really a bummer because individual rows are not uniquely identified;
-      // they have OrderID but not fill IDs. So this code assumes that all the fills for a single order
+      // they have fill IDs but not order IDs. So this code assumes that all the fills for a single order
       // are present in the file being uploaded, and gives the fills IDs based on that
       var orderLineNumbers = new Dictionary<string, List<int>>();
       {
@@ -452,10 +458,10 @@ namespace CryptoProfiteer
             throw new Exception($"CSV line {lineNumber} has {fields.Count} fields; different from header line which has {headerFields.Count} fields; aborting.");
           }
 
-          if (!Enum.TryParse<TransactionType>(fields[buySellIndex], ignoreCase: true, out var transactionType) ||
-              (transactionType != TransactionType.Buy && transactionType != TransactionType.Sell))
+          if (!Enum.TryParse<TransactionType_v04>(fields[buySellIndex], ignoreCase: true, out var transactionType) ||
+              (transactionType != TransactionType_v04.Buy && transactionType != TransactionType_v04.Sell))
           {
-            throw new Exception($"CSV line {lineNumber} has unrecognized field {buySellIndex + 1} \"{fields[buySellIndex]}\"; expected one of " + string.Join(",", Enum.GetNames(typeof(TransactionType)).Select(x => "\"" + x + "\"")));
+            throw new Exception($"CSV line {lineNumber} has unrecognized field {buySellIndex + 1} \"{fields[buySellIndex]}\"; expected one of " + string.Join(",", Enum.GetNames(typeof(TransactionType_v04)).Select(x => "\"" + x + "\"")));
           }
 
           if (!DateTime.TryParseExact(fields[createdAtIndex], "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var createdAtTime))
@@ -511,13 +517,13 @@ namespace CryptoProfiteer
           // kucoin reporting is weird because total price is not strictly reported
           // for "sell" transactions, total price = dealFunds, and that minus fee is added to your value
           // for "buy" transactions, total price = dealFunds + fee
-          var totalCost = transactionType == TransactionType.Sell ? dealFunds : dealFunds + fee;
+          var totalCost = transactionType == TransactionType_v04.Sell ? dealFunds : dealFunds + fee;
           
           // kucoin reports postive values for both buys and sells
           // (but CryptoProfiteer is built assuming negative values for buys, like coinbase reports)
-          if (transactionType == TransactionType.Buy) totalCost = -Math.Abs(totalCost);
+          if (transactionType == TransactionType_v04.Buy) totalCost = -Math.Abs(totalCost);
 
-          var transaction = new PersistedTransaction
+          var transaction = new PersistedTransaction_v04
           {
             TradeId = "K-" + orderId + "-" + fillNumber,
             OrderAggregationId = "K-" + orderId,
@@ -531,8 +537,142 @@ namespace CryptoProfiteer
             TotalCost = totalCost,
             PaymentCoinType = paymentCoinType
           };
-          transactions.Add(transaction);
+          transactions.Add(transaction.ToLatest());
         }
+      }
+
+      if (transactions.Count > 0)
+      {
+        _dataService.ImportTransactions(transactions);
+      }
+    }
+    
+    public void PostKucoinCompletedTradesCsv(List<string> lines)
+    {
+      var headerFields = Csv.Parse(lines[0]).Select(x => x.Trim()).ToList();
+
+      int IndexOrBust(string name)
+      {
+        int index = headerFields.IndexOf(name);
+        if (index < 0)
+        {
+          throw new Exception("CSV header lacks required '" + name + "' field");
+        }
+        return index;
+      }
+
+      var orderIdIndex = IndexOrBust("Order ID");
+      var buySellIndex = IndexOrBust("Side");
+      var createdAtIndex = IndexOrBust("Filled Time(UTC+08:00)");
+      var coinCountIndex = IndexOrBust("Filled Amount");
+      var perCoinPriceIndex = IndexOrBust("Avg. Filled Price");
+      var feeIndex = IndexOrBust("Fee");
+      var productIndex = IndexOrBust("Symbol");
+      var tradeTypeIndex = IndexOrBust("Order Type");
+      var feeCurrencyIndex = IndexOrBust("Fee Currency");
+      var filledVolumeIndex = IndexOrBust("Filled Volume");
+      
+      var transactions = new List<PersistedTransaction>();
+      int lineNumber = 1;
+      var fillNumbers = new Dictionary<string, int>();
+      foreach (var line in lines.Skip(1))
+      {
+        lineNumber++;
+        var fields = Csv.Parse(line).Select(x => x.Trim()).ToList();
+        if (fields.Count == 0) continue;
+        if (fields.Count != headerFields.Count)
+        {
+          throw new Exception($"CSV line {lineNumber} has {fields.Count} fields; different from header line which has {headerFields.Count} fields; aborting.");
+        }
+
+        if (!Enum.TryParse<TransactionType_v04>(fields[buySellIndex], ignoreCase: true, out var transactionType) ||
+            (transactionType != TransactionType_v04.Buy && transactionType != TransactionType_v04.Sell))
+        {
+          throw new Exception($"CSV line {lineNumber} has unrecognized field {buySellIndex + 1} \"{fields[buySellIndex]}\"; expected one of " + string.Join(",", Enum.GetNames(typeof(TransactionType_v04)).Select(x => "\"" + x + "\"")));
+        }
+
+        if (!DateTime.TryParseExact(fields[createdAtIndex], "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var createdAtTime))
+        {
+          throw new Exception($"CSV line {lineNumber} has non-date/time field {createdAtIndex + 1} \"{fields[createdAtIndex]}\"; expected date/time such as \"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")}\"");
+        }
+        if (createdAtTime.Kind != DateTimeKind.Utc)
+        {
+          throw new Exception($"CSV line {lineNumber} date/time field was incorrectly interpreted as {createdAtTime.Kind}");
+        }
+        // Kucoin times are reported 8 hours after UTC, which appears to be the local time in singapore.
+        // So subtract 8 hours to compensate
+        // NOTE: technically this new report form declares it's timezone, but I just
+        // keeping downloading them in UTC+8 so I don't have to change this code
+        createdAtTime = createdAtTime - TimeSpan.FromHours(8);
+
+        if (!Decimal.TryParse(fields[coinCountIndex], NumberStyles.Float, CultureInfo.InvariantCulture, out var coinCount))
+        {
+          throw new Exception($"CSV line {lineNumber} has non-numeric field {coinCountIndex + 1} \"{fields[coinCountIndex]}\"; expected numeric value such as \"3.17\"");
+        }
+
+        if (!Decimal.TryParse(fields[perCoinPriceIndex], NumberStyles.Float, CultureInfo.InvariantCulture, out var perCoinPrice))
+        {
+          throw new Exception($"CSV line {lineNumber} has non-numeric field {perCoinPriceIndex + 1} \"{fields[perCoinPriceIndex]}\"; expected numeric value such as \"3.17\"");
+        }
+
+        if (!Decimal.TryParse(fields[feeIndex], NumberStyles.Float, CultureInfo.InvariantCulture, out var fee))
+        {
+          throw new Exception($"CSV line {lineNumber} has non-numeric field {feeIndex + 1} \"{fields[feeIndex]}\"; expected numeric value such as \"3.17\"");
+        }
+
+        var paymentCoinType = fields[feeCurrencyIndex];
+        var product = fields[productIndex];
+        var productParts = product.Split('-');
+        if (productParts.Length != 2)
+        {
+          throw new Exception($"CSV line {lineNumber} has unexpected field {productIndex + 1} \"{fields[productIndex]}\"; a value with a single hyphen is expected such as \"BTC-USD\"");
+        }
+        var coinType = productParts[0];
+        if (productParts[1] != paymentCoinType)
+        {
+          throw new Exception($"CSV line {lineNumber} has unexpected field {productIndex + 1} \"{fields[productIndex]}\"; it didn't match the fee currency \"{paymentCoinType}\"");
+        }
+        
+        if (fields[tradeTypeIndex] != "MARKET" && fields[tradeTypeIndex] != "LIMIT")
+        {
+          throw new Exception($"CSV line {lineNumber} has unexpected field {tradeTypeIndex + 1} \"{fields[tradeTypeIndex]}\"; currently only \"MARKET\" or \"LIMIT\" is supported");
+        }
+
+        if (!Decimal.TryParse(fields[filledVolumeIndex], NumberStyles.Float, CultureInfo.InvariantCulture, out var filledVolume))
+        {
+          throw new Exception($"CSV line {lineNumber} has non-numeric field {filledVolumeIndex + 1} \"{fields[filledVolumeIndex]}\"; expected numeric value such as \"3.17\"");
+        }
+        
+        // kucoin reporting is weird because total price is not strictly reported
+        // for "sell" transactions, total price = filledVolume, and that minus fee is added to your value
+        // for "buy" transactions, total price = filledVolume + fee
+        var totalCost = transactionType == TransactionType_v04.Sell ? filledVolume : filledVolume + fee;
+        
+        // kucoin reports postive values for both buys and sells
+        // (but CryptoProfiteer is built assuming negative values for buys, like coinbase reports)
+        if (transactionType == TransactionType_v04.Buy) totalCost = -Math.Abs(totalCost);
+        
+        // kucoin "Completed Trades" reports don't show the fill IDs
+        // so assume all the fills for a given trade are present in the file being uploaded
+        var orderId = fields[orderIdIndex];
+        var fillNumber = fillNumbers.GetValueOrDefault(orderId, 1);
+        fillNumbers[orderId] = fillNumber + 1;
+
+        var transaction = new PersistedTransaction_v04
+        {
+          TradeId = "K-" + orderId + "-" + fillNumber,
+          OrderAggregationId = "K-" + orderId,
+          TransactionType = transactionType,
+          Exchange = CryptoExchange.Kucoin,
+          Time = createdAtTime,
+          CoinType = coinType,
+          CoinCount = coinCount,
+          PerCoinCost = perCoinPrice,
+          Fee = fee,
+          TotalCost = totalCost,
+          PaymentCoinType = paymentCoinType
+        };
+        transactions.Add(transaction.ToLatest());
       }
 
       if (transactions.Count > 0)
@@ -576,8 +716,8 @@ namespace CryptoProfiteer
           throw new Exception($"CSV line {lineNumber} has {fields.Count} fields; different from header line which has {headerFields.Count} fields; aborting.");
         }
 
-        if (!Enum.TryParse<TransactionType>(fields[transactionTypeIndex], ignoreCase: true, out var transactionType) ||
-            (transactionType != TransactionType.Buy && transactionType != TransactionType.Sell))
+        if (!Enum.TryParse<TransactionType_v04>(fields[transactionTypeIndex], ignoreCase: true, out var transactionType) ||
+            (transactionType != TransactionType_v04.Buy && transactionType != TransactionType_v04.Sell))
         {
           throw new Exception($"CSV line {lineNumber} has unrecognized field {transactionTypeIndex + 1} \"{fields[transactionTypeIndex]}\"; expected one of \"buy\", \"sell\"");
         }
@@ -619,7 +759,7 @@ namespace CryptoProfiteer
         var coinType = fields[receivedCoinTypeIndex];
         var paymentCoinType = fields[sentCoinTypeIndex];
 
-        var transaction = new PersistedTransaction
+        var transaction = new PersistedTransaction_v04
         {
           TradeId = "D-" + fields[idIndex],
           TransactionType = transactionType,
@@ -632,7 +772,7 @@ namespace CryptoProfiteer
           TotalCost = totalCost,
           PaymentCoinType = paymentCoinType,
         };
-        transactions.Add(transaction);
+        transactions.Add(transaction.ToLatest());
       }
 
       if (transactions.Count > 0)

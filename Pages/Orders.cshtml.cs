@@ -27,14 +27,12 @@ namespace CryptoProfiteer.Pages
       switch (sortBy)
       {
         default:
-        case "date": return values.OrderByDescending(x => x.Time).ThenBy(x => x.CoinType);
-        case "dateAscending": return values.OrderBy(x => x.Time).ThenBy(x => x.CoinType);
-        case "coinTypeDescending": return values.OrderByDescending(x => x.CoinType).ThenByDescending(x => x.Time);
-        case "coinType": return values.OrderBy(x => x.CoinType).ThenByDescending(x => x.Time);
+        case "date": return values.OrderByDescending(x => x.Time);
+        case "dateAscending": return values.OrderBy(x => x.Time);
       }
     }
-    
-    public IEnumerable<CoinPrice> CoinPrices => _data.Orders.Values.Select(x => x.CoinType).Distinct()
+
+    public IEnumerable<CoinPrice> CoinPrices => _data.CoinTypes
       .Select(x => _priceService.TryGetCoinPrice(x)).Where(x => x != null);
 
     public void OnGet()

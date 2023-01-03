@@ -46,20 +46,7 @@ namespace CryptoProfiteer.Pages
     public string GetFriendlyName(string coinType) => _friendlyNames.GetOrCreateFriendlyName(coinType).Value;
     
     public Decimal? GetHistoricalPrice(string coinType, DateTime date) {
-      var basecoins = _friendlyNames.GetExchangeCurrencies(CryptoExchange.CoinbasePro);
-      var kucoins = _friendlyNames.GetExchangeCurrencies(CryptoExchange.Kucoin);
-      if (basecoins.Contains(coinType))
-      {
-        return _historicalPrices.ToUsd(1m, coinType, date, CryptoExchange.CoinbasePro);
-      }
-      else if (kucoins.Contains(coinType))
-      {
-        return _historicalPrices.ToUsd(1m, coinType, date, CryptoExchange.Kucoin);
-      }
-      else
-      {
-        return null;
-      }
+      return _historicalPrices.ToUsd(1m, coinType, date);
     }
     
     public Decimal? GetCurrentPrice(string coinType) {

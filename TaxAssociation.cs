@@ -22,27 +22,22 @@ namespace CryptoProfiteer
       foreach (var purchase in data.Purchases)
       {
         var order = allOrders.GetValueOrDefault(purchase.OrderId) ?? throw new Exception("Tax association purchase data refers to order that does not exist");
+        if (order.ReceivedCoinType != saleOrder.PaymentCoinType) throw new Exception("Tax association purchase data refers to order that sold a different coin type");
         purchases.Add(new TaxAssociationPurchase(purchase, order));
       }
       Purchases = purchases;
-
-      // FUTURE: somebody should make sure these contributing costs loaded from file are all negative
-      // (currently it's done in DataService.UpdateTaxAssociation() when they're created)
       TotalCostBought = Purchases.Sum(p => p.ContributingCost);
-
-      // FUTURE: somebody should make sure these contributing counts loaded from file are all positive
-      // (currently it's done in DataService.UpdateTaxAssociation() when they're created)
       CoinCountBought = Purchases.Sum(p => p.ContributingCoinCount);
     }
 
     public string Id => _data.Id;
-    public string CoinType => Sale.Order.CoinType;
+    public string CoinType => Sale.Order.PaymentCoinType;
     public DateTime Time => Sale.Order.Time;
-    public string FriendlyName => Sale.Order.FriendlyName;
+    //public string FriendlyName => Sale.Order.FriendlyName;
     public IReadOnlyList<TaxAssociationPurchase> Purchases { get; }
     public TaxAssociationSale Sale { get; }
     public int TotalCostBought { get; }
-    public int TotalCostSold => Sale.Order.TaxableTotalCostUsd ?? 0;
+    public int TotalCostSold => Sale.Order.TaxablePaymentValueUsd ?? 0;
     public bool IsNetGain => TotalCostBought + TotalCostSold >= 0;
     public int PercentNetGainLoss
     {
@@ -59,7 +54,7 @@ namespace CryptoProfiteer
       }
     }
     public Decimal CoinCountBought { get; }
-    public Decimal CoinCountSold => Sale.Order.CoinCount;
+    public Decimal CoinCountSold => Sale.Order.PaymentCoinCount;
 
     public PersistedTaxAssociation ClonePersistedData() => _data.Clone();
   }

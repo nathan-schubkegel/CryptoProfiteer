@@ -24,6 +24,26 @@ namespace CryptoProfiteer
       reader.Dispose();
     }
     
+    public static void AddToBucket<TKey, TValue>(this Dictionary<TKey, List<TValue>> dictionary, TKey key, TValue value)
+    {
+      if (!dictionary.TryGetValue(key, out var bucket))
+      {
+        bucket = new List<TValue>();
+        dictionary[key] = bucket;
+      }
+      bucket.Add(value);
+    }
+    
+    public static void AddToBucket<TKey, TValue>(this Dictionary<TKey, HashSet<TValue>> dictionary, TKey key, TValue value)
+    {
+      if (!dictionary.TryGetValue(key, out var bucket))
+      {
+        bucket = new HashSet<TValue>();
+        dictionary[key] = bucket;
+      }
+      bucket.Add(value);
+    }
+    
     public static DateTime ChopSecondsAndSmaller(this DateTime time)
     {
       // expected format: 2021-01-06T06:07:54.31Z
@@ -42,6 +62,12 @@ namespace CryptoProfiteer
     {
       DateTime dateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
       return dateTime.AddSeconds(unixEpochSeconds);
+    }
+    
+    public static long ToUnixEpochSeconds(this DateTime time)
+    {
+      DateTime start = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
+      return (long)(time.ToUniversalTime() - start).TotalSeconds;
     }
     
     public static Decimal SetMaxDecimals(this Decimal input, int maxDecimalDigits)
@@ -70,5 +96,49 @@ namespace CryptoProfiteer
       // value = Math.Truncate(100 * value) / 100;
       // but I like my ugly code better - less potential loss - ha, as if that matters... 29 digits of room to use!
     }
+    
+    public static string FormatPricePerCoinUsd(this Decimal? rate)
+    {
+      return rate == null ? "$<unknown>" : FormatPricePerCoinUsd(rate.Value);
+    }
+    
+    public static string FormatPricePerCoinUsd(this Decimal rate)
+    {
+      return rate < 0.10m ? $"${rate}" : rate.ToString("c");
+    }
+    
+    public static string FormatCoinCount(this Decimal coinCount, string coinType, bool showCoinType = true)
+    {
+      if (IsBasicallyUsd(coinType))
+      {
+        return showCoinType
+          ? $"{coinCount.ToString("c")} {coinType}"
+          : coinCount.ToString("c");
+      }
+      return showCoinType
+        ? $"{coinCount.ToString("G29")} {coinType}"
+        : coinCount.ToString("G29");
+    }
+    
+    public static string FormatCoinCount(this Decimal? coinCount, string coinType, bool showCoinType = true)
+    {
+      if (IsBasicallyUsd(coinType))
+      {
+        var moneys = coinCount?.ToString("c") ?? "$<unknown>";
+        return showCoinType
+          ? $"{moneys} {coinType}"
+          : moneys;
+      }
+      else
+      {
+        var moneys = coinCount?.ToString("G29") ?? "<unknown>";
+        return showCoinType
+          ? $"{moneys} {coinType}"
+          : moneys;
+      }
+    }
+    
+    public static bool IsBasicallyUsd(string coinType) => 
+      coinType == "USD" || coinType == "USDT" || coinType == "USDC";
   }
 }

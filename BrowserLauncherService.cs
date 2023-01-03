@@ -109,6 +109,9 @@ namespace CryptoProfiteer
           var result = await Task.WhenAny(tcs.Task, readLine);
           if (result == readLine)
           {
+            // if the application has no console for some reason, then just give up (don't go into an infinite loop opening chrome!)
+            if (!readLine.IsCompletedSuccessfully) break;
+
             // the application interprets Ctrl+C as a request to shut down
             // so wait 500ms to see if stoppingToken becomes signaled before launching another browser
             await Task.Delay(500, stoppingToken);

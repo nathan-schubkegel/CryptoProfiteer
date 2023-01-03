@@ -65,7 +65,7 @@ namespace CryptoProfiteer
       {
         Transactions = dataToSave.Transactions
           .OrderBy(x => x.Time)
-          .ThenBy(x => x.TradeId)
+          .ThenBy(x => x.Id)
           .ToList(),
           
         TaxAssociations = dataToSave.TaxAssociations
@@ -75,7 +75,6 @@ namespace CryptoProfiteer
         HistoricalCoinPrices = historicalCoinPrices
           .OrderBy(x => x.Time)
           .ThenBy(x => x.CoinType)
-          .ThenBy(x => x.Exchange)
           .ToList()
       };
       
@@ -91,7 +90,7 @@ namespace CryptoProfiteer
       _logger.LogInformation("Saving " + _dataFilePath);
       try
       {
-        File.WriteAllText(_dataFilePath, newData);
+        File.WriteAllLines(_dataFilePath, new[]{ toSave.FirstLine, newData });
       }
       catch (Exception ex)
       {

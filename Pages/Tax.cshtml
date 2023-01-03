@@ -3,9 +3,10 @@
 @{
   ViewData["Title"] = "Tax";
 
+/*
   // because I'm tired of seeing 1.456255434598 USDT on this page
   string LimitTrailingDigits(string paymentAmount, string paymentCoinType) {
-    if (paymentCoinType == "USDT") {
+    if (SomeUtils.IsBasicallyUsd(paymentCoinType)) {
       var i = paymentAmount.IndexOf('.');
       // if there are more than 2 decimal digits
       if (i >= 0 && i < paymentAmount.Length - 3) {
@@ -14,6 +15,7 @@
     }
     return paymentAmount + " " + paymentCoinType;
   }
+*/
 }
 
 <style>
@@ -34,13 +36,11 @@ BigNumber.set({ ROUNDING_MODE: 4 }); // 4 is HALF_UP
   <table class="table table-sm">
     <thead>
       <tr>
-        <th scope="col">Name</th>
         <th scope="col">Date</th>
         <th scope="col"></th>
-        <th scope="col">Count</th>
-        <th scope="col">Per Coin</th>
-        <th scope="col">Fee</th>
-        <th scope="col">Total</th>
+        <th scope="col">Sold</th>
+        <th scope="col">Value Per Coin</th>
+        <th scope="col">Bought</th>
       </tr>
     </thead>
     <tbody>
@@ -48,29 +48,28 @@ BigNumber.set({ ROUNDING_MODE: 4 }); // 4 is HALF_UP
     bool hadSalesNeedingTaxAssociation = false;
     foreach (var t in Model.SalesNeedingTaxAssociation(null))
     {
-      var isTrade = t.PaymentCoinType != "USD";
+      var usd = "USD";
+      var isExchange = t.PaymentCoinType != "USD";
       hadSalesNeedingTaxAssociation = true;
       <tr>
-        <td>@t.FriendlyName</td>
         <td>@t.Time.ToLocalTime().ToString("g")</td>
         <td>
           <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#modalToAssociateOrder"
             onclick="onResolveOrderNeedingTaxAssociationClick('@(t.Id)', 
-              '$@(t.PerCoinCostUsd?.ToString() ?? "<unknown>")@{ if (isTrade) { <text> USD (@t.PerCoinCost.ToString() @t.PaymentCoinType)</text> } }',
-              '@(t.TotalCostUsd?.ToString("c") ?? "<unknown>")@{ if (isTrade) { <text> USD (@t.TotalCost.ToString() @t.PaymentCoinType)</text> } }',
-              '@(t.CoinCount.ToString("G29"))',
-              '@(t.FriendlyName)',
-              '@(t.CoinType)',
+              '@t.PaymentCoinCount @t.PaymentCoinType',
+              '@t.ReceivedCoinCount @t.ReceivedCoinType@{ if (isExchange) { <text> (worth @(t.ReceivedValueUsd.FormatCoinCount(usd, showCoinType: false)))</text> } }',
+              '@t.PaymentPerCoinCostUsd.FormatCoinCount(usd, showCoinType: false)',
+              '@(t.PaymentCoinType)',
+              '@(t.PaymentCoinCount.ToString("G29"))',
               '@(t.Time.ToLocalTime().ToString("g"))',
               new Date('@(t.Time.ToString("o"))'))"
           >
             Resolve
           </button>
         </td>
-        <td>@t.CoinCount.ToString("G29")</td>
-        <td>$@(t.PerCoinCostUsd?.ToString() ?? "<unknown>")@{ if (isTrade) { <text> USD<br>(@t.PerCoinCost.ToString() @t.PaymentCoinType)</text> } }</td>
-        <td>@(t.FeeUsd?.ToString("c") ?? "<unknown>")@{ if (isTrade) { <text> USD<br>(@LimitTrailingDigits(t.Fee.ToString(), t.PaymentCoinType))</text> } }</td>
-        <td>@(t.TotalCostUsd?.ToString("c") ?? "<unknown>")@{ if (isTrade) { <text> USD<br>(@LimitTrailingDigits(t.TotalCost.ToString(), t.PaymentCoinType))</text> } }</td>
+        <td>Sold @t.PaymentCoinCount.FormatCoinCount(t.PaymentCoinType)</td>
+        <td>@t.FormatExchangeRateUsd(t.PaymentCoinType)</td>
+        <td>Bought @t.ReceivedCoinCount.FormatCoinCount(t.ReceivedCoinType)</td>
       </tr>
     }
   }
@@ -81,22 +80,19 @@ BigNumber.set({ ROUNDING_MODE: 4 }); // 4 is HALF_UP
 <script>
 let resolveOrderNeedingTaxAssociation_orderId = '';
 let resolveOrderNeedingTaxAssociation_coinCount = '';
-function onResolveOrderNeedingTaxAssociationClick(orderId, perCoinCost, prettyTotalCost, coinCount, prettyCoinType, machineCoinType, prettyOrderTime, machineOrderTime)
+function onResolveOrderNeedingTaxAssociationClick(orderId, prettyPayment, prettyReceived, prettyPaymentPerCoinCost, machinePaymentCoinType, machinePaymentCoinCount, prettyOrderTime, machineOrderTime)
 {
   resolveOrderNeedingTaxAssociation_orderId = orderId;
-  resolveOrderNeedingTaxAssociation_coinCount = coinCount;
+  resolveOrderNeedingTaxAssociation_coinCount = machinePaymentCoinCount;
 
-  let totalCostSpan = document.getElementById('modalToAssociateOrder-TotalCost');
-  totalCostSpan.textContent = prettyTotalCost;
+  let paymentSpan = document.getElementById('modalToAssociateOrder-Payment');
+  paymentSpan.textContent = prettyPayment;
   
-  let perCoinCostSpan = document.getElementById('modalToAssociateOrder-PerCoinCost');
-  perCoinCostSpan.textContent = perCoinCost;
-
-  let coinCountSpan = document.getElementById('modalToAssociateOrder-CoinCount');
-  coinCountSpan.textContent = coinCount;
-
-  let coinTypeSpan = document.getElementById('modalToAssociateOrder-CoinType');
-  coinTypeSpan.textContent = prettyCoinType;
+  let receivedSpan = document.getElementById('modalToAssociateOrder-Received');
+  receivedSpan.textContent = prettyReceived;
+  
+  let paymentPerCoinCostSpan = document.getElementById('modalToAssociateOrder-PaymentPerCoinCost');
+  paymentPerCoinCostSpan.textContent = prettyPaymentPerCoinCost;
 
   let timeSpan = document.getElementById('modalToAssociateOrder-Time');
   timeSpan.textContent = prettyOrderTime;
@@ -107,7 +103,7 @@ function onResolveOrderNeedingTaxAssociationClick(orderId, perCoinCost, prettyTo
     // hide any with purchaseTime > order time
     let rowCoinType = row.getAttribute('data-coinType');
     let rowPurchaseTime = new Date(row.getAttribute('data-purchaseTime'));
-    if (rowCoinType != machineCoinType || rowPurchaseTime > machineOrderTime) {
+    if (rowCoinType != machinePaymentCoinType || rowPurchaseTime > machineOrderTime) {
       row.style.display = 'none';
     }
     else {
@@ -139,12 +135,11 @@ function onResolveOrderNeedingTaxAssociationClick(orderId, perCoinCost, prettyTo
           Date: <span id='modalToAssociateOrder-Time'>last Tuesday</span>
           <br>
           You sold
-          <span id='modalToAssociateOrder-CoinCount'>9000</span>
-          <span id='modalToAssociateOrder-CoinType'>BARFTH (barfthereum)</span>
+          <span id='modalToAssociateOrder-Payment'>9000 BARFTH</span>
           for
-          <span id='modalToAssociateOrder-TotalCost'>$100,000,000</span>
+          <span id='modalToAssociateOrder-Received'>100,000,000 SHIBA (worth $1,302.44)</span>
           <br>
-          Cost Per Coin: <span id='modalToAssociateOrder-PerCoinCost'>$100,000</span>
+          Cost Per Coin: <span id='modalToAssociateOrder-PaymentPerCoinCost'>$0.15</span>
           <br>
           How was it purchased?
         </h5>
@@ -159,8 +154,7 @@ function onResolveOrderNeedingTaxAssociationClick(orderId, perCoinCost, prettyTo
               <th scope="col">Purchase Date</th>
               <th scope="col"></th>
               <th scope="col">Count</th>
-              <th scope="col">Per Coin</th>
-              <th scope="col">Fee</th>
+              <th scope="col">Rate</th>
               <th scope="col">Total</th>
             </tr>
           </thead>
@@ -168,33 +162,30 @@ function onResolveOrderNeedingTaxAssociationClick(orderId, perCoinCost, prettyTo
         @{
           foreach ((var t, var coinCountRemaining, var costRemaining) in Model.PurchasesNeedingTaxAssociation(null))
           {
-            var isTrade = t.PaymentCoinType != "USD";
-            <tr data-coinType='@t.CoinType' data-purchaseTime='@t.Time.ToString("o")'>
+            <tr data-coinType='@t.ReceivedCoinType' data-purchaseTime='@t.Time.ToString("o")'>
               <td>@t.Time.ToLocalTime().ToString("g")</td>
               <td>
                 <input type="checkbox" autocomplete="off"
                   class="btn-check button-for-selecting-purchase-orders"
                   id="btn-check-order-@(t.Id)"
                   data-orderId="@(t.Id)"
-                  data-orderCoinCount="@t.CoinCount"
+                  data-orderCoinCount="@t.ReceivedCoinCount"
                   data-orderCoinCountRemaining="@coinCountRemaining"
-                  data-orderTotalCost="@Math.Abs(t.TotalCostUsd ?? 0m).ToString("F2")"
-                  data-orderCostRemaining="@(costRemaining?.ToString() ?? "<unknown>")"
+                  data-orderTotalCost='@((t.ReceivedValueUsd ?? 0m).ToString("F2"))'
+                  data-orderCostRemaining='@(costRemaining?.ToString() ?? "<unknown>")'
                   onclick='modalToAssociateOrderCheckBoxClick("@t.Id");'>
                 <label class="btn btn-outline-primary btn-sm" for="btn-check-order-@(t.Id)">Select</label>
               </td>
-              <td>@t.CoinCount.ToString("G29") @{if (coinCountRemaining != t.CoinCount) { <span>(@coinCountRemaining.ToString("G29") unassociated)</span> } }</td>
-              
-              <td>$@(t.PerCoinCostUsd?.ToString() ?? "<unknown>")@{ if (isTrade) { <text> USD<br>(@t.PerCoinCost.ToString() @t.PaymentCoinType)</text> } }</td>
-              <td>@(t.FeeUsd?.ToString("c") ?? "<unknown>")@{ if (isTrade) { <text> USD<br>(@t.Fee.ToString() @t.PaymentCoinType)</text> } }</td>
-              <td>@(t.TotalCostUsd?.ToString("c") ?? "<unknown>") @{if (coinCountRemaining != t.CoinCount) { <span>($@(costRemaining?.ToString() ?? "<unknown>") unassociated)</span> } }</td>
+              <td>@t.ReceivedCoinCount @t.ReceivedCoinType @{if (coinCountRemaining != t.ReceivedCoinCount) { <span>(@coinCountRemaining.ToString("G29") unassociated)</span> } }</td>
+              <td>@t.FormatExchangeRateUsd(t.ReceivedCoinType)</td>
+              <td>@(t.ReceivedValueUsd?.ToString("c") ?? "<unknown>") @{if (coinCountRemaining != t.ReceivedCoinCount) { <span>($@(costRemaining?.ToString() ?? "<unknown>") unassociated)</span> } }</td>
             </tr>
             <tr style="display:none" id="modalToAssociateOrder-inputsForOrder-@t.Id">
               <td></td>
               <td colspan="2">
                 <div class="input-group input-group-sm">
                   <div class="input-group-prepend">
-                    <span class="input-group-text" id="inputGroupPrepend-1">@t.CoinType</span>
+                    <span class="input-group-text" id="inputGroupPrepend-1">@t.ReceivedCoinType</span>
                   </div>
                   <input type="text" class="form-control input-for-contributing-coin-count"
                     id="input-contributing-coin-count-for-order-@(t.Id)"
@@ -416,9 +407,9 @@ async function modalToAssociateOrderOkButtonClick()
       <th scope="col">Name</th>
       <th scope="col">Date</th>
       <th scope="col"></th>
-      <th scope="col">Count</th>
-      <th scope="col">Per Coin</th>
-      <th scope="col">Total</th>
+      <th scope="col">Change</th>
+      <th scope="col">Rate</th>
+      <th scope="col">Explanation</th>
       <th scope="col">Loss/Gain</th>
     </tr>
   </thead>
@@ -434,20 +425,20 @@ foreach (var yearOfAssociations in Model.TaxAssociations(null).GroupBy(x => x.Ti
   
   foreach (var a in yearOfAssociations)
   {
-    var isTrade = a.Sale.Order.PaymentCoinType != "USD";
+    var isExchange = a.Sale.Order.PaymentCoinType != "USD";
     <tr>
-      <td>@a.FriendlyName</td>
-      <td>@a.Sale.Order.Time.ToLocalTime().ToString("g")</td>
-      <td>@a.Sale.Order.TransactionType</td>
-      <td>@a.Sale.Order.CoinCount.ToString("G29")</td>
-      <td>$@(a.Sale.Order.PerCoinCostUsd?.ToString() ?? "<unknown>")@{ if (isTrade) { <text> USD<br>(@a.Sale.Order.PerCoinCost.ToString() @a.Sale.Order.PaymentCoinType)</text> } }</td>
-      <td>@(a.Sale.Order.TaxableTotalCostUsd?.ToString("c0") ?? "$<unknown>")@{ if (isTrade) { <text> USD<br>(@LimitTrailingDigits(a.Sale.Order.TotalCost.ToString(), a.Sale.Order.PaymentCoinType))</text> } }</td>
+      <td>@a.CoinType</td>
+      <td>@a.Time.ToLocalTime().ToString("g")</td>
+      <td>sale</td>
+      <td>@a.Sale.Order.FormatCoinCountChange()</td>
+      <td>@a.Sale.Order.FormatExchangeRateUsd()</td>
+      <td>@a.Sale.Order.FormatExplanation()</td>
     </tr>
 
     bool first = true;
     foreach (var p in a.Purchases)
     {
-      isTrade = p.Order.PaymentCoinType != "USD";
+      isExchange = p.Order.PaymentCoinType != "USD";
     <tr>
       <td>@{
         if (first)
@@ -461,18 +452,17 @@ foreach (var yearOfAssociations in Model.TaxAssociations(null).GroupBy(x => x.Ti
         first = false;
       }</td>
       <td>@p.Order.Time.ToLocalTime().ToString("g")</td>
-      <td>@p.Order.TransactionType</td>
+      <td>purchase</td>
       <td>@p.ContributingCoinCount.ToString("G29")</td>
-      <td>$@(p.Order.PerCoinCostUsd?.ToString() ?? "<unknown>")@{ if (isTrade) { <text> USD<br>(@p.Order.PerCoinCost.ToString() @p.Order.PaymentCoinType)</text> } }</td>
-      <td>@p.ContributingCost.ToString("c0")@{ if (isTrade) { <text> USD<br>(@LimitTrailingDigits(p.Order.TotalCostUsd == null ? "<unknown>" : (p.ContributingCost / (Decimal)p.Order.TotalCostUsd * p.Order.TotalCost).ToString(), p.Order.PaymentCoinType))</text> } }</td>
-      <td></td>
+      <td>@p.Order.FormatExchangeRateUsd()</td>
+      <td>@p.ContributingCost.ToString("c0")</td>
     </tr>
     }
     <tr>
       <td></td>
       <td colspan="4">
       @{
-        var hasUnknownTaxableValue = a.Purchases.Any(p => p.Order.TaxableTotalCostUsd == null) || a.Sale.Order.TaxableTotalCostUsd == null;
+        var hasUnknownTaxableValue = a.Purchases.Any(p => p.Order.TaxablePaymentValueUsd == null) || a.Sale.Order.TaxableReceivedValueUsd == null;
 
         if (a.CoinCountBought != a.CoinCountSold || hasUnknownTaxableValue)
         {

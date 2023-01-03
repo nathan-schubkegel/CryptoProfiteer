@@ -38,11 +38,11 @@ namespace CryptoProfiteer.Pages
       var orders = _data.Orders;
       foreach (var o in orders.Values)
       {
-        // account for coin type
-        if (!result.TryGetValue(o.CoinType, out var bucket))
+        // account for received coin type
+        if (!result.TryGetValue(o.ReceivedCoinType, out var bucket))
         {
           bucket = new List<Order>();
-          result[o.CoinType] = bucket;
+          result[o.ReceivedCoinType] = bucket;
         }
         bucket.Add(o);
         
@@ -53,6 +53,9 @@ namespace CryptoProfiteer.Pages
           result[o.PaymentCoinType] = bucket;
         }
         bucket.Add(o);
+        
+        // account for adjustments to USD
+        if (bucket.Count >= 2 && bucket[bucket.Count - 1] == bucket[bucket.Count - 2]) bucket.RemoveAt(bucket.Count - 1);
       }
       
       foreach (var coinType in result.Keys.ToList())
@@ -61,8 +64,8 @@ namespace CryptoProfiteer.Pages
         switch (sortBy)
         {
           default:
-          case "date": result[coinType] = values.OrderByDescending(x => x.Time).ThenBy(x => x.CoinType).ToList(); break;
-          case "dateAscending": result[coinType] = values.OrderBy(x => x.Time).ThenBy(x => x.CoinType).ToList(); break;
+          case "date": result[coinType] = values.OrderByDescending(x => x.Time).ToList(); break;
+          case "dateAscending": result[coinType] = values.OrderBy(x => x.Time).ToList(); break;
         }
       }
       

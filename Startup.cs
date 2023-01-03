@@ -42,6 +42,12 @@ namespace CryptoProfiteer
       services.AddSingleton<HistoricalCoinPriceService>();
       services.AddSingleton<IHistoricalCoinPriceService>(sp => sp.GetRequiredService<HistoricalCoinPriceService>());
       services.AddHostedService(sp => sp.GetRequiredService<HistoricalCoinPriceService>());
+      
+      services.AddSingleton<Services>(sp => new Services
+      {
+        FriendlyNameService = sp.GetRequiredService<IFriendlyNameService>(),
+        HistoricalCoinPriceService = sp.GetRequiredService<IHistoricalCoinPriceService>(),
+      });
 
       services.AddSingleton<IDataService, DataService>();
       services.AddSingleton<IAltCoinAlertService, AltCoinAlertService>();

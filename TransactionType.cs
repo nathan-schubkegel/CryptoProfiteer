@@ -8,8 +8,16 @@ namespace CryptoProfiteer
   [JsonConverter(typeof(StringEnumConverter))] 
   public enum TransactionType 
   { 
-    Buy, 
-    Sell, 
+    Trade,
+    Adjustment 
+  }
+  
+  // NOTE: this type is JSON serialized/deserialized
+  [JsonConverter(typeof(StringEnumConverter))] 
+  public enum TransactionType_v04
+  { 
+    Buy,
+    Sell,
     Adjustment 
   }
 }
