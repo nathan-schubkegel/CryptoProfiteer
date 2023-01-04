@@ -12,6 +12,6 @@ namespace CryptoProfiteer
     Coinbase, 
     CoinbasePro,
     Kucoin,
-    // TODO: add Bittrex
+    Bittrex,
   }
 }

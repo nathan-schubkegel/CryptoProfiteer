@@ -56,6 +56,7 @@ namespace CryptoProfiteer
       const string kucoinTradesHeaderLine = "tradeCreatedAt,orderId,symbol,side,price,size,funds,fee,liquidity,feeCurrency,orderType,";
       const string kucoinOrdersHeaderLine = "orderCreatedAt,id,clientOid,symbol,side,type,stopPrice,price,size,dealSize,dealFunds,averagePrice,fee,feeCurrency,remark,tags,orderStatus,";
       const string kucoinCompletedTradesHeaderLine = "UID,Account Type,Order ID,Symbol,Side,Order Type,Avg. Filled Price,Filled Amount,Filled Volume,Filled Volume (USDT),Filled Time(UTC+08:00),Fee,Maker/Taker,Fee Currency";
+      const string bittrexOrderHistoryHeaderLine = "Uuid,Exchange,TimeStamp,OrderType,Limit,Quantity,QuantityRemaining,Commission,Price,PricePerUnit,IsConditional,Condition,ConditionTarget,ImmediateOrCancel,Closed,TimeInForceTypeId,TimeInForce";
       const string coinbaseOrdersHeaderLine = "Timestamp,Transaction Type,Asset,Quantity Transacted,Spot Price Currency,Spot Price at Transaction,Subtotal,Total (inclusive of fees),Fees,Notes";
       const string decentralizedFillsHeaderLine = "id,date,transaction type,sent total,sent fee,sent coin type,received amount,received coin type,notes";
       var headerFields = Csv.Parse(lines[0]).Select(x => x.Trim()).ToList();
@@ -78,6 +79,10 @@ namespace CryptoProfiteer
       else if (headerFields.SequenceEqual(Csv.Parse(kucoinCompletedTradesHeaderLine)))
       {
         PostKucoinCompletedTradesCsv(lines);
+      }
+      else if (headerFields.SequenceEqual(Csv.Parse(bittrexOrderHistoryHeaderLine)))
+      {
+        PostBittrexOrderHistoryCsv(lines);
       }
       else if (headerFields.SequenceEqual(Csv.Parse(decentralizedFillsHeaderLine)))
       {
@@ -318,7 +323,7 @@ namespace CryptoProfiteer
       }
     }
     
-    public void PostCoinbaseProAccountStatementCsv(List<string> lines)
+    private void PostCoinbaseProAccountStatementCsv(List<string> lines)
     {
       var headerFields = Csv.Parse(lines[0]).Select(x => x.Trim()).ToList();
 
@@ -390,7 +395,7 @@ namespace CryptoProfiteer
       }
     }
     
-    public void PostKucoinTradesCsv(List<string> lines)
+    private void PostKucoinTradesCsv(List<string> lines)
     {
       var headerFields = Csv.Parse(lines[0]).Select(x => x.Trim()).ToList();
 
@@ -547,7 +552,7 @@ namespace CryptoProfiteer
       }
     }
     
-    public void PostKucoinCompletedTradesCsv(List<string> lines)
+    private void PostKucoinCompletedTradesCsv(List<string> lines)
     {
       var headerFields = Csv.Parse(lines[0]).Select(x => x.Trim()).ToList();
 
@@ -664,6 +669,128 @@ namespace CryptoProfiteer
           OrderAggregationId = "K-" + orderId,
           TransactionType = transactionType,
           Exchange = CryptoExchange.Kucoin,
+          Time = createdAtTime,
+          CoinType = coinType,
+          CoinCount = coinCount,
+          PerCoinCost = perCoinPrice,
+          Fee = fee,
+          TotalCost = totalCost,
+          PaymentCoinType = paymentCoinType
+        };
+        transactions.Add(transaction.ToLatest());
+      }
+
+      if (transactions.Count > 0)
+      {
+        _dataService.ImportTransactions(transactions);
+      }
+    }
+    
+    private void PostBittrexOrderHistoryCsv(List<string> lines)
+    {
+      var headerFields = Csv.Parse(lines[0]).Select(x => x.Trim()).ToList();
+
+      int IndexOrBust(string name)
+      {
+        int index = headerFields.IndexOf(name);
+        if (index < 0)
+        {
+          throw new Exception("CSV header lacks required '" + name + "' field");
+        }
+        return index;
+      }
+
+      var orderIdIndex = IndexOrBust("Uuid");
+      var buySellIndex = IndexOrBust("OrderType");
+      var createdAtIndex = IndexOrBust("TimeStamp");
+      var coinCountIndex = IndexOrBust("Quantity");
+      var quantityRemainingIndex = IndexOrBust("QuantityRemaining");
+      var isConditionalIndex = IndexOrBust("IsConditional");
+      var perCoinPriceIndex = IndexOrBust("PricePerUnit");
+      var feeIndex = IndexOrBust("Commission");
+      var productIndex = IndexOrBust("Exchange");
+      var filledVolumeIndex = IndexOrBust("Price");
+      
+      var transactions = new List<PersistedTransaction>();
+      int lineNumber = 1;
+      foreach (var line in lines.Skip(1))
+      {
+        lineNumber++;
+        var fields = Csv.Parse(line).Select(x => x.Trim()).ToList();
+        if (fields.Count == 0) continue;
+        if (fields.Count != headerFields.Count)
+        {
+          throw new Exception($"CSV line {lineNumber} has {fields.Count} fields; different from header line which has {headerFields.Count} fields; aborting.");
+        }
+
+        TransactionType_v04 transactionType = fields[buySellIndex] switch
+        {
+          "MARKET_SELL" => TransactionType_v04.Sell,
+          "CEILING_MARKET_BUY" => TransactionType_v04.Buy,
+          _ => throw new Exception($"CSV line {lineNumber} has unrecognized field {buySellIndex + 1} \"{fields[buySellIndex]}\"; expected one of MARKET_SELL, CEILING_MARKET_BUY")
+        };
+
+        // bittrex times appear to be recorded in UTC? or maybe Pacific? I don't know yet; haven't done enough trades to find out.
+        if (!DateTime.TryParseExact(fields[createdAtIndex], "M/d/yyyy h:mm:ss tt", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var createdAtTime))
+        {
+          throw new Exception($"CSV line {lineNumber} has non-date/time field {createdAtIndex + 1} \"{fields[createdAtIndex]}\"; expected date/time such as \"{DateTime.Now.ToString("M/d/yyyy h:mm:ss tt")}\"");
+        }
+        if (createdAtTime.Kind != DateTimeKind.Utc)
+        {
+          throw new Exception($"CSV line {lineNumber} date/time field was incorrectly interpreted as {createdAtTime.Kind}");
+        }
+
+        if (!Decimal.TryParse(fields[coinCountIndex], NumberStyles.Float, CultureInfo.InvariantCulture, out var coinCount))
+        {
+          throw new Exception($"CSV line {lineNumber} has non-numeric field {coinCountIndex + 1} \"{fields[coinCountIndex]}\"; expected numeric value such as \"3.17\"");
+        }
+        
+        if (fields[quantityRemainingIndex] != "0.00000000")
+        {
+          throw new Exception($"CSV line {lineNumber} has field {coinCountIndex + 1} \"{fields[quantityRemainingIndex]}\" but I don't know what means yet... I've only seen 0.00000000; please confirm how this code needs to be updated");
+        }
+
+        if (!Decimal.TryParse(fields[perCoinPriceIndex], NumberStyles.Float, CultureInfo.InvariantCulture, out var perCoinPrice))
+        {
+          throw new Exception($"CSV line {lineNumber} has non-numeric field {perCoinPriceIndex + 1} \"{fields[perCoinPriceIndex]}\"; expected numeric value such as \"3.17\"");
+        }
+
+        if (!Decimal.TryParse(fields[feeIndex], NumberStyles.Float, CultureInfo.InvariantCulture, out var fee))
+        {
+          throw new Exception($"CSV line {lineNumber} has non-numeric field {feeIndex + 1} \"{fields[feeIndex]}\"; expected numeric value such as \"3.17\"");
+        }
+
+        var product = fields[productIndex];
+        var productParts = product.Split('-');
+        if (productParts.Length != 2)
+        {
+          throw new Exception($"CSV line {lineNumber} has unexpected field {productIndex + 1} \"{fields[productIndex]}\"; a value with a single hyphen is expected such as \"BTC-USD\"");
+        }
+        var coinType = productParts[1];
+        var paymentCoinType = productParts[0];
+
+        if (!Decimal.TryParse(fields[filledVolumeIndex], NumberStyles.Float, CultureInfo.InvariantCulture, out var filledVolume))
+        {
+          throw new Exception($"CSV line {lineNumber} has non-numeric field {filledVolumeIndex + 1} \"{fields[filledVolumeIndex]}\"; expected numeric value such as \"3.17\"");
+        }
+        
+        // bittrex reporting...
+        // for "sell" transactions, total price = filledVolume, and that minus fee is added to your value
+        // for "buy" transactions, total price = filledVolume + fee
+        var totalCost = transactionType == TransactionType_v04.Sell ? filledVolume : filledVolume + fee;
+        
+        // bittrex reports postive values for both buys and sells
+        // (but CryptoProfiteer is built assuming negative values for buys, like coinbase reports)
+        if (transactionType == TransactionType_v04.Buy) totalCost = -Math.Abs(totalCost);
+        
+        // bittrex doesn't show fills; every "transaction" is also an "order"
+        var orderId = fields[orderIdIndex];
+        var transaction = new PersistedTransaction_v04
+        {
+          TradeId = "B-" + orderId,
+          OrderAggregationId = "B-" + orderId,
+          TransactionType = transactionType,
+          Exchange = CryptoExchange.Bittrex,
           Time = createdAtTime,
           CoinType = coinType,
           CoinCount = coinCount,
