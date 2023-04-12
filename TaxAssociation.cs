@@ -38,14 +38,14 @@ namespace CryptoProfiteer
     public TaxAssociationSale Sale { get; }
     public int TotalCostBought { get; }
     public int TotalCostSold => Sale.Order.TaxablePaymentValueUsd ?? 0;
-    public bool IsNetGain => TotalCostBought + TotalCostSold >= 0;
+    public bool IsNetGain => -TotalCostBought + TotalCostSold >= 0;
     public int PercentNetGainLoss
     {
       get
       {
         try
         {
-          return (int)(Math.Abs(((double)TotalCostBought + TotalCostSold) / TotalCostBought) * 100);
+          return (int)(Math.Abs((-(double)TotalCostBought + TotalCostSold) / TotalCostBought) * 100);
         }
         catch
         {

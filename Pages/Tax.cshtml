@@ -417,10 +417,15 @@ async function modalToAssociateOrderOkButtonClick()
 @{
 foreach (var yearOfAssociations in Model.TaxAssociations(null).GroupBy(x => x.Time.Year).OrderByDescending(x => x.Key))
 {
-  var yearNetGainLoss = yearOfAssociations.Sum(x => x.TotalCostBought + x.TotalCostSold);
+  var yearNetGainLoss = yearOfAssociations.Sum(x => -x.TotalCostBought + x.TotalCostSold);
   
   <tr style="font-weight: bold;">
-    <td colspan="6">For the year @yearOfAssociations.Key: <span style="@(yearNetGainLoss > 0 ? "color:#008126;" : "color:#ff0000;") font-weight:bold; ">@yearNetGainLoss.ToString("c0")</span></td>
+    <td>
+      <form method="get" action="api/taxReport/@yearOfAssociations.Key">
+        <button type="button" class="btn btn-primary btn-sm" onclick='downloadTaxReport(@yearOfAssociations.Key)'>Download</button>
+      </form>
+    </td>
+    <td colspan="5">For the year @yearOfAssociations.Key: <span style="@(yearNetGainLoss > 0 ? "color:#008126;" : "color:#ff0000;") font-weight:bold; ">@yearNetGainLoss.ToString("c0")</span></td>
   </tr>
   
   foreach (var a in yearOfAssociations)
@@ -432,7 +437,8 @@ foreach (var yearOfAssociations in Model.TaxAssociations(null).GroupBy(x => x.Ti
       <td>sale</td>
       <td>@a.Sale.Order.FormatCoinCountChange()</td>
       <td>@a.Sale.Order.FormatExchangeRateUsd()</td>
-      <td>@a.Sale.Order.FormatExplanation()</td>
+      <td>+@(a.Sale.Order.ReceivedValueUsd?.ToString("c0") ?? "unknown")</td>
+      <td><span style="@(a.IsNetGain ? "color:#008126;" : "color:#ff0000;") font-weight:bold; ">@(( - a.TotalCostBought + a.TotalCostSold).ToString("c0"))</span></td>
     </tr>
 
     bool first = true;
@@ -449,14 +455,20 @@ foreach (var yearOfAssociations in Model.TaxAssociations(null).GroupBy(x => x.Ti
             Delete
           </button>
         }
-        first = false;
       }</td>
       <td>@p.Order.Time.ToLocalTime().ToString("g")</td>
       <td>purchase</td>
-      <td>@p.ContributingCoinCount.ToString("G29")</td>
-      <td>@p.Order.FormatExchangeRateUsd()</td>
-      <td>@p.ContributingCost.ToString("c0")</td>
+      <td>@p.FormatCoinCountChange()</td>
+      <td>@p.FormatExchangeRateUsd()</td>
+      <td>-@p.ContributingCost.ToString("c0")</td>
+      <td>@{
+        if (first)
+        {
+          <span style="@(a.IsNetGain ? "color:#008126;" : "color:#ff0000;") font-weight:bold; ">@(((int)a.PercentNetGainLoss).ToString("D"))% @(a.IsNetGain ? "gain" : "loss")</span>
+        }
+      }</td>
     </tr>
+      first = false;
     }
     <tr>
       <td></td>
@@ -485,8 +497,6 @@ foreach (var yearOfAssociations in Model.TaxAssociations(null).GroupBy(x => x.Ti
         }
       }
       </td>
-      <td><span style="@(a.IsNetGain ? "color:#008126;" : "color:#ff0000;") font-weight:bold; ">@((a.TotalCostBought + a.TotalCostSold).ToString("c0"))</span></td>
-      <td><span style="@(a.IsNetGain ? "color:#008126;" : "color:#ff0000;") font-weight:bold; ">@(((int)a.PercentNetGainLoss).ToString("D"))% @(a.IsNetGain ? "gain" : "loss")</span></td>
     </tr>
   }
 }
@@ -546,5 +556,15 @@ async function modalToDeleteAssociationOkButtonClick()
   finally {
     spinny.style = 'display: none;';
   }
+}
+
+function downloadTaxReport(yearOfAssociations) {
+  const url = '/api/taxReport/' + yearOfAssociations;
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = url.split('/').pop();
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }
 </script>

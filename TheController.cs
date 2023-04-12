@@ -2,7 +2,9 @@
 using System.IO;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
+using System.Net.Http.Headers;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
@@ -344,6 +346,7 @@ namespace CryptoProfiteer
       var coinCountIndex = IndexOrBust("amount");
       var coinTypeIndex = IndexOrBust("amount/balance unit");
       
+      var conversions = new Dictionary<DateTime, (Decimal CoinCount, string CoinType)>();
       var transactions = new List<PersistedTransaction>();
       int lineNumber = 1;
       foreach (var line in lines.Skip(1))
@@ -385,6 +388,31 @@ namespace CryptoProfiteer
           var revisedTransaction = transaction.ClonePersistedData();
           revisedTransaction.OrderAggregationId = orderId;
           transactions.Add(revisedTransaction);
+        }
+        else if (transactionType == "conversion")
+        {
+          // conversions occur in pairs of two lines - the subtracted amount and the added amount
+          if (conversions.TryGetValue(createdAtTime, out var firstConversion))
+          {
+            var newTransaction = new PersistedTransaction
+            {
+              Id = "CPC-" + createdAtTime.ToString("o"),
+              TransactionType = TransactionType.Trade,
+              Exchange = CryptoExchange.CoinbasePro,
+              Time = createdAtTime,
+              ReceivedCoinType = firstConversion.CoinCount > 0 ? firstConversion.CoinType : coinType,
+              PaymentCoinType = firstConversion.CoinCount > 0 ? coinType : firstConversion.CoinType,
+              ReceivedCoinCount = firstConversion.CoinCount > 0 ? firstConversion.CoinCount : coinCount,
+              PaymentCoinCount = firstConversion.CoinCount > 0 ? coinCount : firstConversion.CoinCount,
+            };
+            newTransaction.ListPrice = Math.Abs(newTransaction.ReceivedCoinCount / newTransaction.PaymentCoinCount);
+            transactions.Add(newTransaction);
+            conversions.Remove(createdAtTime);
+          }
+          else
+          {
+            conversions.Add(createdAtTime, (CoinCount: coinCount, CoinType: coinType));
+          }
         }
         // else it's a fee or deposit or withdrawal - stuff we don't care about yet
       }
@@ -1004,6 +1032,48 @@ namespace CryptoProfiteer
         stoppingToken: HttpContext.RequestAborted
       );
       return new ProveBotOutputs { Result = result };
+    }
+    
+    [HttpGet("taxReport/{year}")]
+    public FileStreamResult DownloadTaxReport(int year)
+    {
+      StringBuilder builder = new StringBuilder();
+      builder.AppendLine(Csv.Encode(new[]
+      {
+        "description",
+        "date-acquired",
+        "date-sold",
+        "cost-basis",
+        "sale-proceeds"
+      }));
+      foreach (var taxAssociation in _dataService.TaxAssociations.Values.Where(x => x.Time.Year == year).OrderBy(x => x.Time))
+      {
+        foreach (var purchase in taxAssociation.Purchases.OrderBy(x => x.Order.Time))
+        {
+          var purchasePercentD = (double)purchase.ContributingCoinCount / (double)purchase.Order.ReceivedCoinCount;
+          if (purchasePercentD < 0.005) purchasePercentD = 0;
+          purchasePercentD = purchasePercentD * 100;
+          var purchasePercent = Math.Round((Decimal)purchasePercentD, MidpointRounding.AwayFromZero);
+
+          var salePercentD = (double)purchase.ContributingCost / (double)taxAssociation.TotalCostBought;
+          var saleProceedsD = (double)taxAssociation.TotalCostSold * salePercentD;
+          var saleProceeds = (int)Math.Round(saleProceedsD, MidpointRounding.AwayFromZero);
+
+          builder.AppendLine(Csv.Encode(new[]
+          {
+            $"Sell {(purchasePercent == 100m ? "" : $"{purchasePercent}% of ")} {purchase.Order.ReceivedCoinCount} {purchase.Order.ReceivedCoinType}",
+            purchase.Order.Time.ToString("o"),
+            taxAssociation.Sale.Order.Time.ToString("o"),
+            purchase.ContributingCost.ToString(),
+            saleProceeds.ToString(),
+          }));
+        }
+      }
+      var memory = new MemoryStream(Encoding.UTF8.GetBytes(builder.ToString()));
+      return new FileStreamResult(memory, "text/plain")
+      {
+        FileDownloadName = $"{year} Tax Report.txt",
+      };
     }
   }
 }

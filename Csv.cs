@@ -57,5 +57,24 @@ namespace CryptoProfiteer
       
       return parts;
     }
+    
+    public static string Encode(IEnumerable<string> fields)
+    {
+      var builder = new StringBuilder();
+      int fieldCount = 0;
+      foreach (var field in fields)
+      {
+        var result = field;
+        if (field.Contains(',') || field.Contains('\"'))
+        {
+          result = "\"" + field.Replace("\"", "\"\"") + "\"";
+        }
+        if (fieldCount > 0) builder.Append(',');
+        builder.Append(result);
+        fieldCount++;
+      }
+      if (fieldCount == 1 && builder.Length == 0) builder.Append("\"\"");
+      return builder.ToString();
+    }
   }
 }
