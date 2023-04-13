@@ -2,20 +2,6 @@
 @model TaxModel
 @{
   ViewData["Title"] = "Tax";
-
-/*
-  // because I'm tired of seeing 1.456255434598 USDT on this page
-  string LimitTrailingDigits(string paymentAmount, string paymentCoinType) {
-    if (SomeUtils.IsBasicallyUsd(paymentCoinType)) {
-      var i = paymentAmount.IndexOf('.');
-      // if there are more than 2 decimal digits
-      if (i >= 0 && i < paymentAmount.Length - 3) {
-        return paymentAmount.Substring(0, i + 3) + " " + paymentCoinType;
-      }
-    }
-    return paymentAmount + " " + paymentCoinType;
-  }
-*/
 }
 
 <style>
@@ -54,8 +40,8 @@ BigNumber.set({ ROUNDING_MODE: 4 }); // 4 is HALF_UP
       <tr>
         <td>@t.Time.ToLocalTime().ToString("g")</td>
         <td>
-          <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#modalToAssociateOrder"
-            onclick="onResolveOrderNeedingTaxAssociationClick('@(t.Id)', 
+          <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#modalToAssociateSale"
+            onclick="onResolveSaleNeedingTaxAssociationClick('@(t.Id)', 
               '@t.PaymentCoinCount @t.PaymentCoinType',
               '@t.ReceivedCoinCount @t.ReceivedCoinType@{ if (isExchange) { <text> (worth @(t.ReceivedValueUsd.FormatCoinCount(usd, showCoinType: false)))</text> } }',
               '@t.PaymentPerCoinCostUsd.FormatCoinCount(usd, showCoinType: false)',
@@ -78,26 +64,26 @@ BigNumber.set({ ROUNDING_MODE: 4 }); // 4 is HALF_UP
 </div>
 
 <script>
-let resolveOrderNeedingTaxAssociation_orderId = '';
-let resolveOrderNeedingTaxAssociation_coinCount = '';
-function onResolveOrderNeedingTaxAssociationClick(orderId, prettyPayment, prettyReceived, prettyPaymentPerCoinCost, machinePaymentCoinType, machinePaymentCoinCount, prettyOrderTime, machineOrderTime)
+let resolveSaleNeedingTaxAssociation_orderId = '';
+let resolveSaleNeedingTaxAssociation_coinCount = '';
+function onResolveSaleNeedingTaxAssociationClick(orderId, prettyPayment, prettyReceived, prettyPaymentPerCoinCost, machinePaymentCoinType, machinePaymentCoinCount, prettyOrderTime, machineOrderTime)
 {
-  resolveOrderNeedingTaxAssociation_orderId = orderId;
-  resolveOrderNeedingTaxAssociation_coinCount = machinePaymentCoinCount;
+  resolveSaleNeedingTaxAssociation_orderId = orderId;
+  resolveSaleNeedingTaxAssociation_coinCount = machinePaymentCoinCount;
 
-  let paymentSpan = document.getElementById('modalToAssociateOrder-Payment');
+  let paymentSpan = document.getElementById('modalToAssociateSale-Payment');
   paymentSpan.textContent = prettyPayment;
   
-  let receivedSpan = document.getElementById('modalToAssociateOrder-Received');
+  let receivedSpan = document.getElementById('modalToAssociateSale-Received');
   receivedSpan.textContent = prettyReceived;
   
-  let paymentPerCoinCostSpan = document.getElementById('modalToAssociateOrder-PaymentPerCoinCost');
+  let paymentPerCoinCostSpan = document.getElementById('modalToAssociateSale-PaymentPerCoinCost');
   paymentPerCoinCostSpan.textContent = prettyPaymentPerCoinCost;
 
-  let timeSpan = document.getElementById('modalToAssociateOrder-Time');
+  let timeSpan = document.getElementById('modalToAssociateSale-Time');
   timeSpan.textContent = prettyOrderTime;
 
-  let tableBody = document.getElementById('modalToAssociateOrder-tableBody');
+  let tableBody = document.getElementById('modalToAssociateSale-tableBody');
   for (var row of Array.from(tableBody.children)) {
     // hide any with coinType != CoinType
     // hide any with purchaseTime > order time
@@ -127,19 +113,19 @@ function onResolveOrderNeedingTaxAssociationClick(orderId, prettyPayment, pretty
 }
 
 <!-- A modal dialog for associating a "sell" order with one or more "buy" orders -->
-<div class="modal fade" id="modalToAssociateOrder" tabindex="-1" role="dialog" aria-labelledby="modalToAssociateOrder-Title" aria-hidden="true">
+<div class="modal fade" id="modalToAssociateSale" tabindex="-1" role="dialog" aria-labelledby="modalToAssociateSale-Title" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="modalToAssociateOrder-Title">
-          Date: <span id='modalToAssociateOrder-Time'>last Tuesday</span>
+        <h5 class="modal-title" id="modalToAssociateSale-Title">
+          Date: <span id='modalToAssociateSale-Time'>last Tuesday</span>
           <br>
           You sold
-          <span id='modalToAssociateOrder-Payment'>9000 BARFTH</span>
+          <span id='modalToAssociateSale-Payment'>9000 BARFTH</span>
           for
-          <span id='modalToAssociateOrder-Received'>100,000,000 SHIBA (worth $1,302.44)</span>
+          <span id='modalToAssociateSale-Received'>100,000,000 SHIBA (worth $1,302.44)</span>
           <br>
-          Cost Per Coin: <span id='modalToAssociateOrder-PaymentPerCoinCost'>$0.15</span>
+          Cost Per Coin: <span id='modalToAssociateSale-PaymentPerCoinCost'>$0.15</span>
           <br>
           How was it purchased?
         </h5>
@@ -158,7 +144,7 @@ function onResolveOrderNeedingTaxAssociationClick(orderId, prettyPayment, pretty
               <th scope="col">Total</th>
             </tr>
           </thead>
-          <tbody id='modalToAssociateOrder-tableBody'>
+          <tbody id='modalToAssociateSale-tableBody'>
         @{
           foreach ((var t, var coinCountRemaining, var costRemaining) in Model.PurchasesNeedingTaxAssociation(null))
           {
@@ -173,14 +159,14 @@ function onResolveOrderNeedingTaxAssociationClick(orderId, prettyPayment, pretty
                   data-orderCoinCountRemaining="@coinCountRemaining"
                   data-orderTotalCost='@((t.ReceivedValueUsd ?? 0m).ToString("F2"))'
                   data-orderCostRemaining='@(costRemaining?.ToString() ?? "<unknown>")'
-                  onclick='modalToAssociateOrderCheckBoxClick("@t.Id");'>
+                  onclick='modalToAssociateSaleCheckBoxClick("@t.Id");'>
                 <label class="btn btn-outline-primary btn-sm" for="btn-check-order-@(t.Id)">Select</label>
               </td>
               <td>@t.ReceivedCoinCount @t.ReceivedCoinType @{if (coinCountRemaining != t.ReceivedCoinCount) { <span>(@coinCountRemaining.ToString("G29") unassociated)</span> } }</td>
               <td>@t.FormatExchangeRateUsd(t.ReceivedCoinType)</td>
               <td>@(t.ReceivedValueUsd?.ToString("c") ?? "<unknown>") @{if (coinCountRemaining != t.ReceivedCoinCount) { <span>($@(costRemaining?.ToString() ?? "<unknown>") unassociated)</span> } }</td>
             </tr>
-            <tr style="display:none" id="modalToAssociateOrder-inputsForOrder-@t.Id">
+            <tr style="display:none" id="modalToAssociateSale-inputsForOrder-@t.Id">
               <td></td>
               <td colspan="2">
                 <div class="input-group input-group-sm">
@@ -213,8 +199,8 @@ function onResolveOrderNeedingTaxAssociationClick(orderId, prettyPayment, pretty
         </table>
       </div>
       <div class="modal-footer">
-        <img id="modalToAssociateOrder-okSpinny" src="/spinny-arrows.gif" style="display: none;" />
-        <button type="button" class="btn btn-primary" onclick="modalToAssociateOrderOkButtonClick()">OK</button>
+        <img id="modalToAssociateSale-okSpinny" src="/spinny-arrows.gif" style="display: none;" />
+        <button type="button" class="btn btn-primary" onclick="modalToAssociateSaleOkButtonClick()">OK</button>
         <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
       </div>
     </div>
@@ -250,11 +236,11 @@ function updateSelectedContributions() {
 
 let isProgrammaticallyChangingStuff = false;
 
-function modalToAssociateOrderCheckBoxClick(orderId)
+function modalToAssociateSaleCheckBoxClick(orderId)
 {
   const checkbox = document.getElementById('btn-check-order-' + orderId);
 
-  const row = document.getElementById('modalToAssociateOrder-inputsForOrder-' + orderId);
+  const row = document.getElementById('modalToAssociateSale-inputsForOrder-' + orderId);
   row.style.display = checkbox.checked ? '' : 'none';
 
   if (checkbox.checked) {
@@ -276,7 +262,7 @@ function modalToAssociateOrderCheckBoxClick(orderId)
 
         const orderTotalCost = checkbox.getAttribute("data-orderTotalCost");
         const orderCoinCount = checkbox.getAttribute("data-orderCoinCount");
-        let coinCountAvailable = BigNumber.max(BigNumber(0), BigNumber(resolveOrderNeedingTaxAssociation_coinCount).minus(selectedContributingCoinCount));
+        let coinCountAvailable = BigNumber.max(BigNumber(0), BigNumber(resolveSaleNeedingTaxAssociation_coinCount).minus(selectedContributingCoinCount));
         if (coinCountAvailable.isGreaterThan(BigNumber(coinCountRemaining))) {
           coinCountInput.value = coinCountRemaining;
           costInput.value = costRemaining;
@@ -291,7 +277,7 @@ function modalToAssociateOrderCheckBoxClick(orderId)
         }
       }
       catch (e) {
-        console.log('modalToAssociateOrderCheckBoxClick() threw', e);
+        console.log('modalToAssociateSaleCheckBoxClick() threw', e);
         // as a fallback, use the order remaining values
         coinCountInput.value = coinCountRemaining;
         costInput.value = costRemaining;
@@ -303,7 +289,7 @@ function modalToAssociateOrderCheckBoxClick(orderId)
   }
 }
 
-function modalToAssociateOrderContributingCoinCountChanged(orderId)
+function modalToAssociateSaleContributingCoinCountChanged(orderId)
 {
   if (isProgrammaticallyChangingStuff) return;
   
@@ -321,7 +307,7 @@ function modalToAssociateOrderContributingCoinCountChanged(orderId)
   }
 }
 
-function modalToAssociateOrderContributingCostChanged(orderId)
+function modalToAssociateSaleContributingCostChanged(orderId)
 {
   if (isProgrammaticallyChangingStuff) return;
   
@@ -341,15 +327,15 @@ function modalToAssociateOrderContributingCostChanged(orderId)
 
 for (var input of document.getElementsByClassName('input-for-contributing-coin-count')) {
   let orderId = input.getAttribute('id').substring('input-contributing-coin-count-for-order-'.length, 5000);
-  input.oninput = () => modalToAssociateOrderContributingCoinCountChanged(orderId);
+  input.oninput = () => modalToAssociateSaleContributingCoinCountChanged(orderId);
 }
 
 for (var input of document.getElementsByClassName('input-for-contributing-cost')) {
   let orderId = input.getAttribute('id').substring('input-contributing-cost-for-order-'.length, 5000);
-  input.oninput = () => modalToAssociateOrderContributingCostChanged(orderId);
+  input.oninput = () => modalToAssociateSaleContributingCostChanged(orderId);
 }
 
-async function modalToAssociateOrderOkButtonClick()
+async function modalToAssociateSaleOkButtonClick()
 {
   let purchases = [];
 
@@ -369,14 +355,14 @@ async function modalToAssociateOrderOkButtonClick()
     }
   }
 
-  let spinny = document.getElementById('modalToAssociateOrder-okSpinny');
+  let spinny = document.getElementById('modalToAssociateSale-okSpinny');
   spinny.style = '';
   try {
     let r = await fetch('/api/createTaxAssociation', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        saleOrderId: resolveOrderNeedingTaxAssociation_orderId,
+        saleOrderId: resolveSaleNeedingTaxAssociation_orderId,
         purchases
       })
     });
