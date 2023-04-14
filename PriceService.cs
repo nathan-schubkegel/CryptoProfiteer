@@ -34,6 +34,8 @@ namespace CryptoProfiteer
     // _neededPrices is mutable, and must be locked before being read/modified
     private readonly HashSet<string> _neededPrices = new HashSet<string>();
     
+    private readonly HashSet<(string, CryptoExchange)> _invalidCurrenciesByApi = new HashSet<(string, CryptoExchange)>();
+    
     public event Action CoinPricesUpdated;
 
     public PriceService(ILogger<PriceService> logger, IFriendlyNameService friendlyNameService, IHttpClientSingleton httpClientSingleton)
@@ -115,6 +117,11 @@ namespace CryptoProfiteer
             // TODO: should really change this to be asking for prices from Coinbase Pro!
             foreach (var coinType in coinTypesToRequest)
             {
+              if (_invalidCurrenciesByApi.Contains((coinType, CryptoExchange.Coinbase)))
+              {
+                continue;
+              }
+              
               await _httpClientSingleton.UseAsync($"fetching current price of {coinType} from coinbase", stoppingToken, async http =>
               {
                 var url = $"https://api.coinbase.com/v2/prices/{coinType}-USD/spot";
@@ -122,6 +129,10 @@ namespace CryptoProfiteer
                 string responseBody = await response.Content.ReadAsStringAsync();
                 if (!response.IsSuccessStatusCode)
                 {
+                  if (responseBody.Contains("\"Invalid base currency\""))
+                  {
+                    _invalidCurrenciesByApi.Add((coinType, CryptoExchange.Coinbase));
+                  }
                   throw new HttpRequestException($"coinbase price api for {coinType} returned {response.StatusCode}: {responseBody}");
                 }
                 var json = JObject.Parse(responseBody);
