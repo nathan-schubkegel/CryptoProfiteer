@@ -390,17 +390,7 @@ foreach (var yearOfAssociations in Model.TaxAssociations(null).GroupBy(x => x.Ti
     <tr>
       <td>@a.CoinType</td>
       <td>@a.Time.ToLocalTime().ToString("g")</td>
-      <td>Sold @a.Sale.Order.PaymentCoinCount.FormatMinDecimals() @a.Sale.Order.PaymentCoinType @{
-        if (a.Sale.Order.PaymentCoinType != "USD")
-        {
-          <text>worth @(a.Sale.Order.PaymentValueUsd?.FormatMinDecimals() ?? "<unknown>") USD </text>
-        }
-      }for @a.Sale.Order.ReceivedCoinCount.FormatMinDecimals() @a.Sale.Order.ReceivedCoinType@{
-        if (a.Sale.Order.ReceivedCoinType != "USD")
-        {
-          <text> worth @(a.Sale.Order.ReceivedValueUsd?.FormatMinDecimals() ?? "<unknown>") USD</text>
-        }
-      }</td>
+      <td>@a.SaleDescription</td>
       <td>@a.Sale.Order.FormatExchangeRateUsd()</td>
       <td>+$@(a.TaxableSaleProceedsUsd?.ToString() ?? "<unknown>")</td>
       <td><span style="@(a.NetGainLoss >= 0 ? "color:#008126;" : "color:#ff0000;") font-weight:bold; ">$@(a.NetGainLossAbs?.ToString() ?? "<unknown>") @(a.NetGainLoss >= 0 ? "gain" : "loss") (@(a.PercentNetGainLoss?.ToString() ?? "<unknown>")%)</span></td>
@@ -422,17 +412,7 @@ foreach (var yearOfAssociations in Model.TaxAssociations(null).GroupBy(x => x.Ti
         }
       }</td>
       <td>@p.Order.Time.ToLocalTime().ToString("g")</td>
-      <td>Bought @p.ContributingCoinCount.FormatMinDecimals() @p.Order.ReceivedCoinType @{
-        if (p.ContributingCoinCount != p.Order.ReceivedCoinCount)
-        {
-          <text>as part of @p.Order.ReceivedCoinCount.FormatMinDecimals() @p.Order.ReceivedCoinType order </text>
-        }
-        <text>for @p.Order.PaymentCoinCount.FormatMinDecimals() @p.Order.PaymentCoinType</text>
-        if (p.Order.PaymentCoinType != "USD")
-        {
-          <text> worth @(p.Order.PaymentValueUsd?.FormatMinDecimals() ?? "<unknown>") USD</text>
-        }
-      }</td>
+      <td>@p.PurchaseDescription</td>
       <td>@p.Order.FormatExchangeRateUsd()</td>
       <td>-$@(p.TaxableCostBasisUsd?.ToString() ?? "<unknown>")</td>
     </tr>

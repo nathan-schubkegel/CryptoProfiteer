@@ -32,5 +32,11 @@ namespace CryptoProfiteer
       }
     }
     public int? TaxableCostBasisUsd => ContributingCost;
+    
+    public string PurchaseDescription =>
+      $"Bought {ContributingCoinCount.FormatMinDecimals()} {Order.ReceivedCoinType} " +
+      (ContributingCoinCount != Order.ReceivedCoinCount ? $"as part of {Order.ReceivedCoinCount.FormatMinDecimals()} {Order.ReceivedCoinType} order " : "") +
+      $"for {Order.PaymentCoinCount.FormatMinDecimals()} {Order.PaymentCoinType}" +
+      (Order.PaymentCoinType != "USD" ? $" worth {(Order.PaymentValueUsd?.FormatMinDecimals() ?? "<unknown>")} USD" : "");
   }
 }

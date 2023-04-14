@@ -76,5 +76,10 @@ namespace CryptoProfiteer
     public Decimal CoinCountSold => Sale.Order.PaymentCoinCount;
 
     public PersistedTaxAssociation ClonePersistedData() => _data.Clone();
+    
+    public string SaleDescription => $"Sold {Sale.Order.PaymentCoinCount.FormatMinDecimals()} {Sale.Order.PaymentCoinType} " +
+      (Sale.Order.PaymentCoinType != "USD" ? $"worth {(Sale.Order.PaymentValueUsd?.FormatMinDecimals() ?? "<unknown>")} USD " : "") +
+      $"for {Sale.Order.ReceivedCoinCount.FormatMinDecimals()} {Sale.Order.ReceivedCoinType}" + 
+      (Sale.Order.ReceivedCoinType != "USD" ? $" worth {(Sale.Order.ReceivedValueUsd?.FormatMinDecimals() ?? "<unknown>")} USD" : "");
   }
 }
