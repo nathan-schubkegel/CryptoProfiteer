@@ -97,6 +97,22 @@ namespace CryptoProfiteer
       // but I like my ugly code better - less potential loss - ha, as if that matters... 29 digits of room to use!
     }
     
+    public static string FormatMinDecimals(this Decimal input)
+    {
+      string c = input.ToString(CultureInfo.InvariantCulture);
+      int i = c.IndexOf('.');
+      if (i >= 0)
+      {
+        for (int j = c.Length - 1; j > i; j--)
+        {
+          if (c[j] == '0') continue;
+          return c.Substring(0, j + 1);
+        }
+        return c.Substring(0, i);
+      }
+      return c;
+    }
+    
     public static string FormatPricePerCoinUsd(this Decimal? rate)
     {
       return rate == null ? "$<unknown>" : FormatPricePerCoinUsd(rate.Value);

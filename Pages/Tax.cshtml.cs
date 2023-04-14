@@ -36,7 +36,7 @@ namespace CryptoProfiteer.Pages
     public IEnumerable<(Order order, Decimal coinCountRemaining, int? costRemaining)> PurchasesNeedingTaxAssociation(string sortBy = null)
     {
       var coinCountUsedPerPurchase = new Dictionary<string, Decimal>();
-      var costUsedPerPurchase = new Dictionary<string, int>();
+      var costUsedPerPurchase = new Dictionary<string, int?>();
       foreach (var taxAssociation in _data.TaxAssociations.Values)
       {
         foreach (var purchase in taxAssociation.Purchases)
@@ -51,14 +51,16 @@ namespace CryptoProfiteer.Pages
 
       var values = _data.Orders.Values
         .Where(o => o.IsTaxablePurchase)
-        .Where(o => !coinCountUsedPerPurchase.TryGetValue(o.Id, out var coinCountUsed) ||
-                    coinCountUsed != o.ReceivedCoinCount)
+        .Where(o => coinCountUsedPerPurchase.GetValueOrDefault(o.Id) != o.ReceivedCoinCount)
         .Select(o =>
-          (
+        {
+          var costRemaining = o.TaxablePaymentValueUsd - costUsedPerPurchase.GetValueOrDefault(o.Id, 0);
+          return (
             order: o,
             coinCountRemaining: Math.Max(0m, o.ReceivedCoinCount - coinCountUsedPerPurchase.GetValueOrDefault(o.Id, 0m)),
-            costRemaining: o.TaxablePaymentValueUsd == null ? (int?)null : Math.Max(0, o.TaxablePaymentValueUsd.Value - costUsedPerPurchase.GetValueOrDefault(o.Id, 0))
-          ));
+            costRemaining: costRemaining == null ? costRemaining : Math.Max(0, costRemaining.Value)
+          );
+        });
 
       switch (sortBy)
       {

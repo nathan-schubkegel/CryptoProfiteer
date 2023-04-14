@@ -26,30 +26,49 @@ namespace CryptoProfiteer
         purchases.Add(new TaxAssociationPurchase(purchase, order));
       }
       Purchases = purchases;
-      TotalCostBought = Purchases.Sum(p => p.ContributingCost);
       CoinCountBought = Purchases.Sum(p => p.ContributingCoinCount);
     }
 
     public string Id => _data.Id;
     public string CoinType => Sale.Order.PaymentCoinType;
     public DateTime Time => Sale.Order.Time;
-    //public string FriendlyName => Sale.Order.FriendlyName;
     public IReadOnlyList<TaxAssociationPurchase> Purchases { get; }
     public TaxAssociationSale Sale { get; }
-    public int TotalCostBought { get; }
-    public int TotalCostSold => Sale.Order.TaxablePaymentValueUsd ?? 0;
-    public bool IsNetGain => -TotalCostBought + TotalCostSold >= 0;
-    public int PercentNetGainLoss
+    private int? _taxableCostBasisUsd;
+    public int? TaxableCostBasisUsd
     {
       get
       {
+        if (_taxableCostBasisUsd != null) return _taxableCostBasisUsd;
+        int sum = 0;
+        foreach (var purchase in Purchases)
+        {
+          var cost = purchase.ContributingCost;
+          if (cost == null) return null;
+          sum += cost.Value;
+        }
+        _taxableCostBasisUsd = sum;
+        return sum;
+      }
+    }
+    public int? TaxableSaleProceedsUsd => Sale.Order.TaxableReceivedValueUsd;
+    public int? NetGainLoss => -TaxableCostBasisUsd + TaxableSaleProceedsUsd;
+    public int? NetGainLossAbs => NetGainLoss == null ? null : Math.Abs(NetGainLoss.Value);
+    
+    public int? PercentNetGainLoss
+    {
+      get
+      {
+        if (TaxableCostBasisUsd == null) return null;
+        if (TaxableCostBasisUsd == 0) return 100;
+        if (NetGainLoss == null) return null;
         try
         {
-          return (int)(Math.Abs((-(double)TotalCostBought + TotalCostSold) / TotalCostBought) * 100);
+          return (int)Math.Abs(((double)NetGainLoss.Value / TaxableCostBasisUsd.Value) * 100);
         }
         catch
         {
-          return 0;
+          return null;
         }
       }
     }

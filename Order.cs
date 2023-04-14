@@ -27,17 +27,31 @@ namespace CryptoProfiteer
     public Decimal ReceivedCoinCount { get; }
     public Decimal PaymentCoinCount { get; }
 
-    public Decimal? ReceivedValueUsd => _receivedValueUsd == null
-      ? (_receivedValueUsd = _services.HistoricalCoinPriceService.ToUsd(ReceivedCoinCount, ReceivedCoinType, Time))
-      : _receivedValueUsd;
+    public Decimal? ReceivedValueUsd =>
+      // if we traded for USD, then the fair market value was the USD we traded
+      PaymentCoinType == "USD" ? PaymentCoinCount :
+      _receivedValueUsd == null ? (
+        // if we traded for something USD-ish, then use the fair market value of the USD-ish coin
+        // because I've received wildly different market prices (like 1.19 vs 1.3) from asking Kucoin's price history... don't stinkin' trust it anymore...
+        SomeUtils.IsBasicallyUsd(PaymentCoinType)
+          ? (_receivedValueUsd = _services.HistoricalCoinPriceService.ToUsd(PaymentCoinCount, PaymentCoinType, Time))
+          : (_receivedValueUsd = _services.HistoricalCoinPriceService.ToUsd(ReceivedCoinCount, ReceivedCoinType, Time))
+      ) : _receivedValueUsd;
 
-    public Decimal? PaymentValueUsd => _paymentValueUsd == null
-      ? (_paymentValueUsd = _services.HistoricalCoinPriceService.ToUsd(PaymentCoinCount, PaymentCoinType, Time))
-      : _paymentValueUsd;
-      
+    public Decimal? PaymentValueUsd =>
+      // if we traded for USD, then the fair market value was the USD we traded
+      ReceivedCoinType == "USD" ? ReceivedCoinCount :
+      _paymentValueUsd == null ? (
+        // if we traded for something USD-ish, then use the fair market value of the USD-ish coin
+        // because I've received wildly different market prices (like 1.19 vs 1.3) from asking Kucoin's price history... don't stinkin' trust it anymore...
+        SomeUtils.IsBasicallyUsd(ReceivedCoinType)
+          ? (_paymentValueUsd = _services.HistoricalCoinPriceService.ToUsd(ReceivedCoinCount, ReceivedCoinType, Time))
+          : (_paymentValueUsd = _services.HistoricalCoinPriceService.ToUsd(PaymentCoinCount, PaymentCoinType, Time))
+      ) : _paymentValueUsd;
+
     public int? TaxableReceivedValueUsd => _taxableReceivedValueUsd == null ?
-      PaymentValueUsd != null 
-        ? (_taxableReceivedValueUsd = (int)Math.Round(ReceivedValueUsd.Value, MidpointRounding.AwayFromZero)) 
+      PaymentValueUsd != null
+        ? (_taxableReceivedValueUsd = (int)Math.Round(ReceivedValueUsd.Value, MidpointRounding.AwayFromZero))
         : null
       : _taxableReceivedValueUsd;
 

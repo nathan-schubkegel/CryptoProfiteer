@@ -6,7 +6,7 @@ using Newtonsoft.Json.Converters;
 
 namespace CryptoProfiteer
 {
-  public class TaxAssociationPurchase : ITransactionish
+  public class TaxAssociationPurchase
   {
     private readonly PersistedTaxAssociationPurchase _data;
 
@@ -21,20 +21,16 @@ namespace CryptoProfiteer
 
     public Order Order { get; }
     public Decimal ContributingCoinCount => _data.ContributingCoinCount;
-    public int ContributingCost => _data.ContributingCost;
-    
-    // ITransactionish members
-    string ITransactionish.Id => Order.Id;
-    TransactionType ITransactionish.TransactionType => Order.TransactionType;
-    CryptoExchange ITransactionish.Exchange => Order.Exchange;
-    DateTime ITransactionish.Time => Order.Time;
-    string ITransactionish.ReceivedCoinType => Order.ReceivedCoinType;
-    string ITransactionish.PaymentCoinType => "USD";
-    Decimal ITransactionish.ReceivedCoinCount => ContributingCoinCount;
-    Decimal ITransactionish.PaymentCoinCount => ContributingCost;
-    Decimal? ITransactionish.ReceivedValueUsd => Order.ReceivedValueUsd * (ContributingCoinCount / Order.ReceivedCoinCount);
-    Decimal? ITransactionish.PaymentValueUsd => ContributingCost;
-    Decimal? ITransactionish.ReceivedPerCoinCostUsd => Order.ReceivedPerCoinCostUsd;
-    Decimal? ITransactionish.PaymentPerCoinCostUsd => 1;
+    public int? ContributingCost
+    {
+      get
+      {
+        double percent = (double)ContributingCoinCount / (double)Order.ReceivedCoinCount;
+        double? amount = (double?)Order.PaymentValueUsd * percent;
+        if (amount == null) return null;
+        return (int)Math.Round((Decimal)amount.Value, MidpointRounding.AwayFromZero);
+      }
+    }
+    public int? TaxableCostBasisUsd => ContributingCost;
   }
 }

@@ -210,23 +210,18 @@ function onResolveSaleNeedingTaxAssociationClick(orderId, prettyPayment, prettyR
 <script>
 
 let selectedContributingCoinCount = BigNumber(0);
-let selectedContributingCost = BigNumber(0);
 function updateSelectedContributions() {
   selectedContributingCoinCount = BigNumber(0);
-  selectedContributingCost = BigNumber(0);
   for (var checkbox of document.getElementsByClassName('button-for-selecting-purchase-orders')) {
     if (checkbox.checked) {
       try {
         let orderId = checkbox.getAttribute('data-orderId');
         let contributingCoinCount = BigNumber(document.getElementById('input-contributing-coin-count-for-order-' + orderId).value).abs();
         selectedContributingCoinCount = selectedContributingCoinCount.plus(contributingCoinCount);
-        let contributingCost = BigNumber(document.getElementById('input-contributing-cost-for-order-' + orderId).value).abs();
-        selectedContributingCost = selectedContributingCost.plus(contributingCost);
       }
       catch (e) {
         console.log('updateSelectedContributions() threw', e);
         selectedContributingCoinCount = BigNumber(NaN);
-        selectedContributingCost = BigNumber(NaN);
         return false;
       }
     }
@@ -279,8 +274,8 @@ function modalToAssociateSaleCheckBoxClick(orderId)
       catch (e) {
         console.log('modalToAssociateSaleCheckBoxClick() threw', e);
         // as a fallback, use the order remaining values
-        coinCountInput.value = coinCountRemaining;
-        costInput.value = costRemaining;
+        coinCountInput.value = "<unknown>";
+        costInput.value = "<unknown>"
       }
     }
     finally {
@@ -307,32 +302,9 @@ function modalToAssociateSaleContributingCoinCountChanged(orderId)
   }
 }
 
-function modalToAssociateSaleContributingCostChanged(orderId)
-{
-  if (isProgrammaticallyChangingStuff) return;
-  
-  const checkbox = document.getElementById('btn-check-order-' + orderId);
-  const orderTotalCost = checkbox.getAttribute("data-orderTotalCost");
-  const orderCoinCount = checkbox.getAttribute("data-orderCoinCount");
-
-  const costInput = document.getElementById('input-contributing-cost-for-order-' + orderId);
-  const coinCountInput = document.getElementById('input-contributing-coin-count-for-order-' + orderId);
-  try {
-    coinCountInput.value = BigNumber(orderCoinCount).times(BigNumber(costInput.value)).dividedBy(BigNumber(orderTotalCost)).toString().substring(0, orderCoinCount.length);
-  }
-  catch {
-    coinCountInput.value = '<unknown>';
-  }
-}
-
 for (var input of document.getElementsByClassName('input-for-contributing-coin-count')) {
   let orderId = input.getAttribute('id').substring('input-contributing-coin-count-for-order-'.length, 5000);
   input.oninput = () => modalToAssociateSaleContributingCoinCountChanged(orderId);
-}
-
-for (var input of document.getElementsByClassName('input-for-contributing-cost')) {
-  let orderId = input.getAttribute('id').substring('input-contributing-cost-for-order-'.length, 5000);
-  input.oninput = () => modalToAssociateSaleContributingCostChanged(orderId);
 }
 
 async function modalToAssociateSaleOkButtonClick()
@@ -344,9 +316,8 @@ async function modalToAssociateSaleOkButtonClick()
       try {
         let orderId = checkbox.getAttribute('data-orderId');
         let contributingCoinCount = document.getElementById('input-contributing-coin-count-for-order-' + orderId).value;
-        let contributingCost = document.getElementById('input-contributing-cost-for-order-' + orderId).value;
         if (BigNumber(contributingCoinCount).isEqualTo(BigNumber(0))) { continue; }
-        purchases.push({ orderId, contributingCoinCount, contributingCost });
+        purchases.push({ orderId, contributingCoinCount });
       }
       catch (e) {
         alert('failed to generate request for given purcahse data. Are all inputs numeric? ' + e);
@@ -392,10 +363,9 @@ async function modalToAssociateSaleOkButtonClick()
     <tr>
       <th scope="col">Name</th>
       <th scope="col">Date</th>
-      <th scope="col"></th>
       <th scope="col">Change</th>
       <th scope="col">Rate</th>
-      <th scope="col">Explanation</th>
+      <th scope="col">USD Value</th>
       <th scope="col">Loss/Gain</th>
     </tr>
   </thead>
@@ -403,7 +373,7 @@ async function modalToAssociateSaleOkButtonClick()
 @{
 foreach (var yearOfAssociations in Model.TaxAssociations(null).GroupBy(x => x.Time.Year).OrderByDescending(x => x.Key))
 {
-  var yearNetGainLoss = yearOfAssociations.Sum(x => -x.TotalCostBought + x.TotalCostSold);
+  int? yearNetGainLoss = yearOfAssociations.Sum(x => x.NetGainLoss);
   
   <tr style="font-weight: bold;">
     <td>
@@ -411,7 +381,7 @@ foreach (var yearOfAssociations in Model.TaxAssociations(null).GroupBy(x => x.Ti
         <button type="button" class="btn btn-primary btn-sm" onclick='downloadTaxReport(@yearOfAssociations.Key)'>Download</button>
       </form>
     </td>
-    <td colspan="5">For the year @yearOfAssociations.Key: <span style="@(yearNetGainLoss > 0 ? "color:#008126;" : "color:#ff0000;") font-weight:bold; ">@yearNetGainLoss.ToString("c0")</span></td>
+    <td colspan="5">For the year @yearOfAssociations.Key: <span style="@(yearNetGainLoss >= 0 ? "color:#008126;" : "color:#ff0000;") font-weight:bold; ">@(yearNetGainLoss?.ToString("c0") ?? "<unknown>")</span></td>
   </tr>
   
   foreach (var a in yearOfAssociations)
@@ -420,11 +390,20 @@ foreach (var yearOfAssociations in Model.TaxAssociations(null).GroupBy(x => x.Ti
     <tr>
       <td>@a.CoinType</td>
       <td>@a.Time.ToLocalTime().ToString("g")</td>
-      <td>sale</td>
-      <td>@a.Sale.Order.FormatCoinCountChange()</td>
+      <td>Sold @a.Sale.Order.PaymentCoinCount.FormatMinDecimals() @a.Sale.Order.PaymentCoinType @{
+        if (a.Sale.Order.PaymentCoinType != "USD")
+        {
+          <text>worth @(a.Sale.Order.PaymentValueUsd?.FormatMinDecimals() ?? "<unknown>") USD </text>
+        }
+      }for @a.Sale.Order.ReceivedCoinCount.FormatMinDecimals() @a.Sale.Order.ReceivedCoinType@{
+        if (a.Sale.Order.ReceivedCoinType != "USD")
+        {
+          <text> worth @(a.Sale.Order.ReceivedValueUsd?.FormatMinDecimals() ?? "<unknown>") USD</text>
+        }
+      }</td>
       <td>@a.Sale.Order.FormatExchangeRateUsd()</td>
-      <td>+@(a.Sale.Order.ReceivedValueUsd?.ToString("c0") ?? "unknown")</td>
-      <td><span style="@(a.IsNetGain ? "color:#008126;" : "color:#ff0000;") font-weight:bold; ">@(( - a.TotalCostBought + a.TotalCostSold).ToString("c0"))</span></td>
+      <td>+$@(a.TaxableSaleProceedsUsd?.ToString() ?? "<unknown>")</td>
+      <td><span style="@(a.NetGainLoss >= 0 ? "color:#008126;" : "color:#ff0000;") font-weight:bold; ">$@(a.NetGainLossAbs?.ToString() ?? "<unknown>") @(a.NetGainLoss >= 0 ? "gain" : "loss") (@(a.PercentNetGainLoss?.ToString() ?? "<unknown>")%)</span></td>
     </tr>
 
     bool first = true;
@@ -443,16 +422,19 @@ foreach (var yearOfAssociations in Model.TaxAssociations(null).GroupBy(x => x.Ti
         }
       }</td>
       <td>@p.Order.Time.ToLocalTime().ToString("g")</td>
-      <td>purchase</td>
-      <td>@p.FormatCoinCountChange()</td>
-      <td>@p.FormatExchangeRateUsd()</td>
-      <td>-@p.ContributingCost.ToString("c0")</td>
-      <td>@{
-        if (first)
+      <td>Bought @p.ContributingCoinCount.FormatMinDecimals() @p.Order.ReceivedCoinType @{
+        if (p.ContributingCoinCount != p.Order.ReceivedCoinCount)
         {
-          <span style="@(a.IsNetGain ? "color:#008126;" : "color:#ff0000;") font-weight:bold; ">@(((int)a.PercentNetGainLoss).ToString("D"))% @(a.IsNetGain ? "gain" : "loss")</span>
+          <text>as part of @p.Order.ReceivedCoinCount.FormatMinDecimals() @p.Order.ReceivedCoinType order </text>
+        }
+        <text>for @p.Order.PaymentCoinCount.FormatMinDecimals() @p.Order.PaymentCoinType</text>
+        if (p.Order.PaymentCoinType != "USD")
+        {
+          <text> worth @(p.Order.PaymentValueUsd?.FormatMinDecimals() ?? "<unknown>") USD</text>
         }
       }</td>
+      <td>@p.Order.FormatExchangeRateUsd()</td>
+      <td>-$@(p.TaxableCostBasisUsd?.ToString() ?? "<unknown>")</td>
     </tr>
       first = false;
     }

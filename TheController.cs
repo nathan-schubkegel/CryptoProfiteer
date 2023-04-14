@@ -945,7 +945,6 @@ namespace CryptoProfiteer
       {
         public string OrderId { get; set; }
         public string ContributingCoinCount { get; set; }
-        public string ContributingCost { get; set; }
       }
     }
     
@@ -957,8 +956,7 @@ namespace CryptoProfiteer
         inputs.Purchases.Select(p => 
         (
           p.OrderId,
-          Decimal.Parse(p.ContributingCoinCount, NumberStyles.Float, CultureInfo.InvariantCulture),
-          int.Parse(p.ContributingCost)
+          Decimal.Parse(p.ContributingCoinCount, NumberStyles.Float, CultureInfo.InvariantCulture)
         )).ToArray());
 
       return Ok(new { taxAssociationId });
@@ -1038,6 +1036,7 @@ namespace CryptoProfiteer
     public FileStreamResult DownloadTaxReport(int year)
     {
       StringBuilder builder = new StringBuilder();
+      /*
       builder.AppendLine(Csv.Encode(new[]
       {
         "description",
@@ -1069,6 +1068,7 @@ namespace CryptoProfiteer
           }));
         }
       }
+      */
       var memory = new MemoryStream(Encoding.UTF8.GetBytes(builder.ToString()));
       return new FileStreamResult(memory, "text/plain")
       {

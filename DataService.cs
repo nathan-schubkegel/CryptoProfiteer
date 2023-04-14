@@ -26,7 +26,7 @@ namespace CryptoProfiteer
     // 'saleOrderId' may be null/empty when modifying an existing tax association to not change that aspect
     // Returns the new/modified TaxAssociation ID
     string UpdateTaxAssociation(string taxAssociationId, string saleOrderId,
-      (string orderId, Decimal contributingCoinCount, int contributingCost)[] purchaseOrderUpdates);
+      (string orderId, Decimal contributingCoinCount)[] purchaseOrderUpdates);
 
     void DeleteTaxAssociation(string taxAssociationId);
     string AddAdjustment(string coinType, decimal coinCount);
@@ -248,9 +248,12 @@ namespace CryptoProfiteer
         CoinSummaries = newCoinSummaries;
       }
     }
-    
+
+    // 'taxAssociationId' may be null/empty when creating a new tax association
+    // 'saleOrderId' may be null/empty when modifying an existing tax association to not change that aspect
+    // Returns the new/modified TaxAssociation ID
     public string UpdateTaxAssociation(string taxAssociationId, string saleOrderId,
-      (string orderId, Decimal contributingCoinCount, int contributingCost)[] purchaseOrderUpdates)
+      (string orderId, Decimal contributingCoinCount)[] purchaseOrderUpdates)
     {
       lock (_lock)
       {
@@ -301,7 +304,7 @@ namespace CryptoProfiteer
         }
 
         var revisedPurchases = new List<PersistedTaxAssociationPurchase>(data.Purchases);
-        foreach ((var orderId, var contributingCoinCount, var contributingCost) in purchaseOrderUpdates)
+        foreach ((var orderId, var contributingCoinCount) in purchaseOrderUpdates)
         {
           // find order
           if (!Orders.TryGetValue(orderId ?? string.Empty, out var order))
@@ -324,7 +327,6 @@ namespace CryptoProfiteer
           {
             OrderId = orderId,
             ContributingCoinCount = contributingCoinCount,
-            ContributingCost = contributingCost,
           };
 
           // add or replace purchase in list
