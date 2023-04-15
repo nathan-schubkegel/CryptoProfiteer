@@ -1032,47 +1032,149 @@ namespace CryptoProfiteer
       return new ProveBotOutputs { Result = result };
     }
     
-    [HttpGet("taxReport/{year}")]
-    public FileStreamResult DownloadTaxReport(int year)
+    [HttpGet("FreeTaxUsaScript/{year}")]
+    public FileStreamResult DownloadFreeTaxUsaScript(int year)
     {
       StringBuilder builder = new StringBuilder();
-      /*
-      builder.AppendLine(Csv.Encode(new[]
-      {
-        "description",
-        "date-acquired",
-        "date-sold",
-        "cost-basis",
-        "sale-proceeds"
-      }));
+      
+      const string scriptHeader = @"
+      
+Add()
+
+Esc::
+  Suspend, Off
+  Pause, Off, 1
+  If (toggle := !toggle) {
+    Suspend, On
+    Pause, On, 1
+  }
+  return
+
+Add()
+{
+
+MsgBox, Make sure you're at the ""What type of investment did you sell?"" page, and press ""Escape"" to pause if needed
+CoordMode, Mouse, Client
+";
+
+      const string scriptTrailer = @"
+}
+";
+
+      const string scriptFormat = @"
+
+if WinExist(""FreeTaxUSA"")
+{{
+    WinActivate ; Use the window found by WinExist.
+    ;WinActivate, ""FreeTaxUSA""
+}}
+else 
+{{
+    MsgBox, can't find FreeTaxUSA window
+    return
+}}
+
+; ""it's a crypto"" button
+Click, 847 483
+Sleep, 1500
+
+; ""save and continue"" 
+Click, 1156 666
+Sleep, 2500
+
+; ""both"" (Nathan and Rachel) 
+Click, 438 517
+Sleep, 1500
+
+; ""save and continue"" 
+Click, 1171 609
+Sleep, 2500
+
+; ""one at a time"" 
+Click, 742 530
+Sleep, 1500
+
+; ""save and continue""
+Click, 1173 741
+Sleep, 2500
+
+; description textbox 
+Click, 900 475
+Sleep, 1500
+Send, {0}
+
+; date acquired box  (month/day/year)
+Click, 902 663
+Sleep, 1500
+Send, {1}
+
+; date sold (just month/day)
+Click, 891 744
+Sleep, 1500
+Send, {2}
+
+; sale proceeds 
+Click, 946 828
+Sleep, 1500
+Send, {3}
+
+; cost basis
+Click, 938 927
+Sleep, 1500
+Send, {4}
+
+; pagedown a few times
+Send, {{PgDn}}
+Send, {{PgDn}}
+Sleep, 1500
+
+; ""not reported on 1099-B"" 
+Click, 727 605
+Sleep, 1500
+
+; ""save and continue"" 
+Click, 1170 885
+Sleep, 2500
+
+; ""save and continue"" 
+Click, 1180 634
+Sleep, 5000
+
+; press end key
+Send, {{End}}
+Sleep, 3000
+
+; ""add another"" button 
+Click, 528 702
+Sleep, 2500
+
+      ";
+
+      builder.AppendLine(scriptHeader);
+      int i = 1;
       foreach (var taxAssociation in _dataService.TaxAssociations.Values.Where(x => x.Time.Year == year).OrderBy(x => x.Time))
       {
         foreach (var purchase in taxAssociation.Purchases.OrderBy(x => x.Order.Time))
         {
-          var purchasePercentD = (double)purchase.ContributingCoinCount / (double)purchase.Order.ReceivedCoinCount;
-          if (purchasePercentD < 0.005) purchasePercentD = 0;
-          purchasePercentD = purchasePercentD * 100;
-          var purchasePercent = Math.Round((Decimal)purchasePercentD, MidpointRounding.AwayFromZero);
+          var description = $"{i++}: {purchase.ContributingCoinCount.FormatMinDecimals()} {taxAssociation.CoinType}";
+          var dateAcquired = purchase.Order.Time.ToLocalTime().ToString("MM/dd/yyyy");
+          var dateSold = taxAssociation.Time.ToLocalTime().ToString("MM/dd");
+          
+          double percent = (double)purchase.ContributingCoinCount / (double)taxAssociation.Sale.Order.PaymentCoinCount;
+          double amount = (double)taxAssociation.Sale.Order.ReceivedValueUsd.Value * percent;
+          int saleProceeds = (int)Math.Round(amount, MidpointRounding.AwayFromZero);
 
-          var salePercentD = (double)purchase.ContributingCost / (double)taxAssociation.TotalCostBought;
-          var saleProceedsD = (double)taxAssociation.TotalCostSold * salePercentD;
-          var saleProceeds = (int)Math.Round(saleProceedsD, MidpointRounding.AwayFromZero);
-
-          builder.AppendLine(Csv.Encode(new[]
-          {
-            $"Sell {(purchasePercent == 100m ? "" : $"{purchasePercent}% of ")} {purchase.Order.ReceivedCoinCount} {purchase.Order.ReceivedCoinType}",
-            purchase.Order.Time.ToString("o"),
-            taxAssociation.Sale.Order.Time.ToString("o"),
-            purchase.ContributingCost.ToString(),
-            saleProceeds.ToString(),
-          }));
+          var costBasis = purchase.ContributingCost.Value;
+          
+          builder.AppendLine(string.Format(scriptFormat, description, dateAcquired, dateSold, saleProceeds, costBasis));
         }
       }
-      */
+      builder.AppendLine(scriptTrailer);
+      
       var memory = new MemoryStream(Encoding.UTF8.GetBytes(builder.ToString()));
       return new FileStreamResult(memory, "text/plain")
       {
-        FileDownloadName = $"{year} Tax Report.txt",
+        FileDownloadName = $"{year} FreeTaxUSA data entry script.ahk",
       };
     }
   }

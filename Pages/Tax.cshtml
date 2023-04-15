@@ -377,9 +377,7 @@ foreach (var yearOfAssociations in Model.TaxAssociations(null).GroupBy(x => x.Ti
   
   <tr style="font-weight: bold;">
     <td>
-      <form method="get" action="api/taxReport/@yearOfAssociations.Key">
-        <button type="button" class="btn btn-primary btn-sm" onclick='downloadTaxReport(@yearOfAssociations.Key)'>Download</button>
-      </form>
+      <button type="button" class="btn btn-primary btn-sm" onclick='downloadFreeTaxUsaScript(@yearOfAssociations.Key)'>Download As Script</button>
     </td>
     <td colspan="5">For the year @yearOfAssociations.Key: <span style="@(yearNetGainLoss >= 0 ? "color:#008126;" : "color:#ff0000;") font-weight:bold; ">@(yearNetGainLoss?.ToString("c0") ?? "<unknown>")</span></td>
   </tr>
@@ -506,8 +504,8 @@ async function modalToDeleteAssociationOkButtonClick()
   }
 }
 
-function downloadTaxReport(yearOfAssociations) {
-  const url = '/api/taxReport/' + yearOfAssociations;
+function downloadFreeTaxUsaScript(yearOfAssociations) {
+  const url = '/api/FreeTaxUsaScript/' + yearOfAssociations;
   const a = document.createElement('a');
   a.href = url;
   a.download = url.split('/').pop();
