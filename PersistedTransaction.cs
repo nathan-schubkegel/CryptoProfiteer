@@ -45,7 +45,7 @@ namespace CryptoProfiteer
     private Decimal _paymentCoinCount;
     
     [JsonProperty("price")]
-    public Decimal ListPrice { get; set; } // positive means "1 ReceivedCoin for this many PaymentCoins"; negative means "1 PaymentCoin for this many ReceivedCoins"
+    public Decimal? ListPrice { get; set; } // positive means "1 ReceivedCoin for this many PaymentCoins"; negative means "1 PaymentCoin for this many ReceivedCoins"; 0 or null means not relevant for this transaction
     
     public PersistedTransaction Clone() => (PersistedTransaction)MemberwiseClone();
   }
@@ -112,7 +112,7 @@ namespace CryptoProfiteer
         // positive means "1 ReceivedCoin for this many PaymentCoins"; negative means "1 PaymentCoin for this many ReceivedCoins"
         TransactionType_v04.Buy => Math.Abs(PerCoinCost),
         TransactionType_v04.Sell => -Math.Abs(PerCoinCost),
-        TransactionType_v04.Adjustment => 0m,
+        TransactionType_v04.Adjustment => null,
         _ => throw new NotImplementedException(),
       },
     };

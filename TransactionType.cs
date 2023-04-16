@@ -9,7 +9,8 @@ namespace CryptoProfiteer
   public enum TransactionType 
   { 
     Trade,
-    Adjustment 
+    Adjustment,
+    FuturesPnl
   }
   
   // NOTE: this type is JSON serialized/deserialized

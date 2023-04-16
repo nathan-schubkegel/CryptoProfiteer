@@ -13,8 +13,8 @@ namespace CryptoProfiteer
     private Decimal? _paymentValueUsd;
     private Decimal? _receivedPerCoinCostUsd;
     private Decimal? _paymentPerCoinCostUsd;
-    private Decimal _paymentCoinsPerReceivedCoinListPrice;
-    private Decimal _receivedCoinsPerPaymentCoinListPrice;
+    private Decimal? _paymentCoinsPerReceivedCoinListPrice;
+    private Decimal? _receivedCoinsPerPaymentCoinListPrice;
 
     public Transaction(PersistedTransaction data, Services services)
     {
@@ -62,11 +62,11 @@ namespace CryptoProfiteer
 
     // ListPrice is the transfer rate claimed by the exchange, before fees
     // ListPrice is "how many of this coin for 1 of the other kind of coin"
-    public Decimal PaymentCoinsPerReceivedCoinListPrice => _paymentCoinsPerReceivedCoinListPrice != 0m ? _paymentCoinsPerReceivedCoinListPrice :
-      (_paymentCoinsPerReceivedCoinListPrice = _data.ListPrice >= 0 ? _data.ListPrice : 1 / -_data.ListPrice);
+    public Decimal PaymentCoinsPerReceivedCoinListPrice => _paymentCoinsPerReceivedCoinListPrice != null ? _paymentCoinsPerReceivedCoinListPrice.Value :
+      (_paymentCoinsPerReceivedCoinListPrice = _data.ListPrice > 0 ? _data.ListPrice.Value : (_data.ListPrice < 0 ? (1 / -_data.ListPrice.Value) : 0m)).Value;
 
-    public Decimal ReceivedCoinsPerPaymentCoinListPrice => _receivedCoinsPerPaymentCoinListPrice != 0m ? _receivedCoinsPerPaymentCoinListPrice :
-      (_receivedCoinsPerPaymentCoinListPrice = _data.ListPrice <= 0 ? -_data.ListPrice : 1 / _data.ListPrice);
+    public Decimal ReceivedCoinsPerPaymentCoinListPrice => _receivedCoinsPerPaymentCoinListPrice != null ? _receivedCoinsPerPaymentCoinListPrice.Value :
+      (_receivedCoinsPerPaymentCoinListPrice = _data.ListPrice < 0 ? -_data.ListPrice.Value : (_data.ListPrice > 0 ? (1 / _data.ListPrice.Value) : 0m)).Value;
 
     private static Decimal? MathOrNull(Func<Decimal?> math)
     {
