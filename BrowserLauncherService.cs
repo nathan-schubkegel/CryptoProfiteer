@@ -105,7 +105,10 @@ namespace CryptoProfiteer
         {
           var tcs = new TaskCompletionSource<object>();
           using var r = stoppingToken.Register(() => tcs.TrySetCanceled());
-          var readLine = Task.Run(() => Console.ReadLine());
+          var readLine = Task.Run(() => 
+          {
+            while (Console.ReadKey().Key != ConsoleKey.Enter) {}
+          });
           var result = await Task.WhenAny(tcs.Task, readLine);
           if (result == readLine)
           {
