@@ -23,6 +23,32 @@ namespace CryptoProfiteer
     }
     private Decimal _contributingCoinCount;
     
+    // The $USD (positive or negative) to fudge the reported sale proceeds for the sale of this purchase
+    // so that the total amount of the sale proceeds for all purchases sums to the single true sale order amount
+    [JsonProperty("fudge")]
+    public int? SaleProceedsFudge
+    {
+      get => _saleProceedsFudge;
+      set => _saleProceedsFudge = value;
+    }
+    private int? _saleProceedsFudge;
+    
+    public int? GetAttributedSaleProceeds(Order taxAssociationSaleOrder)
+    {
+      double percent = (double)ContributingCoinCount / (double)taxAssociationSaleOrder.PaymentCoinCount;
+      double? amount = (double?)taxAssociationSaleOrder.ReceivedValueUsd * percent;
+      if (amount == null)
+      {
+        return null;
+      }
+      var result = (int)Math.Round(amount.Value, MidpointRounding.AwayFromZero);
+      if (SaleProceedsFudge != null)
+      {
+        result += SaleProceedsFudge.Value;
+      }
+      return result;
+    }
+    
     public PersistedTaxAssociationPurchase Clone() => (PersistedTaxAssociationPurchase)MemberwiseClone();
   }
   

@@ -24,9 +24,12 @@ namespace CryptoProfiteer
 
     // 'taxAssociationId' may be null/empty when creating a new tax association
     // 'saleOrderId' may be null/empty when modifying an existing tax association to not change that aspect
+    // 'purchaseOrderUpdates' may be null when pinning adjustments
+    // 'purchaseIdToPinSaleProceedsFudge' may be null to not do that
     // Returns the new/modified TaxAssociation ID
     string UpdateTaxAssociation(string taxAssociationId, string saleOrderId,
-      (string orderId, Decimal contributingCoinCount)[] purchaseOrderUpdates);
+      (string orderId, Decimal contributingCoinCount)[] purchaseOrderUpdates,
+      string purchaseIdToPinSaleProceedsFudge);
 
     void DeleteTaxAssociation(string taxAssociationId);
     string AddAdjustment(string coinType, decimal coinCount);
@@ -251,9 +254,12 @@ namespace CryptoProfiteer
 
     // 'taxAssociationId' may be null/empty when creating a new tax association
     // 'saleOrderId' may be null/empty when modifying an existing tax association to not change that aspect
+    // 'purchaseOrderUpdates' may be null when pinning adjustments
+    // 'purchaseIdToPinSaleProceedsFudge' may be null to not do that
     // Returns the new/modified TaxAssociation ID
     public string UpdateTaxAssociation(string taxAssociationId, string saleOrderId,
-      (string orderId, Decimal contributingCoinCount)[] purchaseOrderUpdates)
+      (string orderId, Decimal contributingCoinCount)[] purchaseOrderUpdates,
+      string purchaseIdToPinSaleProceedsFudge)
     {
       lock (_lock)
       {
@@ -297,57 +303,82 @@ namespace CryptoProfiteer
           }
 
           var existingTaxAssociation = TaxAssociations.Values.FirstOrDefault(t => t.Sale.Order.Id == saleOrderId);
-          if (existingTaxAssociation != thing)
+          if (existingTaxAssociation != null && existingTaxAssociation != thing)
           {
             throw new Exception("saleOrderId \"" + saleOrderId + "\" is already tax-associated, see tax association \"" + existingTaxAssociation.Id + "\"");
           }
+          data.SaleOrderId = saleOrderId;
         }
 
-        var revisedPurchases = new List<PersistedTaxAssociationPurchase>(data.Purchases);
-        foreach ((var orderId, var contributingCoinCount) in purchaseOrderUpdates)
+        if (purchaseOrderUpdates != null)
         {
-          // find order
-          if (!Orders.TryGetValue(orderId ?? string.Empty, out var order))
+          var revisedPurchases = new List<PersistedTaxAssociationPurchase>(data.Purchases);
+          foreach ((var orderId, var contributingCoinCount) in purchaseOrderUpdates)
           {
-            throw new Exception("Cannot add unrecognized purchase order id \"" + orderId + "\" to tax association");
-          }
-          
-          if (order.TransactionType != TransactionType.Trade)
-          {
-            throw new Exception("cannot add order id \"" + orderId + "\" to tax association purchase orders because it is a " + order.TransactionType + "(only Trade allowed)");
-          }
-          
-          if (order.ReceivedCoinType == "USD")
-          {
-            throw new Exception("cannot add order id \"" + orderId + "\" to tax association purchase orders because USD was received with this order (it was clearly a sale)");
+            // find order
+            if (!Orders.TryGetValue(orderId ?? string.Empty, out var order))
+            {
+              throw new Exception("Cannot add unrecognized purchase order id \"" + orderId + "\" to tax association");
+            }
+            
+            if (order.TransactionType != TransactionType.Trade)
+            {
+              throw new Exception("cannot add order id \"" + orderId + "\" to tax association purchase orders because it is a " + order.TransactionType + "(only Trade allowed)");
+            }
+            
+            if (order.ReceivedCoinType == "USD")
+            {
+              throw new Exception("cannot add order id \"" + orderId + "\" to tax association purchase orders because USD was received with this order (it was clearly a sale)");
+            }
+
+            // make new purchase data
+            var newPurchase = new PersistedTaxAssociationPurchase
+            {
+              OrderId = orderId,
+              ContributingCoinCount = contributingCoinCount,
+            };
+
+            // add or replace purchase in list
+            int i = revisedPurchases.FindIndex(x => x.OrderId == orderId);
+            if (i < 0)
+            {
+              revisedPurchases.Add(newPurchase);
+            }
+            else
+            {
+              revisedPurchases[i] = newPurchase;
+            }
           }
 
-          // make new purchase data
-          var newPurchase = new PersistedTaxAssociationPurchase
-          {
-            OrderId = orderId,
-            ContributingCoinCount = contributingCoinCount,
-          };
-
-          // add or replace purchase in list
-          int i = revisedPurchases.FindIndex(x => x.OrderId == orderId);
-          if (i < 0)
-          {
-            revisedPurchases.Add(newPurchase);
-          }
-          else
-          {
-            revisedPurchases[i] = newPurchase;
-          }
+          data.Purchases = revisedPurchases;
         }
-
-        var newData = new PersistedTaxAssociation
+        
+        if (purchaseIdToPinSaleProceedsFudge != null)
         {
-          Purchases = revisedPurchases,
-          SaleOrderId = saleOrderId,
-        };
-        ImportTaxAssociations(new[] { newData });
-        return newData.Id;
+          var saleOrder = Orders[saleOrderId];
+          int? total = 0;
+          PersistedTaxAssociationPurchase foundPurchase = null;
+          foreach (var p in data.Purchases)
+          {
+            p.SaleProceedsFudge = null;
+            total += p.GetAttributedSaleProceeds(saleOrder);
+            if (p.OrderId == purchaseIdToPinSaleProceedsFudge)
+            {
+              foundPurchase = p;
+            }
+          }
+          
+          var newFudge = saleOrder.TaxableReceivedValueUsd - total;
+          if (newFudge == 0) newFudge = null;
+          if (foundPurchase == null)
+          {
+            throw new Exception($"'{nameof(purchaseIdToPinSaleProceedsFudge)}' = {purchaseIdToPinSaleProceedsFudge} is not a purchase of the given tax association");
+          }
+          foundPurchase.SaleProceedsFudge = newFudge;
+        }
+        
+        ImportTaxAssociations(new[] { data });
+        return data.Id;
       }
     }
     

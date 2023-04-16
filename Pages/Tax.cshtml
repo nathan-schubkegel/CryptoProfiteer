@@ -379,13 +379,15 @@ foreach (var yearOfAssociations in Model.TaxAssociations(null).GroupBy(x => x.Ti
     <td>
       <button type="button" class="btn btn-primary btn-sm" onclick='downloadFreeTaxUsaScript(@yearOfAssociations.Key)'>Download As Script</button>
     </td>
-    <td colspan="5">For the year @yearOfAssociations.Key: <span style="@(yearNetGainLoss >= 0 ? "color:#008126;" : "color:#ff0000;") font-weight:bold; ">@(yearNetGainLoss?.ToString("c0") ?? "<unknown>")</span></td>
+    <td colspan="5">
+      <input type="checkbox" autocomplete="off" class="btn-check" checked=true
+             onclick='toggleTaxAssociationVisibilityForYear(@yearOfAssociations.Key);'>For the year @yearOfAssociations.Key: <span style="@(yearNetGainLoss >= 0 ? "color:#008126;" : "color:#ff0000;") font-weight:bold; ">@(yearNetGainLoss?.ToString("c0") ?? "<unknown>")</span>
+    </td>
   </tr>
   
   foreach (var a in yearOfAssociations)
   {
-    var isExchange = a.Sale.Order.PaymentCoinType != "USD";
-    <tr>
+    <tr class="tax-association-for-year-@yearOfAssociations.Key">
       <td>@a.CoinType</td>
       <td>@a.Time.ToLocalTime().ToString("g")</td>
       <td>@a.SaleDescription</td>
@@ -395,10 +397,15 @@ foreach (var yearOfAssociations in Model.TaxAssociations(null).GroupBy(x => x.Ti
     </tr>
 
     bool first = true;
+    int? reportedSalesTotal = 0;
     foreach (var p in a.Purchases)
     {
-      isExchange = p.Order.PaymentCoinType != "USD";
-    <tr>
+      reportedSalesTotal += p.GetAttributedSaleProceeds(a);
+    }
+    var d = a.TaxableSaleProceedsUsd - reportedSalesTotal;
+    foreach (var p in a.Purchases)
+    {
+    <tr class="tax-association-for-year-@yearOfAssociations.Key">
       <td>@{
         if (first)
         {
@@ -413,10 +420,20 @@ foreach (var yearOfAssociations in Model.TaxAssociations(null).GroupBy(x => x.Ti
       <td>@p.PurchaseDescription</td>
       <td>@p.Order.FormatExchangeRateUsd()</td>
       <td>-$@(p.TaxableCostBasisUsd?.ToString() ?? "<unknown>")</td>
+      <td>+$@(p.GetAttributedSaleProceeds(a)?.ToString() ?? "<unknown>")@{
+        if (p.SaleProceedsFudge != null)
+        {
+          <text> fudged by $@p.SaleProceedsFudge</text>
+        }
+        if (d != 0)
+        {
+          <text> </text><button type="button" class="btn btn-primary" onclick="pinSaleProceedsFudgeToTaxAssociationPurchase('@a.Id', '@p.Order.Id')">fudge it</button>
+        }
+      }</td>
     </tr>
       first = false;
     }
-    <tr>
+    <tr class="tax-association-for-year-@yearOfAssociations.Key">
       <td></td>
       <td colspan="4">
       @{
@@ -443,12 +460,56 @@ foreach (var yearOfAssociations in Model.TaxAssociations(null).GroupBy(x => x.Ti
         }
       }
       </td>
+      <td>@{
+        
+        if (d > 0) { <span style="color:#ff0000; font-weight:bold; ">$@d overreported</span> }
+        if (d < 0) { <span style="color:#ff0000; font-weight:bold; ">$@d underreported</span> }
+      }</td>
     </tr>
   }
 }
 }
   </tbody>
 </table>
+
+<script>
+function toggleTaxAssociationVisibilityForYear(year) {
+  let className = "tax-association-for-year-" + year;
+  for (var row of document.getElementsByClassName(className)) {
+    row.style.display = (row.style.display == 'none' ? '' : 'none');
+  }
+}
+
+async function pinSaleProceedsFudgeToTaxAssociationPurchase(taxAssociationId, purchaseId)
+{
+  //let spinny = document.getElementById('modalToDeleteAssociation-okSpinny');
+  //spinny.style = '';
+  try {
+    let r = await fetch('/api/createTaxAssociation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        taxAssociationId: taxAssociationId,
+        purchaseIdToPinSaleProceedsFudge: purchaseId,
+      })
+    });
+
+    if (r.ok) {
+      location.reload();
+    }
+    else {
+      let t = await r.text();
+      alert('!ok: ' + t);
+    }
+  }
+  catch (e) {
+    alert(e);
+  }
+  //finally {
+  //  spinny.style = 'display: none;';
+  //}
+}
+</script>
 
 <!-- A modal dialog for deleting a tax association -->
 <div class="modal fade" id="modalToDeleteAssociation" tabindex="-1" role="dialog" aria-labelledby="modalToDeleteAssociation-Title" aria-hidden="true">

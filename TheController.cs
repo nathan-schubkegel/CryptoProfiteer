@@ -938,8 +938,10 @@ namespace CryptoProfiteer
     
     public class CreateTaxAssociationInputs
     {
+      public string TaxAssociationId { get; set; }
       public string SaleOrderId { get; set; }
       public Purchase[] Purchases { get; set; }
+      public string PurchaseIdToPinSaleProceedsFudge { get; set; }
       
       public class Purchase
       {
@@ -951,13 +953,14 @@ namespace CryptoProfiteer
     [HttpPost("createTaxAssociation")]
     public IActionResult CreateTaxAssociation([FromBody]CreateTaxAssociationInputs inputs)
     {
-      var taxAssociationId = _dataService.UpdateTaxAssociation(null,
+      var taxAssociationId = _dataService.UpdateTaxAssociation(inputs.TaxAssociationId,
         inputs.SaleOrderId,
-        inputs.Purchases.Select(p => 
+        inputs.Purchases?.Select(p => 
         (
           p.OrderId,
           Decimal.Parse(p.ContributingCoinCount, NumberStyles.Float, CultureInfo.InvariantCulture)
-        )).ToArray());
+        )).ToArray(),
+        inputs.PurchaseIdToPinSaleProceedsFudge);
 
       return Ok(new { taxAssociationId });
     }
@@ -1175,10 +1178,7 @@ Sleep, `500
           var dateAcquired = purchase.Order.Time.ToLocalTime().ToString("MM/dd/yyyy");
           var dateSold = taxAssociation.Time.ToLocalTime().ToString("MM/dd");
           
-          double percent = (double)purchase.ContributingCoinCount / (double)taxAssociation.Sale.Order.PaymentCoinCount;
-          double amount = (double)taxAssociation.Sale.Order.ReceivedValueUsd.Value * percent;
-          int saleProceeds = (int)Math.Round(amount, MidpointRounding.AwayFromZero);
-
+          var saleProceeds = purchase.GetAttributedSaleProceeds(taxAssociation).Value;
           var costBasis = purchase.ContributingCost.Value;
           
           builder.AppendLine(string.Format(scriptFormat, description, dateAcquired, dateSold, saleProceeds, costBasis));

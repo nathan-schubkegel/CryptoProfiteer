@@ -32,11 +32,14 @@ namespace CryptoProfiteer
       }
     }
     public int? TaxableCostBasisUsd => ContributingCost;
+    public int? SaleProceedsFudge => _data.SaleProceedsFudge;
     
     public string PurchaseDescription =>
       $"Bought {ContributingCoinCount.FormatMinDecimals()} {Order.ReceivedCoinType} " +
       (ContributingCoinCount != Order.ReceivedCoinCount ? $"as part of {Order.ReceivedCoinCount.FormatMinDecimals()} {Order.ReceivedCoinType} order " : "") +
       $"for {Order.PaymentCoinCount.FormatMinDecimals()} {Order.PaymentCoinType}" +
       (Order.PaymentCoinType != "USD" ? $" worth {(Order.PaymentValueUsd?.FormatMinDecimals() ?? "<unknown>")} USD" : "");
+      
+    public int? GetAttributedSaleProceeds(TaxAssociation taxAssociation) => _data.GetAttributedSaleProceeds(taxAssociation.Sale.Order);
   }
 }
