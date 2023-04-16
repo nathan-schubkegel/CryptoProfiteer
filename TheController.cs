@@ -60,6 +60,7 @@ namespace CryptoProfiteer
       const string kucoinOrdersHeaderLine = "orderCreatedAt,id,clientOid,symbol,side,type,stopPrice,price,size,dealSize,dealFunds,averagePrice,fee,feeCurrency,remark,tags,orderStatus,";
       const string kucoinCompletedTradesHeaderLine = "UID,Account Type,Order ID,Symbol,Side,Order Type,Avg. Filled Price,Filled Amount,Filled Volume,Filled Volume (USDT),Filled Time(UTC+08:00),Fee,Maker/Taker,Fee Currency";
       const string kucoinFuturesPnlHeaderLine = "\"Contract\",\"Realized PNL\",\"Close Time\",\"PNL Details\"";
+      const string kucoinFuturesTradeHeaderLine = "\"Time\",\"Contract\",\"Side\",\"Filled Amount(lot)\",\"Fill Price\",\"Value\",\"Fee Rate\",\"Fee\",\"Order Type\",\"Transaction ID\"";
       const string bittrexOrderHistoryHeaderLine = "Uuid,Exchange,TimeStamp,OrderType,Limit,Quantity,QuantityRemaining,Commission,Price,PricePerUnit,IsConditional,Condition,ConditionTarget,ImmediateOrCancel,Closed,TimeInForceTypeId,TimeInForce";
       const string coinbaseOrdersHeaderLine = "Timestamp,Transaction Type,Asset,Quantity Transacted,Spot Price Currency,Spot Price at Transaction,Subtotal,Total (inclusive of fees),Fees,Notes";
       const string decentralizedFillsHeaderLine = "id,date,transaction type,sent total,sent fee,sent coin type,received amount,received coin type,notes";
@@ -87,6 +88,10 @@ namespace CryptoProfiteer
       else if (headerFields.SequenceEqual(Csv.Parse(kucoinFuturesPnlHeaderLine)))
       {
         PostKucoinFuturesPnlCsv(lines);
+      }
+      else if (headerFields.SequenceEqual(Csv.Parse(kucoinFuturesTradeHeaderLine)))
+      {
+        PostKucoinFuturesTradeHistory(lines);
       }
       else if (headerFields.SequenceEqual(Csv.Parse(bittrexOrderHistoryHeaderLine)))
       {
@@ -787,6 +792,140 @@ namespace CryptoProfiteer
           ListPrice = null,
         };
         transactions.Add(transaction);
+      }
+
+      if (transactions.Count > 0)
+      {
+        _dataService.ImportTransactions(transactions);
+      }
+    }
+    
+    private void PostKucoinFuturesTradeHistory(List<string> lines)
+    {
+      var headerFields = Csv.Parse(lines[0]).Select(x => x.Trim()).ToList();
+
+      int IndexOrBust(string name)
+      {
+        int index = headerFields.IndexOf(name);
+        if (index < 0)
+        {
+          throw new Exception("CSV header lacks required '" + name + "' field");
+        }
+        return index;
+      }
+
+      var timeIndex = IndexOrBust("Time");
+      var contractIndex = IndexOrBust("Contract");
+      var sideIndex = IndexOrBust("Side");
+      var filledAmountLotIndex = IndexOrBust("Filled Amount(lot)");
+      var fillPriceIndex = IndexOrBust("Fill Price");
+      var valueIndex = IndexOrBust("Value");
+      var feeRateIndex = IndexOrBust("Fee Rate");
+      var feeIndex = IndexOrBust("Fee");
+      var orderTypeIndex = IndexOrBust("Order Type");
+      var aggregationId = IndexOrBust("Transaction ID");
+      
+      var transactions = new List<PersistedTransaction>();
+      int lineNumber = 1;
+      var fillNumbers = new Dictionary<string, int>();
+      foreach (var line in lines.Skip(1))
+      {
+        lineNumber++;
+        var fields = Csv.Parse(line).Select(x => x.Trim()).ToList();
+        if (fields.Count == 0) continue;
+        if (fields.Count != headerFields.Count)
+        {
+          throw new Exception($"CSV line {lineNumber} has {fields.Count} fields; different from header line which has {headerFields.Count} fields; aborting.");
+        }
+
+        if (!Enum.TryParse<TransactionType_v04>(fields[buySellIndex], ignoreCase: true, out var transactionType) ||
+            (transactionType != TransactionType_v04.Buy && transactionType != TransactionType_v04.Sell))
+        {
+          throw new Exception($"CSV line {lineNumber} has unrecognized field {buySellIndex + 1} \"{fields[buySellIndex]}\"; expected one of " + string.Join(",", Enum.GetNames(typeof(TransactionType_v04)).Select(x => "\"" + x + "\"")));
+        }
+
+        if (!DateTime.TryParseExact(fields[createdAtIndex], "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var createdAtTime))
+        {
+          throw new Exception($"CSV line {lineNumber} has non-date/time field {createdAtIndex + 1} \"{fields[createdAtIndex]}\"; expected date/time such as \"{DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")}\"");
+        }
+        if (createdAtTime.Kind != DateTimeKind.Utc)
+        {
+          throw new Exception($"CSV line {lineNumber} date/time field was incorrectly interpreted as {createdAtTime.Kind}");
+        }
+        // Kucoin times are reported 8 hours after UTC, which appears to be the local time in singapore.
+        // So subtract 8 hours to compensate
+        // NOTE: technically this new report form declares it's timezone, but I just
+        // keeping downloading them in UTC+8 so I don't have to change this code
+        createdAtTime = createdAtTime - TimeSpan.FromHours(8);
+
+        if (!Decimal.TryParse(fields[coinCountIndex], NumberStyles.Float, CultureInfo.InvariantCulture, out var coinCount))
+        {
+          throw new Exception($"CSV line {lineNumber} has non-numeric field {coinCountIndex + 1} \"{fields[coinCountIndex]}\"; expected numeric value such as \"3.17\"");
+        }
+
+        if (!Decimal.TryParse(fields[perCoinPriceIndex], NumberStyles.Float, CultureInfo.InvariantCulture, out var perCoinPrice))
+        {
+          throw new Exception($"CSV line {lineNumber} has non-numeric field {perCoinPriceIndex + 1} \"{fields[perCoinPriceIndex]}\"; expected numeric value such as \"3.17\"");
+        }
+
+        if (!Decimal.TryParse(fields[feeIndex], NumberStyles.Float, CultureInfo.InvariantCulture, out var fee))
+        {
+          throw new Exception($"CSV line {lineNumber} has non-numeric field {feeIndex + 1} \"{fields[feeIndex]}\"; expected numeric value such as \"3.17\"");
+        }
+
+        var paymentCoinType = fields[feeCurrencyIndex];
+        var product = fields[productIndex];
+        var productParts = product.Split('-');
+        if (productParts.Length != 2)
+        {
+          throw new Exception($"CSV line {lineNumber} has unexpected field {productIndex + 1} \"{fields[productIndex]}\"; a value with a single hyphen is expected such as \"BTC-USD\"");
+        }
+        var coinType = productParts[0];
+        if (productParts[1] != paymentCoinType)
+        {
+          throw new Exception($"CSV line {lineNumber} has unexpected field {productIndex + 1} \"{fields[productIndex]}\"; it didn't match the fee currency \"{paymentCoinType}\"");
+        }
+        
+        if (fields[tradeTypeIndex] != "MARKET" && fields[tradeTypeIndex] != "LIMIT")
+        {
+          throw new Exception($"CSV line {lineNumber} has unexpected field {tradeTypeIndex + 1} \"{fields[tradeTypeIndex]}\"; currently only \"MARKET\" or \"LIMIT\" is supported");
+        }
+
+        if (!Decimal.TryParse(fields[filledVolumeIndex], NumberStyles.Float, CultureInfo.InvariantCulture, out var filledVolume))
+        {
+          throw new Exception($"CSV line {lineNumber} has non-numeric field {filledVolumeIndex + 1} \"{fields[filledVolumeIndex]}\"; expected numeric value such as \"3.17\"");
+        }
+        
+        // kucoin reporting is weird because total price is not strictly reported
+        // for "sell" transactions, total price = filledVolume, and that minus fee is added to your value
+        // for "buy" transactions, total price = filledVolume + fee
+        var totalCost = transactionType == TransactionType_v04.Sell ? filledVolume : filledVolume + fee;
+        
+        // kucoin reports postive values for both buys and sells
+        // (but CryptoProfiteer is built assuming negative values for buys, like coinbase reports)
+        if (transactionType == TransactionType_v04.Buy) totalCost = -Math.Abs(totalCost);
+        
+        // kucoin "Completed Trades" reports don't show the fill IDs
+        // so assume all the fills for a given trade are present in the file being uploaded
+        var orderId = fields[orderIdIndex];
+        var fillNumber = fillNumbers.GetValueOrDefault(orderId, 1);
+        fillNumbers[orderId] = fillNumber + 1;
+
+        var transaction = new PersistedTransaction_v04
+        {
+          TradeId = "K-" + orderId + "-" + fillNumber,
+          OrderAggregationId = "K-" + orderId,
+          TransactionType = transactionType,
+          Exchange = CryptoExchange.Kucoin,
+          Time = createdAtTime,
+          CoinType = coinType,
+          CoinCount = coinCount,
+          PerCoinCost = perCoinPrice,
+          Fee = fee,
+          TotalCost = totalCost,
+          PaymentCoinType = paymentCoinType
+        };
+        transactions.Add(transaction.ToLatest());
       }
 
       if (transactions.Count > 0)
