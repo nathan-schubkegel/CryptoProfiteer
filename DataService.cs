@@ -284,9 +284,9 @@ namespace CryptoProfiteer
             throw new Exception("saleOrderId is empty or refers to unrecognized order, but it is required when creating a new tax association");
           }
           
-          if (!saleOrder.IsTaxableFuturesGain && !saleOrder.IsTaxableSale)
+          if (!saleOrder.IsTaxableFuturesGain && !saleOrder.IsTaxableFuturesLoss && !saleOrder.IsTaxableSale)
           {
-            throw new Exception($"cannot add order id \"{saleOrderId}\" as tax association sale order because it does not satisfy {nameof(Order)}.{nameof(Order.IsTaxableSale)} or {nameof(Order.IsTaxableFuturesGain)}");
+            throw new Exception($"cannot use order id \"{saleOrderId}\" as tax association sale order because it does not satisfy {nameof(Order)}.{nameof(Order.IsTaxableSale)} or {nameof(Order.IsTaxableFuturesGain)} or {nameof(Order.IsTaxableFuturesLoss)}");
           }
 
           var existingTaxAssociation = TaxAssociations.Values.FirstOrDefault(t => t.Sale.Order.Id == saleOrderId);
@@ -317,9 +317,9 @@ namespace CryptoProfiteer
           {
             throw new Exception("SaleOrderId refers to unrecognized order");
           }
-          else if (!saleOrder.IsTaxableSale)
+          else if (!saleOrder.IsTaxableFuturesGain && !saleOrder.IsTaxableFuturesLoss && !saleOrder.IsTaxableSale)
           {
-            throw new Exception($"cannot use order id \"{saleOrderId}\" as tax association sale order because it does not satisfy {nameof(Order)}.{nameof(Order.IsTaxableSale)}");
+            throw new Exception($"cannot use order id \"{saleOrderId}\" as tax association sale order because it does not satisfy {nameof(Order)}.{nameof(Order.IsTaxableSale)} or {nameof(Order.IsTaxableFuturesGain)} or {nameof(Order.IsTaxableFuturesLoss)}");
           }
 
           var existingTaxAssociation = TaxAssociations.Values.FirstOrDefault(t => t.Sale.Order.Id == saleOrderId);
@@ -329,7 +329,7 @@ namespace CryptoProfiteer
           }
           data.SaleOrderId = saleOrderId;
         }
-
+        
         if (purchaseOrderUpdates != null)
         {
           var revisedPurchases = new List<PersistedTaxAssociationPurchase>(data.Purchases);
@@ -341,9 +341,9 @@ namespace CryptoProfiteer
               throw new Exception("Cannot add unrecognized purchase order id \"" + orderId + "\" to tax association");
             }
             
-            if (!order.IsTaxablePurchase)
+            if (!order.IsTaxablePurchase && !order.IsTaxableFuturesGain)
             {
-              throw new Exception($"cannot add order id \"{orderId}\" to tax association purchase orders because it does not satisfy {nameof(Order)}.{nameof(Order.IsTaxablePurchase)}");
+              throw new Exception($"cannot add order id \"{orderId}\" to tax association purchase orders because it does not satisfy {nameof(Order)}.{nameof(Order.IsTaxablePurchase)} or {nameof(Order.IsTaxableFuturesGain)}");
             }
             
             if (order.ReceivedCoinType == "USD")

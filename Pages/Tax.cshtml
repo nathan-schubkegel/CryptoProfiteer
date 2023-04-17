@@ -434,9 +434,9 @@ async function modalToAssociateSaleOkButtonClick()
   Tax Associations
 </h1>
 @{
-  void PrintTaxAssociationHeaderRow()
+  void PrintTaxAssociationHeaderRow(int year)
   {
-    <tr>
+    <tr class="tax-association-for-year-@year">
       <th scope="col">Name</th>
       <th scope="col">Date</th>
       <th scope="col">Change</th>
@@ -449,7 +449,7 @@ async function modalToAssociateSaleOkButtonClick()
 }
 <table class="table table-sm">
   <thead>
-    @{ PrintTaxAssociationHeaderRow(); }
+    @{ PrintTaxAssociationHeaderRow(0); }
   </thead>
   <tbody>
 @{
@@ -478,7 +478,7 @@ foreach (var yearOfAssociations in Model.TaxAssociations(null).GroupBy(x => x.Ti
   {
     if (everyThree == 3)
     {
-      PrintTaxAssociationHeaderRow();
+      PrintTaxAssociationHeaderRow(yearOfAssociations.Key);
       everyThree = 0;
     }
     everyThree++;
@@ -506,7 +506,7 @@ foreach (var yearOfAssociations in Model.TaxAssociations(null).GroupBy(x => x.Ti
       reportedSalesTotal += p.GetAttributedSaleProceeds(a);
     }
     var d = a.TaxableSaleProceedsUsd - reportedSalesTotal;
-    foreach (var p in a.Purchases)
+    foreach (var p in a.Purchases.OrderByDescending(x => x.Order.Time))
     {
     <tr class="tax-association-for-year-@yearOfAssociations.Key">
       <td>@{

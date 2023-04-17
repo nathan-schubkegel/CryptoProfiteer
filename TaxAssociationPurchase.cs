@@ -25,10 +25,22 @@ namespace CryptoProfiteer
     {
       get
       {
-        double percent = (double)ContributingCoinCount / (double)Order.ReceivedCoinCount;
-        double? amount = (double?)Order.PaymentValueUsd * percent;
-        if (amount == null) return null;
-        return (int)Math.Round((Decimal)amount.Value, MidpointRounding.AwayFromZero);
+        if (Order.TransactionType == TransactionType.Trade)
+        {
+          double percent = (double)ContributingCoinCount / (double)Order.ReceivedCoinCount;
+          double? amount = (double?)Order.PaymentValueUsd * percent;
+          if (amount == null) return null;
+          return (int)Math.Round((Decimal)amount.Value, MidpointRounding.AwayFromZero);
+        }
+        else // FuturesPnl
+        {
+          var totalCoinCount = Order.ReceivedCoinCount > 0 ? Order.ReceivedCoinCount : Order.PaymentCoinCount;
+          double percent = (double)ContributingCoinCount / (double)totalCoinCount;
+          Decimal? totalValueUsd = Order.ReceivedCoinCount > 0 ? Order.ReceivedValueUsd : Order.PaymentValueUsd;
+          double? amount = (double?)totalValueUsd * percent;
+          if (amount == null) return null;
+          return (int)Math.Round((Decimal)amount.Value, MidpointRounding.AwayFromZero);
+        }
       }
     }
     public int? TaxableCostBasisUsd => ContributingCost;

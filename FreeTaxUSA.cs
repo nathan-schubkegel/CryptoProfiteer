@@ -53,7 +53,7 @@ Click, 1156 666
 Sleep, 1500
 
 ; ""both"" (Nathan and Rachel) 
-Click, 438 517
+Click, 438 526
 Sleep, 500
 
 ; ""save and continue"" 
@@ -99,29 +99,29 @@ Send, {{PgDn}}
 Sleep, 1500
 
 ; ""not reported on 1099-B"" 
-Click, 727 726
+Click, 727 694
 Sleep, 500
 
 ; ""save and continue"" 
-Click, 1170 1007
+Click, 1170 972
 Sleep, 1500
 
 ; ""save and continue"" 
 if (({3} = 0) and ({4} = 0))
 {{
-  Click, 1180 957
+  Click, 1180 936
 }}
 else if ({3} = 0)
 {{
-  MsgBox, Where is it?
+  Click, 1180 839
 }}
 else if ({4} = 0)
 {{
-  Click, 1180 759
+  Click, 1180 770
 }}
 else
 {{
-  Click, 1180 634
+  Click, 1180 640
 }}
 Sleep, 5000
 
@@ -130,7 +130,7 @@ Send, {{End}}
 Sleep, 1500
 
 ; ""add another"" button 
-Click, 528 822
+Click, 528 787
 Sleep, `500
 
       ";
@@ -147,6 +147,8 @@ Sleep, `500
         var dateAcquired = item.dateAcquired.ToLocalTime().ToString("MM/dd/yyyy");
         var dateSold = item.dateSold.ToLocalTime().ToString("MM/dd");
         builder.AppendLine(string.Format(scriptFormat, description, dateAcquired, dateSold, item.saleProceeds, item.costBasis));
+        Console.WriteLine(description);
+        i++;
       }
       builder.AppendLine(scriptTrailer);
       

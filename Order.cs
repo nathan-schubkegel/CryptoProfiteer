@@ -90,6 +90,7 @@ namespace CryptoProfiteer
     }
     
     public bool IsTaxableFuturesGain => TransactionType == TransactionType.FuturesPnl && ReceivedCoinCount > 0;
+    public bool IsTaxableFuturesLoss => TransactionType == TransactionType.FuturesPnl && PaymentCoinCount > 0;
     public bool IsTaxableSale => TransactionType == TransactionType.Trade && PaymentCoinType != "USD";
     public bool IsTaxablePurchase => TransactionType == TransactionType.Trade && ReceivedCoinType != "USD";
 
