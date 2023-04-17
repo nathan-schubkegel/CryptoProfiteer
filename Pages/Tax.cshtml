@@ -52,6 +52,7 @@ BigNumber.set({ ROUNDING_MODE: 4 }); // 4 is HALF_UP
             else
             {
             // TODO: resolve copy pasta
+            // (orderId, prettyPayment, prettyReceived, prettyPaymentPerCoinCost, machinePaymentCoinType, machinePaymentCoinCount, prettyOrderTime, machineOrderTime)
           <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#modalToAssociateSale"
             onclick="onResolveSaleNeedingTaxAssociationClick('@(t.Id)', 
               '@t.PaymentCoinCount @t.PaymentCoinType',
@@ -88,11 +89,15 @@ BigNumber.set({ ROUNDING_MODE: 4 }); // 4 is HALF_UP
           {
             if (t.ReceivedCoinCount > 0)
             {
-        <td colspan=3>Gained @t.ReceivedCoinCount.FormatCoinCount(t.ReceivedCoinType) in futures trading</td>
+        <td>Gained @t.ReceivedCoinCount.FormatCoinCount(t.ReceivedCoinType) in futures trading</td>
+        <td>@t.FormatExchangeRateUsd(t.ReceivedCoinType)</td>
+        <td></td>
             }
             else
             {
-        <td colspan=3>Lost @t.PaymentCoinCount.FormatCoinCount(t.PaymentCoinType) in futures trading</td>
+        <td>Lost @t.PaymentCoinCount.FormatCoinCount(t.PaymentCoinType) in futures trading</td>
+        <td>@t.FormatExchangeRateUsd(t.PaymentCoinType)</td>
+        <td></td>
             }
           }
           else

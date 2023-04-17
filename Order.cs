@@ -31,6 +31,8 @@ namespace CryptoProfiteer
       // if we traded for USD, then the fair market value was the USD we traded
       PaymentCoinType == "USD" ? PaymentCoinCount :
       _receivedValueUsd == null ? (
+        // Futures are simple
+        TransactionType == TransactionType.FuturesPnl ? (_receivedValueUsd = _services.HistoricalCoinPriceService.ToUsd(ReceivedCoinCount, ReceivedCoinType, Time)) :
         // if we traded for something USD-ish, then use the fair market value of the USD-ish coin
         // because I've received wildly different market prices (like 1.19 vs 1.3) from asking Kucoin's price history... don't stinkin' trust it anymore...
         SomeUtils.IsBasicallyUsd(PaymentCoinType)
@@ -42,6 +44,8 @@ namespace CryptoProfiteer
       // if we traded for USD, then the fair market value was the USD we traded
       ReceivedCoinType == "USD" ? ReceivedCoinCount :
       _paymentValueUsd == null ? (
+        // Futures are simple
+        TransactionType == TransactionType.FuturesPnl ? (_paymentValueUsd = _services.HistoricalCoinPriceService.ToUsd(PaymentCoinCount, PaymentCoinType, Time)) :
         // if we traded for something USD-ish, then use the fair market value of the USD-ish coin
         // because I've received wildly different market prices (like 1.19 vs 1.3) from asking Kucoin's price history... don't stinkin' trust it anymore...
         SomeUtils.IsBasicallyUsd(ReceivedCoinType)

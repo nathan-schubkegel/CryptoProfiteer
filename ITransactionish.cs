@@ -79,6 +79,18 @@ namespace CryptoProfiteer
       {
         return string.Empty;
       }
+      
+      if (o.TransactionType == TransactionType.FuturesPnl)
+      {
+        if (o.PaymentCoinCount > 0)
+        {
+          return o.PaymentPerCoinCostUsd.FormatPricePerCoinUsd() + " per " + o.PaymentCoinType;
+        }
+        else
+        {
+          return o.ReceivedPerCoinCostUsd.FormatPricePerCoinUsd() + " per " + o.ReceivedCoinType;
+        }
+      }
 
       if (o.PaymentCoinType == contextualCoinType)
       {
