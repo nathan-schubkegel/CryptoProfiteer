@@ -22,7 +22,7 @@ namespace CryptoProfiteer.Pages
     public IEnumerable<Order> SalesNeedingTaxAssociation(string sortBy = null)
     {
       var coveredSales = new HashSet<string>(_data.TaxAssociations.Values.Select(t => t.Sale.Order.Id));
-      var values = _data.Orders.Values.Where(o => o.IsTaxableSale && !coveredSales.Contains(o.Id));
+      var values = _data.Orders.Values.Where(o => (o.IsTaxableSale || o.TransactionType == TransactionType.FuturesPnl) && !coveredSales.Contains(o.Id));
       switch (sortBy)
       {
         default:
@@ -61,6 +61,19 @@ namespace CryptoProfiteer.Pages
             costRemaining: costRemaining == null ? costRemaining : Math.Max(0, costRemaining.Value)
           );
         });
+        
+      values = values.Concat(_data.Orders.Values
+        .Where(o => o.TransactionType == TransactionType.FuturesPnl && o.ReceivedCoinCount > 0)
+        .Where(o => coinCountUsedPerPurchase.GetValueOrDefault(o.Id) != o.ReceivedCoinCount)
+        .Select(o =>
+        {
+          var costRemaining = o.TaxableReceivedValueUsd - costUsedPerPurchase.GetValueOrDefault(o.Id, 0);
+          return (
+            order: o,
+            coinCountRemaining: Math.Max(0m, o.ReceivedCoinCount - coinCountUsedPerPurchase.GetValueOrDefault(o.Id, 0m)),
+            costRemaining: costRemaining == null ? costRemaining : Math.Max(0, costRemaining.Value)
+          );
+        }));
 
       switch (sortBy)
       {

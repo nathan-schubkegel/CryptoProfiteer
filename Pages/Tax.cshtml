@@ -40,6 +40,18 @@ BigNumber.set({ ROUNDING_MODE: 4 }); // 4 is HALF_UP
       <tr>
         <td>@t.Time.ToLocalTime().ToString("g")</td>
         <td>
+        @{
+          if (t.TransactionType == TransactionType.FuturesPnl)
+          {
+            if (t.ReceivedCoinCount > 0)
+            {
+          <button>
+            <text>TODO: Auto-Resolve<text>
+          </button>
+            }
+            else
+            {
+            // TODO: resolve copy pasta
           <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#modalToAssociateSale"
             onclick="onResolveSaleNeedingTaxAssociationClick('@(t.Id)', 
               '@t.PaymentCoinCount @t.PaymentCoinType',
@@ -52,10 +64,44 @@ BigNumber.set({ ROUNDING_MODE: 4 }); // 4 is HALF_UP
           >
             Resolve
           </button>
+            }
+          }
+          else
+          {
+          <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#modalToAssociateSale"
+            onclick="onResolveSaleNeedingTaxAssociationClick('@(t.Id)', 
+              '@t.PaymentCoinCount @t.PaymentCoinType',
+              '@t.ReceivedCoinCount @t.ReceivedCoinType@{ if (isExchange) { <text> (worth @(t.ReceivedValueUsd.FormatCoinCount(usd, showCoinType: false)))</text> } }',
+              '@t.PaymentPerCoinCostUsd.FormatCoinCount(usd, showCoinType: false)',
+              '@(t.PaymentCoinType)',
+              '@(t.PaymentCoinCount.ToString("G29"))',
+              '@(t.Time.ToLocalTime().ToString("g"))',
+              new Date('@(t.Time.ToString("o"))'))"
+          >
+            Resolve
+          </button>
+          }
+        }
         </td>
+        @{
+          if (t.TransactionType == TransactionType.FuturesPnl)
+          {
+            if (t.ReceivedCoinCount > 0)
+            {
+        <td colspan=3>Gained @t.ReceivedCoinCount.FormatCoinCount(t.ReceivedCoinType) in futures trading</td>
+            }
+            else
+            {
+        <td colspan=3>Lost @t.PaymentCoinCount.FormatCoinCount(t.PaymentCoinType) in futures trading</td>
+            }
+          }
+          else
+          {
         <td>Sold @t.PaymentCoinCount.FormatCoinCount(t.PaymentCoinType)</td>
         <td>@t.FormatExchangeRateUsd(t.PaymentCoinType)</td>
         <td>Bought @t.ReceivedCoinCount.FormatCoinCount(t.ReceivedCoinType)</td>
+          }
+        }
       </tr>
     }
   }
@@ -378,7 +424,7 @@ async function modalToAssociateSaleOkButtonClick()
   </thead>
   <tbody>
 @{
-foreach (var yearOfAssociations in Model.TaxAssociations(null).GroupBy(x => x.Time.Year).OrderByDescending(x => x.Key))
+foreach (var yearOfAssociations in Model.TaxAssociations(null).GroupBy(x => x.Time.Year))
 {
   int? yearNetGainLoss = yearOfAssociations.Sum(x => x.NetGainLoss);
   
