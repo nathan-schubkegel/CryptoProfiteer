@@ -3,6 +3,7 @@ using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Net.Http.Headers;
 using Microsoft.AspNetCore.Mvc;
@@ -58,6 +59,7 @@ namespace CryptoProfiteer
       const string kucoinTradesHeaderLine = "tradeCreatedAt,orderId,symbol,side,price,size,funds,fee,liquidity,feeCurrency,orderType,";
       const string kucoinOrdersHeaderLine = "orderCreatedAt,id,clientOid,symbol,side,type,stopPrice,price,size,dealSize,dealFunds,averagePrice,fee,feeCurrency,remark,tags,orderStatus,";
       const string kucoinCompletedTradesHeaderLine = "UID,Account Type,Order ID,Symbol,Side,Order Type,Avg. Filled Price,Filled Amount,Filled Volume,Filled Volume (USDT),Filled Time(UTC+08:00),Fee,Maker/Taker,Fee Currency";
+      const string kucoinFuturesPnlHeaderLine = "\"Contract\",\"Realized PNL\",\"Close Time\",\"PNL Details\"";
       const string bittrexOrderHistoryHeaderLine = "Uuid,Exchange,TimeStamp,OrderType,Limit,Quantity,QuantityRemaining,Commission,Price,PricePerUnit,IsConditional,Condition,ConditionTarget,ImmediateOrCancel,Closed,TimeInForceTypeId,TimeInForce";
       const string coinbaseOrdersHeaderLine = "Timestamp,Transaction Type,Asset,Quantity Transacted,Spot Price Currency,Spot Price at Transaction,Subtotal,Total (inclusive of fees),Fees,Notes";
       const string decentralizedFillsHeaderLine = "id,date,transaction type,sent total,sent fee,sent coin type,received amount,received coin type,notes";
@@ -81,6 +83,10 @@ namespace CryptoProfiteer
       else if (headerFields.SequenceEqual(Csv.Parse(kucoinCompletedTradesHeaderLine)))
       {
         PostKucoinCompletedTradesCsv(lines);
+      }
+      else if (headerFields.SequenceEqual(Csv.Parse(kucoinFuturesPnlHeaderLine)))
+      {
+        PostKucoinFuturesPnlCsv(lines);
       }
       else if (headerFields.SequenceEqual(Csv.Parse(bittrexOrderHistoryHeaderLine)))
       {
@@ -706,6 +712,80 @@ namespace CryptoProfiteer
           PaymentCoinType = paymentCoinType
         };
         transactions.Add(transaction.ToLatest());
+      }
+
+      if (transactions.Count > 0)
+      {
+        _dataService.ImportTransactions(transactions);
+      }
+    }
+    
+    private void PostKucoinFuturesPnlCsv(List<string> lines)
+    {
+      var headerFields = Csv.Parse(lines[0]).Select(x => x.Trim()).ToList();
+
+      int IndexOrBust(string name)
+      {
+        int index = headerFields.IndexOf(name);
+        if (index < 0)
+        {
+          throw new Exception("CSV header lacks required '" + name + "' field");
+        }
+        return index;
+      }
+
+      var contractIndex = IndexOrBust("Contract");
+      var realizedPnlIndex = IndexOrBust("Realized PNL");
+      var closeTimeIndex = IndexOrBust("Close Time");
+
+      var transactions = new List<PersistedTransaction>();
+      int lineNumber = 1;
+      foreach (var line in lines.Skip(1))
+      {
+        lineNumber++;
+        var fields = Csv.Parse(line).Select(x => x.Trim()).ToList();
+        if (fields.Count == 0) continue;
+        if (fields.Count != headerFields.Count)
+        {
+          throw new Exception($"CSV line {lineNumber} has {fields.Count} fields; different from header line which has {headerFields.Count} fields; aborting.");
+        }
+
+        if (!DateTime.TryParseExact(fields[closeTimeIndex], "yyyy/MM/dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var createdAtTime))
+        {
+          throw new Exception($"CSV line {lineNumber} has non-date/time field {closeTimeIndex + 1} \"{fields[closeTimeIndex]}\"; expected date/time such as \"{DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss")}\"");
+        }
+        if (createdAtTime.Kind != DateTimeKind.Utc)
+        {
+          throw new Exception($"CSV line {lineNumber} date/time field was incorrectly interpreted as {createdAtTime.Kind}");
+        }
+        // Kucoin times are reported 8 hours after UTC, which appears to be the local time in singapore.
+        // So subtract 8 hours to compensate
+        createdAtTime = createdAtTime - TimeSpan.FromHours(8);
+
+        const string pnlPattern = @"^(\-?[,\d\.]+)USDT≈";
+        var realizedPnlMatch = Regex.Match(fields[realizedPnlIndex], pnlPattern);
+        if (!realizedPnlMatch.Success || 
+            !Decimal.TryParse(realizedPnlMatch.Groups[1].Value.Replace(",", ""), NumberStyles.Float, CultureInfo.InvariantCulture, out var usdtChange))
+        {
+          throw new Exception($"CSV line {lineNumber} has unexpected field {realizedPnlIndex + 1} \"{fields[realizedPnlIndex]}\"; expected value matching regex pattern {pnlPattern} such as \"5.51USDT≈ 5.52USD\"");
+        }
+
+        var contractDetails = fields[contractIndex];
+
+        var id = "KFPNL-" + fields[contractIndex] + "-" + usdtChange + "-" + fields[closeTimeIndex];
+        var transaction = new PersistedTransaction
+        {
+          Id = id,
+          OrderAggregationId = id,
+          TransactionType = TransactionType.FuturesPnl,
+          Exchange = CryptoExchange.Kucoin,
+          Time = createdAtTime,
+          ReceivedCoinType = "USDT",
+          PaymentCoinType = "USDT",
+          ReceivedCoinCount = usdtChange > 0 ? usdtChange : 0m,
+          PaymentCoinCount = usdtChange < 0 ? usdtChange : 0m,
+        };
+        transactions.Add(transaction);
       }
 
       if (transactions.Count > 0)
