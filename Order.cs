@@ -28,6 +28,8 @@ namespace CryptoProfiteer
     public Decimal PaymentCoinCount { get; }
 
     public Decimal? ReceivedValueUsd =>
+      // For losses on futures, the received value must be reported as zero or else the tax page will think the cost basis of the 0 USDT received was 144 USDT (wrong! the cost basis was zero!)
+      TransactionType == TransactionType.FuturesPnl && ReceivedCoinCount == 0m ? 0m :
       // if we traded for USD, then the fair market value was the USD we traded
       PaymentCoinType == "USD" ? PaymentCoinCount :
       _receivedValueUsd == null ? (
@@ -39,6 +41,8 @@ namespace CryptoProfiteer
       ) : _receivedValueUsd;
 
     public Decimal? PaymentValueUsd =>
+      // For gains on futures, the payment value must be reported as zero or else the tax page will think the cost basis of the 144 USDT received was 144 USDT (wrong! The cost basis was zero!)
+      TransactionType == TransactionType.FuturesPnl && PaymentCoinCount == 0m ? 0m :
       // if we traded for USD, then the fair market value was the USD we traded
       ReceivedCoinType == "USD" ? ReceivedCoinCount :
       _paymentValueUsd == null ? (
@@ -85,8 +89,8 @@ namespace CryptoProfiteer
       }
     }
     
-    public bool IsTaxableSale => TransactionType == TransactionType.Trade && PaymentCoinType != "USD";
-    public bool IsTaxablePurchase => TransactionType == TransactionType.Trade && ReceivedCoinType != "USD";
+    public bool IsTaxableSale => (TransactionType == TransactionType.Trade && PaymentCoinType != "USD") || (TransactionType == TransactionType.FuturesPnl);
+    public bool IsTaxablePurchase => (TransactionType == TransactionType.Trade && ReceivedCoinType != "USD") || (TransactionType == TransactionType.FuturesPnl);
 
     public Order(List<Transaction> transactions, Services services)
     {
