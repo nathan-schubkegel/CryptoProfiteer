@@ -1123,7 +1123,7 @@ namespace CryptoProfiteer
         FileDownloadName = $"{year} FreeTaxUSA data entry script.ahk",
       };
     }
-    
+
     private IEnumerable<(string descriptionFormat, DateTime dateAcquired, DateTime dateSold, int saleProceeds, int costBasis)> GetCryptoTaxItems(int year)
     {
       // order by descending to match the order they show up in the tax page
@@ -1140,6 +1140,18 @@ namespace CryptoProfiteer
           var dateSold = taxAssociation.Time;
           var saleProceeds = purchase.GetAttributedSaleProceeds(taxAssociation).Value;
           var costBasis = purchase.ContributingCost.Value;
+          yield return (descriptionFormat, dateAcquired, dateSold, saleProceeds, costBasis);
+        }
+
+        if (taxAssociation.Purchases.Count == 0 && taxAssociation.Sale.Order.IsTaxableFuturesGain)
+        {
+          var descriptionCoinCount = taxAssociation.Sale.Order.ReceivedCoinCount.FormatMinDecimals();
+          if (descriptionCoinCount.Length > 10) descriptionCoinCount = descriptionCoinCount.Substring(0, 10);
+          var descriptionFormat = $"{{0}}, {descriptionCoinCount} {taxAssociation.Sale.Order.ReceivedCoinType}";
+          var dateAcquired = taxAssociation.Sale.Order.Time;
+          var dateSold = taxAssociation.Sale.Order.Time;
+          var saleProceeds = taxAssociation.Sale.Order.TaxableReceivedValueUsd.Value;
+          var costBasis = 0;
           yield return (descriptionFormat, dateAcquired, dateSold, saleProceeds, costBasis);
         }
       }
