@@ -994,20 +994,19 @@ namespace CryptoProfiteer
         var coinType = fields[receivedCoinTypeIndex];
         var paymentCoinType = fields[sentCoinTypeIndex];
 
-        var transaction = new PersistedTransaction_v04
+        var transaction = new PersistedTransaction
         {
-          TradeId = "D-" + fields[idIndex],
-          TransactionType = transactionType,
+          Id = "D-" + fields[idIndex],
+          TransactionType = TransactionType.Trade,
           Exchange = CryptoExchange.None,
           Time = date,
-          CoinType = coinType,
-          CoinCount = coinCount,
-          PerCoinCost = perCoinPrice,
-          Fee = fee,
-          TotalCost = totalCost,
+          ReceivedCoinType = coinType,
+          ReceivedCoinCount = coinCount,
+          PaymentCoinCount = totalCost,
           PaymentCoinType = paymentCoinType,
+          //ListPrice = perCoinPrice,
         };
-        transactions.Add(transaction.ToLatest());
+        transactions.Add(transaction);
       }
 
       if (transactions.Count > 0)
