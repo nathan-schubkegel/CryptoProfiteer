@@ -358,16 +358,23 @@ async function modalToAssociateSaleOkButtonClick()
 <h1>
   Tax Associations
 </h1>
-<table class="table table-sm">
-  <thead>
+@{
+  void PrintTaxAssociationHeaderRow()
+  {
     <tr>
       <th scope="col">Name</th>
       <th scope="col">Date</th>
       <th scope="col">Change</th>
       <th scope="col">Rate</th>
-      <th scope="col">USD Value</th>
+      <th scope="col">Cost Basis</th>
+      <th scope="col">Sale Proceeds</th>
       <th scope="col">Loss/Gain</th>
     </tr>
+  }
+}
+<table class="table table-sm">
+  <thead>
+    @{ PrintTaxAssociationHeaderRow(); }
   </thead>
   <tbody>
 @{
@@ -375,23 +382,44 @@ foreach (var yearOfAssociations in Model.TaxAssociations(null).GroupBy(x => x.Ti
 {
   int? yearNetGainLoss = yearOfAssociations.Sum(x => x.NetGainLoss);
   
+  <tr>
+    <td colspan=7><hr style="border: 10px solid green"></td>
+  </tr>
   <tr style="font-weight: bold;">
     <td>
       <button type="button" class="btn btn-primary btn-sm" onclick='downloadFreeTaxUsaScript(@yearOfAssociations.Key)'>Download As Script</button>
     </td>
-    <td colspan="5">
+    <td colspan="6">
       <input type="checkbox" autocomplete="off" class="btn-check" checked=true
              onclick='toggleTaxAssociationVisibilityForYear(@yearOfAssociations.Key);'>For the year @yearOfAssociations.Key: <span style="@(yearNetGainLoss >= 0 ? "color:#008126;" : "color:#ff0000;") font-weight:bold; ">@(yearNetGainLoss?.ToString("c0") ?? "<unknown>")</span>
     </td>
   </tr>
+  <tr>
+    <td colspan=7><hr style="border: 10px solid green"></td>
+  </tr>
   
+  int everyThree = 0;
   foreach (var a in yearOfAssociations)
   {
+    if (everyThree == 3)
+    {
+      PrintTaxAssociationHeaderRow();
+      everyThree = 0;
+    }
+    everyThree++;
+    
+    int? costBasisSum = 0;
+    foreach (var p in a.Purchases)
+    {
+      costBasisSum += p.TaxableCostBasisUsd;
+    }
+
     <tr class="tax-association-for-year-@yearOfAssociations.Key">
       <td>@a.CoinType</td>
       <td>@a.Time.ToLocalTime().ToString("g")</td>
       <td>@a.SaleDescription</td>
       <td>@a.Sale.Order.FormatExchangeRateUsd()</td>
+      <td>-$@(costBasisSum?.ToString() ?? "<unknown>")</td>
       <td>+$@(a.TaxableSaleProceedsUsd?.ToString() ?? "<unknown>")</td>
       <td><span style="@(a.NetGainLoss >= 0 ? "color:#008126;" : "color:#ff0000;") font-weight:bold; ">$@(a.NetGainLossAbs?.ToString() ?? "<unknown>") @(a.NetGainLoss >= 0 ? "gain" : "loss") (@(a.PercentNetGainLoss?.ToString() ?? "<unknown>")%)</span></td>
     </tr>
@@ -430,6 +458,7 @@ foreach (var yearOfAssociations in Model.TaxAssociations(null).GroupBy(x => x.Ti
           <text> </text><button type="button" class="btn btn-primary" onclick="pinSaleProceedsFudgeToTaxAssociationPurchase('@a.Id', '@p.Order.Id')">fudge it</button>
         }
       }</td>
+      <td></td>
     </tr>
       first = false;
     }
