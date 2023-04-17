@@ -1047,11 +1047,16 @@ namespace CryptoProfiteer
     
     private IEnumerable<(string descriptionFormat, DateTime dateAcquired, DateTime dateSold, int saleProceeds, int costBasis)> GetCryptoTaxItems(int year)
     {
-      foreach (var taxAssociation in _dataService.TaxAssociations.Values.Where(x => x.Time.Year == year).OrderBy(x => x.Time))
+      // order by descending to match the order they show up in the tax page
+      foreach (var taxAssociation in _dataService.TaxAssociations.Values.Where(x => x.Time.Year == year).OrderByDescending(x => x.Time))
       {
-        foreach (var purchase in taxAssociation.Purchases.OrderBy(x => x.Order.Time))
+        foreach (var purchase in taxAssociation.Purchases.OrderByDescending(x => x.Order.Time))
         {
-          var descriptionFormat = $"{{0}}, {purchase.ContributingCoinCount.FormatMinDecimals()} {taxAssociation.CoinType}";
+          // looks like the IRS makes room for 20 characters on form 8949
+          // so restrict the size of contributing coin count as necessary to meet that goal
+          var descriptionCoinCount = purchase.ContributingCoinCount.FormatMinDecimals();
+          if (descriptionCoinCount.Length > 10) descriptionCoinCount = descriptionCoinCount.Substring(0, 10);
+          var descriptionFormat = $"{{0}}, {descriptionCoinCount} {taxAssociation.CoinType}";
           var dateAcquired = purchase.Order.Time;
           var dateSold = taxAssociation.Time;
           var saleProceeds = purchase.GetAttributedSaleProceeds(taxAssociation).Value;

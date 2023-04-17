@@ -268,11 +268,16 @@ namespace CryptoProfiteer
         PersistedTaxAssociation data;
         if (string.IsNullOrEmpty(taxAssociationId))
         {
-          if (!Orders.ContainsKey(saleOrderId ?? string.Empty))
+          if (!Orders.TryGetValue(saleOrderId ?? string.Empty, out var saleOrder))
           {
             throw new Exception("saleOrderId is empty or refers to unrecognized order, but it is required when creating a new tax association");
           }
           
+          if (!saleOrder.IsTaxableSale)
+          {
+            throw new Exception($"cannot add order id \"{saleOrderId}\" as tax association sale order because it does not satisfy {nameof(Order)}.{nameof(Order.IsTaxableSale)}");
+          }
+
           var existingTaxAssociation = TaxAssociations.Values.FirstOrDefault(t => t.Sale.Order.Id == saleOrderId);
           if (existingTaxAssociation != null)
           {
@@ -297,9 +302,13 @@ namespace CryptoProfiteer
           {
             saleOrderId = data.SaleOrderId;
           }
-          else if (!Orders.ContainsKey(saleOrderId))
+          else if (!Orders.TryGetValue(saleOrderId, out var saleOrder))
           {
             throw new Exception("SaleOrderId refers to unrecognized order");
+          }
+          else if (!saleOrder.IsTaxableSale)
+          {
+            throw new Exception($"cannot use order id \"{saleOrderId}\" as tax association sale order because it does not satisfy {nameof(Order)}.{nameof(Order.IsTaxableSale)}");
           }
 
           var existingTaxAssociation = TaxAssociations.Values.FirstOrDefault(t => t.Sale.Order.Id == saleOrderId);
@@ -321,9 +330,9 @@ namespace CryptoProfiteer
               throw new Exception("Cannot add unrecognized purchase order id \"" + orderId + "\" to tax association");
             }
             
-            if (order.TransactionType != TransactionType.Trade)
+            if (!order.IsTaxablePurchase)
             {
-              throw new Exception("cannot add order id \"" + orderId + "\" to tax association purchase orders because it is a " + order.TransactionType + "(only Trade allowed)");
+              throw new Exception($"cannot add order id \"{orderId}\" to tax association purchase orders because it does not satisfy {nameof(Order)}.{nameof(Order.IsTaxablePurchase)}");
             }
             
             if (order.ReceivedCoinType == "USD")

@@ -535,7 +535,7 @@ namespace CryptoProfiteer
                x.Time.ChopSecondsAndSmaller() == time && // FUTURE: could probably relax this to "same day" if ever needed
                (x.ReceivedCoinType == coinType || x.PaymentCoinType == coinType) &&
                (x.ReceivedCoinType != x.PaymentCoinType) && // whut? oh this is just paranoia
-               (x.ReceivedCoinsPerPaymentCoinListPrice != 0) && // same here; paranoia
+               (x.ReceivedCoinsPerPaymentCoinListPrice != 0) && // same here; paranoia, but this happens for unpopulated data
                (x.PaymentCoinsPerReceivedCoinListPrice != 0)))
       {
         // ListPrice is "how many of this coin for 1 of the other kind of coin"
