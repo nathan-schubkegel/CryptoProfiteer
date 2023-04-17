@@ -45,8 +45,8 @@ BigNumber.set({ ROUNDING_MODE: 4 }); // 4 is HALF_UP
           {
             if (t.ReceivedCoinCount > 0)
             {
-          <button>
-            <text>TODO: Auto-Resolve<text>
+          <button type="button" class="btn btn-primary btn-sm" onclick="autoResolveFuturesTaxAssociation('@t.Id')">
+            Auto-resolve
           </button>
             }
             else
@@ -358,6 +358,30 @@ for (var input of document.getElementsByClassName('input-for-contributing-coin-c
   input.oninput = () => modalToAssociateSaleContributingCoinCountChanged(orderId);
 }
 
+async function autoResolveFuturesTaxAssociation(orderId)
+{
+  try {
+    let r = await fetch('/api/createTaxAssociation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        saleOrderId: orderId
+      })
+    });
+
+    if (r.ok) {
+      location.reload();
+    }
+    else {
+      let t = await r.text();
+      alert('!ok: ' + t);
+    }
+  }
+  catch (e) {
+    alert(e);
+  }
+}
+
 async function modalToAssociateSaleOkButtonClick()
 {
   let purchases = [];
@@ -542,8 +566,11 @@ foreach (var yearOfAssociations in Model.TaxAssociations(null).GroupBy(x => x.Ti
       </td>
       <td>@{
         
-        if (d > 0) { <span style="color:#ff0000; font-weight:bold; ">$@d overreported</span> }
-        if (d < 0) { <span style="color:#ff0000; font-weight:bold; ">$@d underreported</span> }
+        if (!a.Sale.Order.IsTaxableFuturesGain)
+        {
+          if (d > 0) { <span style="color:#ff0000; font-weight:bold; ">$@d overreported</span> }
+          if (d < 0) { <span style="color:#ff0000; font-weight:bold; ">$@d underreported</span> }
+        }
       }</td>
     </tr>
   }

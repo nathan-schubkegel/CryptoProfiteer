@@ -63,7 +63,7 @@ namespace CryptoProfiteer.Pages
         });
         
       values = values.Concat(_data.Orders.Values
-        .Where(o => o.TransactionType == TransactionType.FuturesPnl && o.ReceivedCoinCount > 0)
+        .Where(o => o.IsTaxableFuturesGain)
         .Where(o => coinCountUsedPerPurchase.GetValueOrDefault(o.Id) != o.ReceivedCoinCount)
         .Select(o =>
         {

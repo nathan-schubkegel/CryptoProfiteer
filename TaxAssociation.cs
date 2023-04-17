@@ -17,9 +17,9 @@ namespace CryptoProfiteer
       var saleOrder = allOrders.GetValueOrDefault(data.SaleOrderId) ?? throw new Exception("Tax association sale data refers to order that does not exist");      
       Sale = new TaxAssociationSale(this, saleOrder);
       
-      if (data.Purchases == null || data.Purchases.Count == 0) throw new Exception("Tax association had empty purchase data");
+      if ((data.Purchases == null || data.Purchases.Count == 0) && !saleOrder.IsTaxableFuturesGain) throw new Exception("Tax association had empty purchase data");
       var purchases = new List<TaxAssociationPurchase>();
-      foreach (var purchase in data.Purchases)
+      foreach (var purchase in data.Purchases ?? Enumerable.Empty<PersistedTaxAssociationPurchase>())
       {
         var order = allOrders.GetValueOrDefault(purchase.OrderId) ?? throw new Exception("Tax association purchase data refers to order that does not exist");
         if (order.ReceivedCoinType != saleOrder.PaymentCoinType) throw new Exception("Tax association purchase data refers to order that sold a different coin type");

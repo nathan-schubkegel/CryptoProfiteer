@@ -203,7 +203,7 @@ namespace CryptoProfiteer
       }
 
       // remove tax association data for orders that no longer exist for whatever reason.
-      // remove tax associations that are empty.
+      // remove tax associations that are empty (except for the magic Futures Gains type)
       var taxAssociationIdsToRemove = new HashSet<string>();
       var orderIdsToRemove = new HashSet<string>();
       foreach (var t in persistedTaxAssociations.Values)
@@ -224,10 +224,21 @@ namespace CryptoProfiteer
           // so... I'm going with the safer but more drastic move "just gonna drop the tax association"
           taxAssociationIdsToRemove.Add(t.Id);
         }
-        if (!orders.ContainsKey(t.SaleOrderId) ||
-            t.Purchases.Count == 0)
+        if (!orders.ContainsKey(t.SaleOrderId))
         {
           taxAssociationIdsToRemove.Add(t.Id);
+        }
+        if (t.Purchases.Count == 0)
+        {
+          var order = orders.GetValueOrDefault(t.SaleOrderId);
+          if (order != null && order.IsTaxableFuturesGain)
+          {
+            // this kind of tax association is a taxable event with no correlating purchase
+          }
+          else
+          {
+            taxAssociationIdsToRemove.Add(t.Id);
+          }
         }
       }
       foreach (var id in taxAssociationIdsToRemove)
@@ -273,9 +284,9 @@ namespace CryptoProfiteer
             throw new Exception("saleOrderId is empty or refers to unrecognized order, but it is required when creating a new tax association");
           }
           
-          if (!saleOrder.IsTaxableSale)
+          if (!saleOrder.IsTaxableFuturesGain && !saleOrder.IsTaxableSale)
           {
-            throw new Exception($"cannot add order id \"{saleOrderId}\" as tax association sale order because it does not satisfy {nameof(Order)}.{nameof(Order.IsTaxableSale)}");
+            throw new Exception($"cannot add order id \"{saleOrderId}\" as tax association sale order because it does not satisfy {nameof(Order)}.{nameof(Order.IsTaxableSale)} or {nameof(Order.IsTaxableFuturesGain)}");
           }
 
           var existingTaxAssociation = TaxAssociations.Values.FirstOrDefault(t => t.Sale.Order.Id == saleOrderId);
