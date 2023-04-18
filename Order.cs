@@ -54,7 +54,7 @@ namespace CryptoProfiteer
       ) : _paymentValueUsd;
 
     public int? TaxableReceivedValueUsd => _taxableReceivedValueUsd == null ?
-      PaymentValueUsd != null
+      ReceivedValueUsd != null
         ? (_taxableReceivedValueUsd = (int)Math.Round(ReceivedValueUsd.Value, MidpointRounding.AwayFromZero))
         : null
       : _taxableReceivedValueUsd;
