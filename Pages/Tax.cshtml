@@ -45,7 +45,7 @@ BigNumber.set({ ROUNDING_MODE: 4 }); // 4 is HALF_UP
           {
             if (t.ReceivedCoinCount > 0)
             {
-          <button type="button" class="btn btn-primary btn-sm" onclick="autoResolveFuturesTaxAssociation('@t.Id')">
+          <button type="button" class="btn btn-primary btn-sm autoResolveButton" onclick="autoResolveFuturesTaxAssociation('@t.Id')">
             Auto-resolve
           </button>
             }
@@ -53,7 +53,7 @@ BigNumber.set({ ROUNDING_MODE: 4 }); // 4 is HALF_UP
             {
             // TODO: resolve copy pasta
             // (orderId, prettyPayment, prettyReceived, prettyPaymentPerCoinCost, machinePaymentCoinType, machinePaymentCoinCount, prettyOrderTime, machineOrderTime)
-          <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#modalToAssociateSale"
+          <button type="button" class="btn btn-primary btn-sm superResolveButton" data-toggle="modal" data-target="#modalToAssociateSale"
             onclick="onResolveSaleNeedingTaxAssociationClick('@(t.Id)', 
               '@t.PaymentCoinCount @t.PaymentCoinType',
               '@t.ReceivedCoinCount @t.ReceivedCoinType@{ if (isExchange) { <text> (worth @(t.ReceivedValueUsd.FormatCoinCount(usd, showCoinType: false)))</text> } }',
@@ -69,7 +69,7 @@ BigNumber.set({ ROUNDING_MODE: 4 }); // 4 is HALF_UP
           }
           else
           {
-          <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#modalToAssociateSale"
+          <button type="button" class="btn btn-primary btn-sm superResolveButton" data-toggle="modal" data-target="#modalToAssociateSale"
             onclick="onResolveSaleNeedingTaxAssociationClick('@(t.Id)', 
               '@t.PaymentCoinCount @t.PaymentCoinType',
               '@t.ReceivedCoinCount @t.ReceivedCoinType@{ if (isExchange) { <text> (worth @(t.ReceivedValueUsd.FormatCoinCount(usd, showCoinType: false)))</text> } }',
@@ -116,11 +116,15 @@ BigNumber.set({ ROUNDING_MODE: 4 }); // 4 is HALF_UP
 
 <script>
 let resolveSaleNeedingTaxAssociation_orderId = '';
+let resolveSaleNeedingTaxAssociation_orderTime = '';
 let resolveSaleNeedingTaxAssociation_coinCount = '';
+let resolveSaleNeedingTaxAssociation_coinType = '';
 function onResolveSaleNeedingTaxAssociationClick(orderId, prettyPayment, prettyReceived, prettyPaymentPerCoinCost, machinePaymentCoinType, machinePaymentCoinCount, prettyOrderTime, machineOrderTime)
 {
   resolveSaleNeedingTaxAssociation_orderId = orderId;
   resolveSaleNeedingTaxAssociation_coinCount = machinePaymentCoinCount;
+  resolveSaleNeedingTaxAssociation_coinType = machinePaymentCoinType;
+  resolveSaleNeedingTaxAssociation_orderTime = machineOrderTime;
 
   let paymentSpan = document.getElementById('modalToAssociateSale-Payment');
   paymentSpan.textContent = prettyPayment;
@@ -205,6 +209,8 @@ function onResolveSaleNeedingTaxAssociationClick(orderId, prettyPayment, prettyR
                 <input type="checkbox" autocomplete="off"
                   class="btn-check button-for-selecting-purchase-orders"
                   id="btn-check-order-@(t.Id)"
+                  data-coinType='@t.ReceivedCoinType'
+                  data-purchaseTime='@t.Time.ToString("o")'
                   data-orderId="@(t.Id)"
                   data-orderCoinCount="@t.ReceivedCoinCount"
                   data-orderCoinCountRemaining="@coinCountRemaining"
@@ -358,6 +364,7 @@ for (var input of document.getElementsByClassName('input-for-contributing-coin-c
   input.oninput = () => modalToAssociateSaleContributingCoinCountChanged(orderId);
 }
 
+let autoResolveFuturesTaxAssociation_noReload = false;
 async function autoResolveFuturesTaxAssociation(orderId)
 {
   try {
@@ -370,7 +377,9 @@ async function autoResolveFuturesTaxAssociation(orderId)
     });
 
     if (r.ok) {
-      location.reload();
+      if (!autoResolveFuturesTaxAssociation_noReload) {
+        location.reload();
+      }
     }
     else {
       let t = await r.text();
@@ -382,6 +391,7 @@ async function autoResolveFuturesTaxAssociation(orderId)
   }
 }
 
+let modalToAssociateSaleOkButtonClick_noReload = false;
 async function modalToAssociateSaleOkButtonClick()
 {
   let purchases = [];
@@ -414,7 +424,9 @@ async function modalToAssociateSaleOkButtonClick()
     });
 
     if (r.ok) {
-      location.reload();
+      if (!modalToAssociateSaleOkButtonClick_noReload) {
+        location.reload();
+      }
     }
     else {
       let t = await r.text();
@@ -512,7 +524,7 @@ foreach (var yearOfAssociations in Model.TaxAssociations(null).GroupBy(x => x.Ti
       <td>@{
         if (first)
         {
-          <button type="button" class="btn btn-primary btn-sm" data-toggle="modal" data-target="#modalToDeleteAssociation"
+          <button type="button" class="btn btn-primary btn-sm superDeleteButton" data-year="@yearOfAssociations.Key" data-toggle="modal" data-target="#modalToDeleteAssociation"
             onclick="modalToDeleteAssociation_associationId = '@a.Id'"
           >
             Delete
@@ -643,6 +655,7 @@ async function pinSaleProceedsFudgeToTaxAssociationPurchase(taxAssociationId, pu
 
 <script>
 let modalToDeleteAssociation_associationId = '';
+let modalToDeleteAssociation_noReload = false;
 async function modalToDeleteAssociationOkButtonClick() 
 {
   let spinny = document.getElementById('modalToDeleteAssociation-okSpinny');
@@ -657,7 +670,9 @@ async function modalToDeleteAssociationOkButtonClick()
     });
 
     if (r.ok) {
-      location.reload();
+      if (!modalToDeleteAssociation_noReload) {
+        location.reload();
+      }
     }
     else {
       let t = await r.text();
@@ -681,4 +696,76 @@ function downloadFreeTaxUsaScript(yearOfAssociations) {
   a.click();
   document.body.removeChild(a);
 }
+
+// NOTE: this is to be used by me, from the chrome developer tools... I don't want to misclick it
+async function autoResolveAll() {
+  autoResolveFuturesTaxAssociation_noReload = true;
+  try
+  {
+    for (var button of document.getElementsByClassName('autoResolveButton'))
+    {
+      await button.onclick();
+      //await new Promise(r => setTimeout(r, 500));
+    }
+  }
+  finally
+  {
+    autoResolveFuturesTaxAssociation_noReload = false;
+  }
+  location.reload();
+}
+
+// NOTE: this is to be used by me, from the chrome developer tools... I don't want to misclick it
+async function superResolveAll() {
+  modalToAssociateSaleOkButtonClick_noReload = true;
+  try
+  {
+    for (var button of Array.from(document.getElementsByClassName('superResolveButton')).reverse())
+    {
+      button.click();
+      //await new Promise(r => setTimeout(r, 500));
+      
+      for (var checkbox of document.getElementsByClassName('button-for-selecting-purchase-orders'))
+      {
+        let coinType = checkbox.getAttribute('data-coinType');
+        let purchaseTime = new Date(checkbox.getAttribute('data-purchaseTime'));
+        if (coinType == resolveSaleNeedingTaxAssociation_coinType && purchaseTime <= resolveSaleNeedingTaxAssociation_orderTime) {
+          checkbox.click();
+          //await new Promise(r => setTimeout(r, 100));
+        }
+      }
+      
+      await modalToAssociateSaleOkButtonClick();
+      //await new Promise(r => setTimeout(r, 500));
+    }
+  }
+  finally
+  {
+    modalToAssociateSaleOkButtonClick_noReload = false;
+  }
+  location.reload();
+}
+
+// NOTE: this is to be used by me, from the chrome developer tools... I don't want to misclick it
+async function superDeleteAll(year) {
+  modalToDeleteAssociation_noReload = true;
+  try
+  {
+    for (var button of document.getElementsByClassName('superDeleteButton'))
+    {
+      let buttonYear = button.getAttribute('data-year');
+      if (buttonYear == year) {
+        button.onclick(); // this sets modelToDeleteAssociation_associationId
+        await modalToDeleteAssociationOkButtonClick();
+      }
+    }
+  }
+  finally
+  {
+    modalToDeleteAssociation_noReload = false;
+  }
+  location.reload();
+}
+
+
 </script>
