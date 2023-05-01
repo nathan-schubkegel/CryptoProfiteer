@@ -216,6 +216,7 @@ function onResolveSaleNeedingTaxAssociationClick(orderId, prettyPayment, prettyR
                   data-orderCoinCountRemaining="@coinCountRemaining"
                   data-orderTotalCost='@((t.ReceivedValueUsd ?? 0m).ToString("F2"))'
                   data-orderCostRemaining='@(costRemaining?.ToString() ?? "<unknown>")'
+                  data-perCoinCostUsd='@(t.TransactionType == TransactionType.FuturesPnl ? "99999999" : (t.ReceivedCoinCount > 0 && t.PaymentCoinCount > 0 ? (t.ReceivedPerCoinCostUsd?.ToString() ?? "") : ""))'
                   onclick='modalToAssociateSaleCheckBoxClick("@t.Id");'>
                 <label class="btn btn-outline-primary btn-sm" for="btn-check-order-@(t.Id)">Select</label>
               </td>
@@ -716,7 +717,9 @@ async function autoResolveAll() {
 }
 
 // NOTE: this is to be used by me, from the chrome developer tools... I don't want to misclick it
-async function superResolveAll() {
+async function superResolveAll_MinimizeLongTermCapitalGains() {
+  // The goal of this function is to consume as few LTCG trades as possible by always tax-associating with the most recent order
+  // (it brainlessly does this by checking all of them... but it works :D)
   modalToAssociateSaleOkButtonClick_noReload = true;
   try
   {
@@ -737,6 +740,112 @@ async function superResolveAll() {
       
       await modalToAssociateSaleOkButtonClick();
       //await new Promise(r => setTimeout(r, 500));
+    }
+  }
+  finally
+  {
+    modalToAssociateSaleOkButtonClick_noReload = false;
+  }
+  location.reload();
+}
+
+// NOTE: this is to be used by me, from the chrome developer tools... I don't want to misclick it
+async function superResolveNext_MaximizeProfits() {
+  // The goal of this function is to tax-associate first with the orders that cause the maximum profits
+  // (useful when losses are a given, to minimize them)
+  modalToAssociateSaleOkButtonClick_noReload = true;
+  try
+  {
+    for (var button of Array.from(document.getElementsByClassName('superResolveButton')).reverse())
+    {
+      button.click();
+      
+      let relevantCheckboxes = Array.from(document.getElementsByClassName('button-for-selecting-purchase-orders'))
+        .filter(checkbox => 
+         {
+           let coinType = checkbox.getAttribute('data-coinType');
+           let purchaseTime = new Date(checkbox.getAttribute('data-purchaseTime'));
+           return (coinType == resolveSaleNeedingTaxAssociation_coinType && purchaseTime <= resolveSaleNeedingTaxAssociation_orderTime);
+         });
+
+      // gonna check every checkbox... it's just about what order to check them?
+      for (var unused of relevantCheckboxes)
+      {
+        // find the next checkbox to click
+        let best_found_price = '';
+        let best_found_checkbox = null;
+        for (var checkbox of relevantCheckboxes)
+        {
+          if (checkbox.checked) continue;
+          
+          let price = checkbox.getAttribute('data-perCoinCostUsd');
+          if (best_found_checkbox == null)
+          {
+            best_found_checkbox = checkbox;
+            best_found_price = price;
+          }
+          else if (best_found_price == '')
+          {
+            best_found_checkbox = checkbox;
+            best_found_price = price;
+          }
+          else if (price == '') continue;
+          else if (Number(price) < Number(best_found_price))
+          {
+            best_found_checkbox = checkbox;
+            best_found_price = price;
+          }
+          else continue;
+        }
+        
+        best_found_checkbox.click();
+        //await new Promise(r => setTimeout(r, 500));
+      }
+
+      await modalToAssociateSaleOkButtonClick();
+      //await new Promise(r => setTimeout(r, 500));
+      
+      // cuz I can only do one at a time, or it produces the wrong answers /cry
+      break;
+    }
+  }
+  finally
+  {
+    modalToAssociateSaleOkButtonClick_noReload = false;
+  }
+  location.reload();
+}
+
+// NOTE: this is to be used by me, from the chrome developer tools... I don't want to misclick it
+async function superResolveNext_MinimizeLongTermCapitalGains() {
+  // The goal of this function is that I now don't trust superResolveAll_MinimizeLongTermCapitalGains()
+  // so I have to prove it
+  modalToAssociateSaleOkButtonClick_noReload = true;
+  try
+  {
+    for (var button of Array.from(document.getElementsByClassName('superResolveButton')).reverse())
+    {
+      button.click();
+      
+      let relevantCheckboxes = Array.from(document.getElementsByClassName('button-for-selecting-purchase-orders'))
+        .filter(checkbox => 
+         {
+           let coinType = checkbox.getAttribute('data-coinType');
+           let purchaseTime = new Date(checkbox.getAttribute('data-purchaseTime'));
+           return (coinType == resolveSaleNeedingTaxAssociation_coinType && purchaseTime <= resolveSaleNeedingTaxAssociation_orderTime);
+         });
+
+      // gonna check every checkbox... it's just about what order to check them?
+      for (var checkbox of relevantCheckboxes)
+      {
+        checkbox.click();
+      }
+
+      await modalToAssociateSaleOkButtonClick();
+      //await new Promise(r => setTimeout(r, 500));
+      
+      // cuz I can only do one at a time, or it produces the wrong answers /cry
+      break;
     }
   }
   finally

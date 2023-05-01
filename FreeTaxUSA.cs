@@ -50,7 +50,7 @@ Sleep, 500
 
 ; ""save and continue"" 
 Click, 1156 666
-Sleep, 1500
+Sleep, 2500
 
 ; ""both"" (Nathan and Rachel) 
 Click, 438 526
@@ -58,7 +58,7 @@ Sleep, 500
 
 ; ""save and continue"" 
 Click, 1171 609
-Sleep, 1500
+Sleep, 2500
 
 ; ""one at a time"" 
 Click, 742 530
@@ -66,7 +66,7 @@ Sleep, 500
 
 ; ""save and continue""
 Click, 1173 741
-Sleep, 1500
+Sleep, 2500
 
 ; description textbox 
 Click, 900 475
@@ -104,12 +104,12 @@ Sleep, 500
 
 ; ""save and continue"" 
 Click, 1170 972
-Sleep, 1500
+Sleep, 2500
 
 ; ""save and continue"" 
 if (({3} = 0) and ({4} = 0))
 {{
-  Click, 1180 936
+  Click, 1180 956
 }}
 else if ({3} = 0)
 {{
@@ -131,7 +131,7 @@ Sleep, 1500
 
 ; ""add another"" button 
 Click, 528 787
-Sleep, `500
+Sleep, 1500
 
       ";
       
