@@ -909,6 +909,7 @@ namespace CryptoProfiteer
         TransactionType_v04 transactionType = fields[buySellIndex] switch
         {
           "MARKET_SELL" => TransactionType_v04.Sell,
+          "CEILING_MARKET_SELL" => TransactionType_v04.Sell,
           "CEILING_MARKET_BUY" => TransactionType_v04.Buy,
           _ => throw new Exception($"CSV line {lineNumber} has unrecognized field {buySellIndex + 1} \"{fields[buySellIndex]}\"; expected one of MARKET_SELL, CEILING_MARKET_BUY")
         };
