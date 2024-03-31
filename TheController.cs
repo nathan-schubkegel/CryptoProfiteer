@@ -60,6 +60,7 @@ namespace CryptoProfiteer
       const string kucoinOrdersHeaderLine = "orderCreatedAt,id,clientOid,symbol,side,type,stopPrice,price,size,dealSize,dealFunds,averagePrice,fee,feeCurrency,remark,tags,orderStatus,";
       const string kucoinCompletedTradesHeaderLine = "UID,Account Type,Order ID,Symbol,Side,Order Type,Avg. Filled Price,Filled Amount,Filled Volume,Filled Volume (USDT),Filled Time(UTC+08:00),Fee,Maker/Taker,Fee Currency";
       const string kucoinFuturesPnlHeaderLine = "\"Contract\",\"Realized PNL\",\"Close Time\",\"PNL Details\"";
+      const string kucoinFuturesOrdersRealizedPnlHeaderLine = "UID,Account Type,Symbol,Close Type,Realized PNL,Total Realized PNL,Total Funding Fees,Total Trading Fees,Position Opening Time(UTC+08:00),Position Closing Time(UTC+08:00)";
       const string bittrexOrderHistoryHeaderLine = "Uuid,Exchange,TimeStamp,OrderType,Limit,Quantity,QuantityRemaining,Commission,Price,PricePerUnit,IsConditional,Condition,ConditionTarget,ImmediateOrCancel,Closed,TimeInForceTypeId,TimeInForce";
       const string coinbaseOrdersHeaderLine = "Timestamp,Transaction Type,Asset,Quantity Transacted,Spot Price Currency,Spot Price at Transaction,Subtotal,Total (inclusive of fees),Fees,Notes";
       const string decentralizedFillsHeaderLine = "id,date,transaction type,sent total,sent fee,sent coin type,received amount,received coin type,notes";
@@ -87,6 +88,10 @@ namespace CryptoProfiteer
       else if (headerFields.SequenceEqual(Csv.Parse(kucoinFuturesPnlHeaderLine)))
       {
         PostKucoinFuturesPnlCsv(lines);
+      }
+      else if (headerFields.SequenceEqual(Csv.Parse(kucoinFuturesOrdersRealizedPnlHeaderLine)))
+      {
+        PostKucoinFuturesOrdersRealizedPnl(lines);
       }
       else if (headerFields.SequenceEqual(Csv.Parse(bittrexOrderHistoryHeaderLine)))
       {
@@ -770,9 +775,79 @@ namespace CryptoProfiteer
           throw new Exception($"CSV line {lineNumber} has unexpected field {realizedPnlIndex + 1} \"{fields[realizedPnlIndex]}\"; expected value matching regex pattern {pnlPattern} such as \"5.51USDT≈ 5.52USD\"");
         }
 
-        var contractDetails = fields[contractIndex];
-
         var id = "KFPNL-" + fields[contractIndex] + "-" + usdtChange + "-" + fields[closeTimeIndex];
+        var transaction = new PersistedTransaction
+        {
+          Id = id,
+          OrderAggregationId = id,
+          TransactionType = TransactionType.FuturesPnl,
+          Exchange = CryptoExchange.Kucoin,
+          Time = createdAtTime,
+          ReceivedCoinType = "USDT",
+          PaymentCoinType = "USDT",
+          ReceivedCoinCount = usdtChange > 0 ? usdtChange : 0m,
+          PaymentCoinCount = usdtChange < 0 ? usdtChange : 0m,
+        };
+        transactions.Add(transaction);
+      }
+
+      if (transactions.Count > 0)
+      {
+        _dataService.ImportTransactions(transactions);
+      }
+    }
+    
+    private void PostKucoinFuturesOrdersRealizedPnl(List<string> lines)
+    {
+      var headerFields = Csv.Parse(lines[0]).Select(x => x.Trim()).ToList();
+
+      int IndexOrBust(string name)
+      {
+        int index = headerFields.IndexOf(name);
+        if (index < 0)
+        {
+          throw new Exception("CSV header lacks required '" + name + "' field");
+        }
+        return index;
+      }
+
+// UID,     Account Type,Symbol, Close Type,  Realized PNL,  Total Realized PNL, Total Funding Fees, Total Trading Fees, Position Opening Time(UTC+08:00), Position Closing Time(UTC+08:00)
+// ****3524,mainAccount,LTCUSDTM,CLOSE_SHORT, 12.882736,     -13.6,              2.314992,           3.032256,           2023-01-03 03:37:49,              2023-01-06 01:23:51
+// ****3524,mainAccount,ETHUSDTM,CLOSE_LONG,  -26.56179132,  23.184,             -0.29067612,        3.0871152,          2023-01-04 14:15:44,              2023-01-06 21:30:02
+      var realizedPnlIndex = IndexOrBust("Realized PNL");
+      var closeTimeIndex = IndexOrBust("Position Closing Time(UTC+08:00)");
+      var symbolIndex = IndexOrBust("Symbol");
+
+      var transactions = new List<PersistedTransaction>();
+      int lineNumber = 1;
+      foreach (var line in lines.Skip(1))
+      {
+        lineNumber++;
+        var fields = Csv.Parse(line).Select(x => x.Trim()).ToList();
+        if (fields.Count == 0) continue;
+        if (fields.Count != headerFields.Count)
+        {
+          throw new Exception($"CSV line {lineNumber} has {fields.Count} fields; different from header line which has {headerFields.Count} fields; aborting.");
+        }
+
+        if (!DateTime.TryParseExact(fields[closeTimeIndex], "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var createdAtTime))
+        {
+          throw new Exception($"CSV line {lineNumber} has non-date/time field {closeTimeIndex + 1} \"{fields[closeTimeIndex]}\"; expected date/time such as \"{DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss")}\"");
+        }
+        if (createdAtTime.Kind != DateTimeKind.Utc)
+        {
+          throw new Exception($"CSV line {lineNumber} date/time field was incorrectly interpreted as {createdAtTime.Kind}");
+        }
+        // Kucoin times are reported 8 hours after UTC, which appears to be the local time in singapore.
+        // So subtract 8 hours to compensate
+        createdAtTime = createdAtTime - TimeSpan.FromHours(8);
+
+        if (!Decimal.TryParse(fields[realizedPnlIndex], NumberStyles.Float, CultureInfo.InvariantCulture, out var usdtChange))
+        {
+          throw new Exception($"CSV line {lineNumber} has unexpected field {realizedPnlIndex + 1} \"{fields[realizedPnlIndex]}\"; expected numeric value such as \"5.511243\"");
+        }
+
+        var id = "KFORPNL-" + fields[symbolIndex] + "-" + usdtChange + "-" + fields[closeTimeIndex];
         var transaction = new PersistedTransaction
         {
           Id = id,
