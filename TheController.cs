@@ -63,6 +63,7 @@ namespace CryptoProfiteer
       const string kucoinFuturesOrdersRealizedPnlHeaderLine = "UID,Account Type,Symbol,Close Type,Realized PNL,Total Realized PNL,Total Funding Fees,Total Trading Fees,Position Opening Time(UTC+08:00),Position Closing Time(UTC+08:00)";
       const string bittrexOrderHistoryHeaderLine = "Uuid,Exchange,TimeStamp,OrderType,Limit,Quantity,QuantityRemaining,Commission,Price,PricePerUnit,IsConditional,Condition,ConditionTarget,ImmediateOrCancel,Closed,TimeInForceTypeId,TimeInForce";
       const string coinbaseOrdersHeaderLine = "Timestamp,Transaction Type,Asset,Quantity Transacted,Spot Price Currency,Spot Price at Transaction,Subtotal,Total (inclusive of fees),Fees,Notes";
+      const string coinbaseAdvancedStatementLine2023 = "Timestamp,Transaction Type,Asset,Quantity Transacted,Spot Price Currency,Spot Price at Transaction,Subtotal,Total (inclusive of fees and/or spread),Fees and/or Spread,Notes";
       const string decentralizedFillsHeaderLine = "id,date,transaction type,sent total,sent fee,sent coin type,received amount,received coin type,notes";
       var headerFields = Csv.Parse(lines[0]).Select(x => x.Trim()).ToList();
       if (headerFields.SequenceEqual(Csv.Parse(coinbaseProFillsHeaderLine)))
@@ -105,28 +106,26 @@ namespace CryptoProfiteer
       {
         // coinbase order files have some junk at the top, so gotta skip that and find the header line
         var coinbaseHeaders = Csv.Parse(coinbaseOrdersHeaderLine);
+        var coinbaseHeaders2023 = Csv.Parse(coinbaseAdvancedStatementLine2023);
         int lineNumberOffset = 0;
-        while (lines.Count > 0 && !Csv.Parse(lines[0]).Select(x => x.Trim()).SequenceEqual(coinbaseHeaders))
+        while (lines.Count > 0 && !(
+          Csv.Parse(lines[0]).Select(x => x.Trim()).SequenceEqual(coinbaseHeaders) ||
+          Csv.Parse(lines[0]).Select(x => x.Trim()).SequenceEqual(coinbaseHeaders2023)
+        ))
         {
           lineNumberOffset++;
           lines.RemoveAt(0);
         }
-        if (lines.Count > 0 && Csv.Parse(lines[0]).Select(x => x.Trim()).SequenceEqual(coinbaseHeaders))
+        if (lines.Count > 0 && (
+          Csv.Parse(lines[0]).Select(x => x.Trim()).SequenceEqual(coinbaseHeaders) ||
+          Csv.Parse(lines[0]).Select(x => x.Trim()).SequenceEqual(coinbaseHeaders2023)
+        ))
         {
           PostCoinbaseOrdersCsv(lines, lineNumberOffset);
         }
         else
         {
-          throw new Exception("Unable to determine csv format from csv file header line; expected one of the following:" +
-            string.Join(Environment.NewLine, new[]
-            {
-              "",
-              "Coinbase orders CSV: " + coinbaseOrdersHeaderLine,
-              "Coinbase Pro fills CSV: " + coinbaseProFillsHeaderLine,
-              "Kucoin trades CSV (pre 2023): " + kucoinTradesHeaderLine,
-              "Kucoin completed trades XLSM saved as CSV: " + kucoinCompletedTradesHeaderLine,
-              "Decentralized fills CSV: " + decentralizedFillsHeaderLine,
-            }));
+          throw new Exception("Unable to determine csv format from csv file header line; see TheController.cs for accepted csv formats");
         }
       }
       
@@ -137,14 +136,17 @@ namespace CryptoProfiteer
     {
       var headerFields = Csv.Parse(lines[0]).Select(x => x.Trim()).ToList();
 
-      int IndexOrBust(string name)
+      int IndexOrBust(params string[] names)
       {
-        int index = headerFields.IndexOf(name);
-        if (index < 0)
+        foreach (var name in names)
         {
-          throw new Exception("CSV header lacks required '" + name + "' field");
+          int index = headerFields.IndexOf(name);
+          if (index >= 0)
+          {
+            return index;
+          }
         }
-        return index;
+        throw new Exception("CSV header lacks required field, one of " + string.Join(", ", names.Select(x => $"'{x}'")));
       }
 
       var notesIndex = IndexOrBust("Notes");
@@ -153,8 +155,8 @@ namespace CryptoProfiteer
       var coinCountIndex = IndexOrBust("Quantity Transacted");
       var coinTypeIndex = IndexOrBust("Asset");
       var perCoinPriceIndex = IndexOrBust("Spot Price at Transaction");
-      var feeIndex = IndexOrBust("Fees");
-      var totalCostIndex = IndexOrBust("Total (inclusive of fees)");
+      var feeIndex = IndexOrBust("Fees", "Fees and/or Spread");
+      var totalCostIndex = IndexOrBust("Total (inclusive of fees)", "Total (inclusive of fees and/or spread)");
       var paymentTypeIndex = IndexOrBust("Spot Price Currency");
       
       var transactions = new List<PersistedTransaction>();
@@ -169,7 +171,11 @@ namespace CryptoProfiteer
           throw new Exception($"CSV line {lineNumber} has {fields.Count} fields; different from header line which has {headerFields.Count} fields; aborting.");
         }
         
-        if (fields[buySellIndex] == "Receive" || fields[buySellIndex] == "Send")
+        if (fields[buySellIndex] == "Receive" || 
+            fields[buySellIndex] == "Send" || 
+            fields[buySellIndex] == "Withdrawal" || 
+            fields[buySellIndex] == "Deposit" || 
+            fields[buySellIndex] == "Exchange Deposit")
         {
           continue;
         }
@@ -177,10 +183,29 @@ namespace CryptoProfiteer
         if (!Enum.TryParse<TransactionType_v04>(fields[buySellIndex], ignoreCase: true, out var transactionType) ||
             (transactionType != TransactionType_v04.Buy && transactionType != TransactionType_v04.Sell))
         {
-          throw new Exception($"CSV line {lineNumber} has unrecognized field {buySellIndex + 1} \"{fields[buySellIndex]}\"; expected one of " + string.Join(",", Enum.GetNames(typeof(TransactionType_v04)).Select(x => "\"" + x + "\"")));
+          if (fields[buySellIndex] == "Advance Trade Buy")
+          {
+            transactionType = TransactionType_v04.Buy;
+          }
+          else if (fields[buySellIndex] == "Advance Trade Sell")
+          {
+            transactionType = TransactionType_v04.Sell;
+          }
+          else
+          {
+            throw new Exception($"CSV line {lineNumber} has unrecognized field {buySellIndex + 1} \"{fields[buySellIndex]}\"; expected one of " + string.Join(",", Enum.GetNames(typeof(TransactionType_v04)).Select(x => "\"" + x + "\"")));
+          }
         }
 
-        if (!DateTime.TryParse(fields[createdAtIndex], CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var createdAtTime))
+        // the pre-2023 format was "2022-01-03T09:08:59.139Z" (ISO-8601, easily parsable by DateTime.Parse)
+        // the 2023 format is "2023-12-30 06:43:05 UTC" (slightly less standard)
+        DateTime createdAtTime;
+        if (Regex.IsMatch(fields[createdAtIndex], @"^\d\d\d\d-\d\d-\d\d \d\d:\d\d:\d\d UTC$"))
+        {
+          var iso6801 = fields[createdAtIndex].Replace(" UTC", "").Replace(" ", "T") + "Z";
+          createdAtTime = DateTime.Parse(iso6801, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
+        }
+        else if (!DateTime.TryParse(fields[createdAtIndex], CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out createdAtTime))
         {
           throw new Exception($"CSV line {lineNumber} has non-date/time field {createdAtIndex + 1} \"{fields[createdAtIndex]}\"; expected date/time such as \"{DateTime.Now.ToString("o")}\"");
         }
@@ -212,9 +237,19 @@ namespace CryptoProfiteer
         var coinType = fields[coinTypeIndex];
         var paymentCoinType = fields[paymentTypeIndex];
 
+        var tradeId = "C-";
+        if (fields[createdAtIndex].EndsWith(" UTC")) // not time unique!
+        {
+          tradeId += fields[createdAtIndex] + "-" + transactions.Count; // now-a-days I just use this at the end of the year, so this is good enough
+        }
+        else
+        {
+          tradeId += fields[createdAtIndex]; // assuming that my old coinbase transactions are all time-unique
+        }
+
         var transaction = new PersistedTransaction_v04
         {
-          TradeId = "C-" + fields[createdAtIndex], // assuming that my coinbase transactions are all time-unique
+          TradeId = tradeId,
           TransactionType = transactionType,
           Exchange = CryptoExchange.Coinbase,
           Time = createdAtTime,
@@ -226,6 +261,11 @@ namespace CryptoProfiteer
           PaymentCoinType = paymentCoinType,
         };
         transactions.Add(transaction.ToLatest());
+      }
+
+      if (transactions.Select(x => x.Id).Distinct().Count() != transactions.Count)
+      {
+        throw new Exception("imported transaction IDs aren't unique among themselves... this code needs to be revisited");
       }
 
       if (transactions.Count > 0)
