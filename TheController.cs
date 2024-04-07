@@ -1105,8 +1105,8 @@ namespace CryptoProfiteer
           throw new Exception($"CSV line {lineNumber} has fee (field {feeIndex + 1} \"{fee}\") greater than totalCost (field {totalCostIndex + 1} \"{totalCost}\")");
         }
 
-        Decimal perCoinPrice;
-        try { perCoinPrice = (totalCost - fee) / coinCount; } catch { throw new Exception("Unable to determine perCoinPrice for (totalCost - fee) / coinCount at CSV line {lineNumber}"); }
+        //Decimal perCoinPrice;
+        //try { perCoinPrice = (totalCost - fee) / coinCount; } catch { throw new Exception("Unable to determine perCoinPrice for (totalCost - fee) / coinCount at CSV line {lineNumber}"); }
         var coinType = fields[receivedCoinTypeIndex];
         var paymentCoinType = fields[sentCoinTypeIndex];
 
