@@ -41,19 +41,15 @@ BigNumber.set({ ROUNDING_MODE: 4 }); // 4 is HALF_UP
         <td>@t.Time.ToLocalTime().ToString("g")</td>
         <td>
         @{
-          if (t.TransactionType == TransactionType.FuturesPnl)
+          if ((t.TransactionType == TransactionType.FuturesPnl) && (t.ReceivedCoinCount > 0))
           {
-            if (t.ReceivedCoinCount > 0)
-            {
           <button type="button" class="btn btn-primary btn-sm autoResolveButton" onclick="autoResolveFuturesTaxAssociation('@t.Id')">
             Auto-resolve
           </button>
-            }
-            else
-            {
-            // TODO: resolve copy pasta
-            // (orderId, prettyPayment, prettyReceived, prettyPaymentPerCoinCost, machinePaymentCoinType, machinePaymentCoinCount, prettyOrderTime, machineOrderTime)
-          <button type="button" class="btn btn-primary btn-sm superResolveButton" data-toggle="modal" data-target="#modalToAssociateSale"
+          }
+          else
+          {
+          <button id="superResolveButton-@(t.Id)" type="button" class="btn btn-primary btn-sm superResolveButton" data-toggle="modal" data-target="#modalToAssociateSale"
             onclick="onResolveSaleNeedingTaxAssociationClick('@(t.Id)', 
               '@t.PaymentCoinCount @t.PaymentCoinType',
               '@t.ReceivedCoinCount @t.ReceivedCoinType@{ if (isExchange) { <text> (worth @(t.ReceivedValueUsd.FormatCoinCount(usd, showCoinType: false)))</text> } }',
@@ -65,21 +61,10 @@ BigNumber.set({ ROUNDING_MODE: 4 }); // 4 is HALF_UP
           >
             Resolve
           </button>
-            }
-          }
-          else
-          {
-          <button type="button" class="btn btn-primary btn-sm superResolveButton" data-toggle="modal" data-target="#modalToAssociateSale"
-            onclick="onResolveSaleNeedingTaxAssociationClick('@(t.Id)', 
-              '@t.PaymentCoinCount @t.PaymentCoinType',
-              '@t.ReceivedCoinCount @t.ReceivedCoinType@{ if (isExchange) { <text> (worth @(t.ReceivedValueUsd.FormatCoinCount(usd, showCoinType: false)))</text> } }',
-              '@t.PaymentPerCoinCostUsd.FormatCoinCount(usd, showCoinType: false)',
-              '@(t.PaymentCoinType)',
-              '@(t.PaymentCoinCount.ToString("G29"))',
-              '@(t.Time.ToLocalTime().ToString("g"))',
-              new Date('@(t.Time.ToString("o"))'))"
+          <button type="button" class="btn btn-primary btn-sm superAutoResolveButton"
+            onclick='superResolveOne_MinimizeLongTermCapitalGains(document.getElementById("superResolveButton-@(t.Id)"))'
           >
-            Resolve
+            Auto
           </button>
           }
         }
@@ -817,14 +802,10 @@ async function superResolveNext_MaximizeProfits() {
 }
 
 // NOTE: this is to be used by me, from the chrome developer tools... I don't want to misclick it
-async function superResolveNext_MinimizeLongTermCapitalGains() {
-  // The goal of this function is that I now don't trust superResolveAll_MinimizeLongTermCapitalGains()
-  // so I have to prove it
+async function superResolveOne_MinimizeLongTermCapitalGains(button) {
   modalToAssociateSaleOkButtonClick_noReload = true;
   try
   {
-    for (var button of Array.from(document.getElementsByClassName('superResolveButton')).reverse())
-    {
       button.click();
       
       let relevantCheckboxes = Array.from(document.getElementsByClassName('button-for-selecting-purchase-orders'))
@@ -842,11 +823,6 @@ async function superResolveNext_MinimizeLongTermCapitalGains() {
       }
 
       await modalToAssociateSaleOkButtonClick();
-      //await new Promise(r => setTimeout(r, 500));
-      
-      // cuz I can only do one at a time, or it produces the wrong answers /cry
-      break;
-    }
   }
   finally
   {
