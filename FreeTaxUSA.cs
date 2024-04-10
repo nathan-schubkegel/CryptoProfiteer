@@ -45,83 +45,89 @@ else
 }}
 
 ; ""it's a crypto"" button
-Click, 847 483
+Click, 636 501
 Sleep, 500
 
 ; ""save and continue"" 
-Click, 1156 666
+Click, 1086 750
 Sleep, 2500
 
 ; ""both"" (Nathan and Rachel) 
-Click, 438 526
+Click, 220 545
 Sleep, 500
 
 ; ""save and continue"" 
-Click, 1171 609
+Click, 1078 694
 Sleep, 2500
 
 ; ""one at a time"" 
-Click, 742 530
+Click, 536 547
 Sleep, 500
 
 ; ""save and continue""
-Click, 1173 741
+Click, 1082 819
 Sleep, 2500
 
 ; description textbox 
-Click, 900 475
+Click, 693 508
 Sleep, 500
 Send, {0}
 
 ; date acquired box  (month/day/year)
-Click, 902 663
+Click, 718 692
 Sleep, 500
 Send, {1}
 
 ; date sold (just month/day)
-Click, 891 744
+Click, 692 772
 Sleep, 500
 Send, {2}
 
 ; sale proceeds 
-Click, 946 828
+Click, 756 861
 Sleep, 500
 Send, {3}
 
 ; cost basis
-Click, 938 927
+Click, 753 957
 Sleep, 500
 Send, {4}
 
 ; pagedown a few times
+Click, 1000 958
+Sleep, 500
 Send, {{PgDn}}
 Send, {{PgDn}}
 Sleep, 1500
 
 ; ""not reported on 1099-B"" 
-Click, 727 694
+Click, 510 411
 Sleep, 500
 
 ; ""save and continue"" 
-Click, 1170 972
+Click, 1073 807
 Sleep, 2500
 
 ; ""save and continue"" 
 if (({3} = 0) and ({4} = 0))
 {{
-  Click, 1180 956
+  Click, 1077 752
+  Sleep, 500
+  Send, {{PgDn}}
+  Sleep, 500
+  Click, 1077 774
 }}
 else if ({3} = 0)
 {{
-  Click, 1180 839
+  Click, 1077 916
 }}
 else if ({4} = 0)
 {{
-  Click, 1180 770
+  Click, 1077 847
 }}
 else
 {{
-  Click, 1180 640
+  Click, 1077 717
 }}
 Sleep, 5000
 
@@ -130,7 +136,7 @@ Send, {{End}}
 Sleep, 1500
 
 ; ""add another"" button 
-Click, 528 787
+Click, 321 565
 Sleep, 1500
 
       ";
