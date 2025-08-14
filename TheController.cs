@@ -64,6 +64,7 @@ namespace CryptoProfiteer
       const string bittrexOrderHistoryHeaderLine = "Uuid,Exchange,TimeStamp,OrderType,Limit,Quantity,QuantityRemaining,Commission,Price,PricePerUnit,IsConditional,Condition,ConditionTarget,ImmediateOrCancel,Closed,TimeInForceTypeId,TimeInForce";
       const string coinbaseOrdersHeaderLine = "Timestamp,Transaction Type,Asset,Quantity Transacted,Spot Price Currency,Spot Price at Transaction,Subtotal,Total (inclusive of fees),Fees,Notes";
       const string coinbaseAdvancedStatementLine2023 = "Timestamp,Transaction Type,Asset,Quantity Transacted,Spot Price Currency,Spot Price at Transaction,Subtotal,Total (inclusive of fees and/or spread),Fees and/or Spread,Notes";
+      const string coinbaseExchangeStatementLine2024 = "ID,Timestamp,Transaction Type,Asset,Quantity Transacted,Price Currency,Price at Transaction,Subtotal,Total (inclusive of fees and/or spread),Fees and/or Spread,Notes";
       const string decentralizedFillsHeaderLine = "id,date,transaction type,sent total,sent fee,sent coin type,received amount,received coin type,notes";
       var headerFields = Csv.Parse(lines[0]).Select(x => x.Trim()).ToList();
       if (headerFields.SequenceEqual(Csv.Parse(coinbaseProFillsHeaderLine)))
@@ -107,10 +108,12 @@ namespace CryptoProfiteer
         // coinbase order files have some junk at the top, so gotta skip that and find the header line
         var coinbaseHeaders = Csv.Parse(coinbaseOrdersHeaderLine);
         var coinbaseHeaders2023 = Csv.Parse(coinbaseAdvancedStatementLine2023);
+        var coinbaseHeaders2024 = Csv.Parse(coinbaseExchangeStatementLine2024);
         int lineNumberOffset = 0;
         while (lines.Count > 0 && !(
           Csv.Parse(lines[0]).Select(x => x.Trim()).SequenceEqual(coinbaseHeaders) ||
-          Csv.Parse(lines[0]).Select(x => x.Trim()).SequenceEqual(coinbaseHeaders2023)
+          Csv.Parse(lines[0]).Select(x => x.Trim()).SequenceEqual(coinbaseHeaders2023) ||
+          Csv.Parse(lines[0]).Select(x => x.Trim()).SequenceEqual(coinbaseHeaders2024)
         ))
         {
           lineNumberOffset++;
@@ -118,7 +121,8 @@ namespace CryptoProfiteer
         }
         if (lines.Count > 0 && (
           Csv.Parse(lines[0]).Select(x => x.Trim()).SequenceEqual(coinbaseHeaders) ||
-          Csv.Parse(lines[0]).Select(x => x.Trim()).SequenceEqual(coinbaseHeaders2023)
+          Csv.Parse(lines[0]).Select(x => x.Trim()).SequenceEqual(coinbaseHeaders2023) ||
+          Csv.Parse(lines[0]).Select(x => x.Trim()).SequenceEqual(coinbaseHeaders2024)
         ))
         {
           PostCoinbaseOrdersCsv(lines, lineNumberOffset);
@@ -154,10 +158,10 @@ namespace CryptoProfiteer
       var createdAtIndex = IndexOrBust("Timestamp");
       var coinCountIndex = IndexOrBust("Quantity Transacted");
       var coinTypeIndex = IndexOrBust("Asset");
-      var perCoinPriceIndex = IndexOrBust("Spot Price at Transaction");
+      var perCoinPriceIndex = IndexOrBust("Spot Price at Transaction", "Price at Transaction");
       var feeIndex = IndexOrBust("Fees", "Fees and/or Spread");
       var totalCostIndex = IndexOrBust("Total (inclusive of fees)", "Total (inclusive of fees and/or spread)");
-      var paymentTypeIndex = IndexOrBust("Spot Price Currency");
+      var paymentTypeIndex = IndexOrBust("Spot Price Currency", "Price Currency");
       
       var transactions = new List<PersistedTransaction>();
       int lineNumber = 1 + lineNumberOffset;
@@ -179,15 +183,18 @@ namespace CryptoProfiteer
         {
           continue;
         }
-        
+
+        var transactionTypeField = fields[buySellIndex];
         if (!Enum.TryParse<TransactionType_v04>(fields[buySellIndex], ignoreCase: true, out var transactionType) ||
             (transactionType != TransactionType_v04.Buy && transactionType != TransactionType_v04.Sell))
         {
-          if (fields[buySellIndex] == "Advance Trade Buy")
+          if (transactionTypeField == "Advance Trade Buy" ||
+              transactionTypeField == "Advanced Trade Buy")
           {
             transactionType = TransactionType_v04.Buy;
           }
-          else if (fields[buySellIndex] == "Advance Trade Sell")
+          else if (transactionTypeField == "Advance Trade Sell" ||
+                   transactionTypeField == "Advanced Trade Sell")
           {
             transactionType = TransactionType_v04.Sell;
           }
@@ -219,17 +226,17 @@ namespace CryptoProfiteer
           throw new Exception($"CSV line {lineNumber} has non-numeric field {coinCountIndex + 1} \"{fields[coinCountIndex]}\"; expected numeric value such as \"3.17\"");
         }
 
-        if (!Decimal.TryParse(fields[perCoinPriceIndex], NumberStyles.Float, CultureInfo.InvariantCulture, out var perCoinPrice))
+        if (!Decimal.TryParse(fields[perCoinPriceIndex].Replace("$", ""), NumberStyles.Float, CultureInfo.InvariantCulture, out var perCoinPrice))
         {
           throw new Exception($"CSV line {lineNumber} has non-numeric field {perCoinPriceIndex + 1} \"{fields[perCoinPriceIndex]}\"; expected numeric value such as \"3.17\"");
         }
 
-        if (!Decimal.TryParse(fields[feeIndex], NumberStyles.Float, CultureInfo.InvariantCulture, out var fee))
+        if (!Decimal.TryParse(fields[feeIndex].Replace("$",""), NumberStyles.Float, CultureInfo.InvariantCulture, out var fee))
         {
           throw new Exception($"CSV line {lineNumber} has non-numeric field {feeIndex + 1} \"{fields[feeIndex]}\"; expected numeric value such as \"3.17\"");
         }
 
-        if (!Decimal.TryParse(fields[totalCostIndex], NumberStyles.Float, CultureInfo.InvariantCulture, out var totalCost))
+        if (!Decimal.TryParse(fields[totalCostIndex].Replace("$", ""), NumberStyles.Float, CultureInfo.InvariantCulture, out var totalCost))
         {
           throw new Exception($"CSV line {lineNumber} has non-numeric field {totalCostIndex + 1} \"{fields[totalCostIndex]}\"; expected numeric value such as \"3.17\"");
         }

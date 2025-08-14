@@ -98,7 +98,7 @@ namespace CryptoProfiteer
       {
         try
         {
-          var url = $"https://api.pro.coinbase.com/currencies";
+          var url = $"https://api.exchange.coinbase.com/currencies";
           var request = new HttpRequestMessage(HttpMethod.Get, url);
           request.Headers.Add("Accept", "application/json");
           request.Headers.Add("User-Agent", HttpClientSingleton.UserAgent);

@@ -66,13 +66,13 @@ namespace CryptoProfiteer
       : _taxablePaymentValueUsd;
 
     public Decimal? ReceivedPerCoinCostUsd => _receivedPerCoinCostUsd == null ? 
-      ReceivedValueUsd == null 
+      (ReceivedValueUsd == null || (double)ReceivedCoinCount == 0)
         ? null 
         : MathOrNull(() => _receivedPerCoinCostUsd = ReceivedValueUsd.Value / ReceivedCoinCount)
       : _receivedPerCoinCostUsd;
 
     public Decimal? PaymentPerCoinCostUsd => _paymentPerCoinCostUsd == null ? 
-      PaymentValueUsd == null 
+      (PaymentValueUsd == null || (double)PaymentCoinCount == 0)
         ? null 
         : MathOrNull(() => _paymentPerCoinCostUsd = PaymentValueUsd.Value / PaymentCoinCount)
       : _paymentPerCoinCostUsd;

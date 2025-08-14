@@ -102,7 +102,7 @@ namespace CryptoProfiteer
         {
           // infer the payment exchange rate via the received value exchange rate
           var totalValueUsd = o.ReceivedPerCoinCostUsd.Value * o.ReceivedCoinCount;
-          var paymentPerCoinCostUsd = MathOrNull(() => totalValueUsd / o.PaymentCoinCount);
+          var paymentPerCoinCostUsd = (double)o.PaymentCoinCount == 0 ? null : MathOrNull(() => totalValueUsd / o.PaymentCoinCount);
           return paymentPerCoinCostUsd.FormatPricePerCoinUsd() + " per " + o.PaymentCoinType;
         }
         else
@@ -120,7 +120,7 @@ namespace CryptoProfiteer
         {
           // infer the received value exchange rate via the payment exchange rate
           var totalValueUsd = o.PaymentPerCoinCostUsd.Value * o.PaymentCoinCount;
-          var receivedPerCoinCostUsd = MathOrNull(() => totalValueUsd / o.ReceivedCoinCount);
+          var receivedPerCoinCostUsd = (double)o.ReceivedCoinCount == 0 ? null : MathOrNull(() => totalValueUsd / o.ReceivedCoinCount);
           return receivedPerCoinCostUsd.FormatPricePerCoinUsd() + " per " + o.ReceivedCoinType;
         }
         else
@@ -157,7 +157,7 @@ namespace CryptoProfiteer
       {
         // infer the payment exchange rate via the received value exchange rate
         var totalValueUsd = o.ReceivedPerCoinCostUsd.Value * o.ReceivedCoinCount;
-        var paymentPerCoinCostUsd = MathOrNull(() => totalValueUsd / o.PaymentCoinCount);
+        var paymentPerCoinCostUsd = (double)o.PaymentCoinCount == 0 ? null : MathOrNull(() => totalValueUsd / o.PaymentCoinCount);
         return paymentPerCoinCostUsd;
       }
       return null;
@@ -169,7 +169,7 @@ namespace CryptoProfiteer
       {
         // infer the received value exchange rate via the payment exchange rate
         var totalValueUsd = o.PaymentPerCoinCostUsd.Value * o.PaymentCoinCount;
-        var receivedPerCoinCostUsd = MathOrNull(() => totalValueUsd / o.ReceivedCoinCount);
+        var receivedPerCoinCostUsd = (double)o.ReceivedCoinCount == 0 ? null : MathOrNull(() => totalValueUsd / o.ReceivedCoinCount);
         return receivedPerCoinCostUsd;
       }
       return null;
