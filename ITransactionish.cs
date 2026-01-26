@@ -10,7 +10,7 @@ namespace CryptoProfiteer
     TransactionType TransactionType { get; }
     CryptoExchange Exchange { get; }
     DateTime Time { get; }
-    
+
     string ReceivedCoinType { get; }
     string PaymentCoinType { get; }
 
@@ -19,11 +19,11 @@ namespace CryptoProfiteer
 
     Decimal? ReceivedValueUsd { get; }
     Decimal? PaymentValueUsd { get; }
-    
+
     Decimal? ReceivedPerCoinCostUsd { get; }
     Decimal? PaymentPerCoinCostUsd { get; }
   }
-  
+
   public static class TransactionishExtensions
   {
     public static string FormatExplanation(this ITransactionish o, string contextualCoinType = null)
@@ -53,7 +53,8 @@ namespace CryptoProfiteer
 
         return $"Acquired {o.ReceivedCoinType}, Paid {o.PaymentCoinType}";
       }
-      else return o.TransactionType.ToString();
+      else
+        return o.TransactionType.ToString();
     }
 
     public static string FormatCoinCountChange(this ITransactionish o, string contextualCoinType = null)
@@ -68,8 +69,10 @@ namespace CryptoProfiteer
       }
       else
       {
-        return "+" + o.ReceivedCoinCount.FormatCoinCount(o.ReceivedCoinType) +
-          " / -" + o.PaymentCoinCount.FormatCoinCount(o.PaymentCoinType);
+        return "+"
+          + o.ReceivedCoinCount.FormatCoinCount(o.ReceivedCoinType)
+          + " / -"
+          + o.PaymentCoinCount.FormatCoinCount(o.PaymentCoinType);
       }
     }
 
@@ -79,7 +82,7 @@ namespace CryptoProfiteer
       {
         return string.Empty;
       }
-      
+
       if (o.TransactionType == TransactionType.FuturesPnl)
       {
         if (o.PaymentCoinCount > 0)
@@ -102,7 +105,8 @@ namespace CryptoProfiteer
         {
           // infer the payment exchange rate via the received value exchange rate
           var totalValueUsd = o.ReceivedPerCoinCostUsd.Value * o.ReceivedCoinCount;
-          var paymentPerCoinCostUsd = (double)o.PaymentCoinCount == 0 ? null : MathOrNull(() => totalValueUsd / o.PaymentCoinCount);
+          var paymentPerCoinCostUsd =
+            (double)o.PaymentCoinCount == 0 ? null : MathOrNull(() => totalValueUsd / o.PaymentCoinCount);
           return paymentPerCoinCostUsd.FormatPricePerCoinUsd() + " per " + o.PaymentCoinType;
         }
         else
@@ -120,7 +124,8 @@ namespace CryptoProfiteer
         {
           // infer the received value exchange rate via the payment exchange rate
           var totalValueUsd = o.PaymentPerCoinCostUsd.Value * o.PaymentCoinCount;
-          var receivedPerCoinCostUsd = (double)o.ReceivedCoinCount == 0 ? null : MathOrNull(() => totalValueUsd / o.ReceivedCoinCount);
+          var receivedPerCoinCostUsd =
+            (double)o.ReceivedCoinCount == 0 ? null : MathOrNull(() => totalValueUsd / o.ReceivedCoinCount);
           return receivedPerCoinCostUsd.FormatPricePerCoinUsd() + " per " + o.ReceivedCoinType;
         }
         else
@@ -131,14 +136,22 @@ namespace CryptoProfiteer
       else
       {
         // don't print USDT value if it's basically $1.00
-        if (SomeUtils.IsBasicallyUsd(o.PaymentCoinType) && !SomeUtils.IsBasicallyUsd(o.ReceivedCoinType) &&
-            o.PaymentPerCoinCostUsd > 0.99m && o.PaymentPerCoinCostUsd < 1.01m)
+        if (
+          SomeUtils.IsBasicallyUsd(o.PaymentCoinType)
+          && !SomeUtils.IsBasicallyUsd(o.ReceivedCoinType)
+          && o.PaymentPerCoinCostUsd > 0.99m
+          && o.PaymentPerCoinCostUsd < 1.01m
+        )
         {
           // tee hee! spooky recursion, assumes ReceivedCoinType and PaymentCoinType are never null!
           return o.FormatExchangeRateUsd(o.ReceivedCoinType);
         }
-        else if (!SomeUtils.IsBasicallyUsd(o.PaymentCoinType) && SomeUtils.IsBasicallyUsd(o.ReceivedCoinType) &&
-          o.ReceivedPerCoinCostUsd > 0.99m && o.ReceivedPerCoinCostUsd < 1.01m)
+        else if (
+          !SomeUtils.IsBasicallyUsd(o.PaymentCoinType)
+          && SomeUtils.IsBasicallyUsd(o.ReceivedCoinType)
+          && o.ReceivedPerCoinCostUsd > 0.99m
+          && o.ReceivedPerCoinCostUsd < 1.01m
+        )
         {
           // tee hee! spooky recursion, assumes ReceivedCoinType and PaymentCoinType are never null!
           return o.FormatExchangeRateUsd(o.PaymentCoinType);
@@ -150,31 +163,33 @@ namespace CryptoProfiteer
         }
       }
     }
-    
+
     public static Decimal? GetInferredPaymentPerCoinCostUsd(this ITransactionish o)
     {
       if (o.ReceivedPerCoinCostUsd != null)
       {
         // infer the payment exchange rate via the received value exchange rate
         var totalValueUsd = o.ReceivedPerCoinCostUsd.Value * o.ReceivedCoinCount;
-        var paymentPerCoinCostUsd = (double)o.PaymentCoinCount == 0 ? null : MathOrNull(() => totalValueUsd / o.PaymentCoinCount);
+        var paymentPerCoinCostUsd =
+          (double)o.PaymentCoinCount == 0 ? null : MathOrNull(() => totalValueUsd / o.PaymentCoinCount);
         return paymentPerCoinCostUsd;
       }
       return null;
     }
-    
+
     public static Decimal? GetInferredReceivedPerCoinCostUsd(this ITransactionish o)
     {
       if (o.PaymentPerCoinCostUsd != null)
       {
         // infer the received value exchange rate via the payment exchange rate
         var totalValueUsd = o.PaymentPerCoinCostUsd.Value * o.PaymentCoinCount;
-        var receivedPerCoinCostUsd = (double)o.ReceivedCoinCount == 0 ? null : MathOrNull(() => totalValueUsd / o.ReceivedCoinCount);
+        var receivedPerCoinCostUsd =
+          (double)o.ReceivedCoinCount == 0 ? null : MathOrNull(() => totalValueUsd / o.ReceivedCoinCount);
         return receivedPerCoinCostUsd;
       }
       return null;
     }
-    
+
     private static Decimal? MathOrNull(Func<Decimal?> math)
     {
       try

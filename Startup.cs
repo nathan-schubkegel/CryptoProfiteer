@@ -1,14 +1,14 @@
+using System;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using CryptoProfiteer.TradeBots;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using System;
-using System.IO;
-using System.Linq;
-using System.Reflection;
-using CryptoProfiteer.TradeBots;
 
 namespace CryptoProfiteer
 {
@@ -28,7 +28,7 @@ namespace CryptoProfiteer
       services.AddControllersWithViews();
 
       services.AddHostedService<PersistenceService>();
-      
+
       services.AddSingleton<PriceService>();
       services.AddSingleton<IPriceService>(sp => sp.GetRequiredService<PriceService>());
       services.AddHostedService(sp => sp.GetRequiredService<PriceService>());
@@ -42,7 +42,7 @@ namespace CryptoProfiteer
       services.AddSingleton<HistoricalCoinPriceService>();
       services.AddSingleton<IHistoricalCoinPriceService>(sp => sp.GetRequiredService<HistoricalCoinPriceService>());
       services.AddHostedService(sp => sp.GetRequiredService<HistoricalCoinPriceService>());
-      
+
       services.AddSingleton<Services>(sp => new Services
       {
         FriendlyNameService = sp.GetRequiredService<IFriendlyNameService>(),
@@ -54,11 +54,13 @@ namespace CryptoProfiteer
       services.AddSingleton<ICandleService, CandleService>();
       services.AddSingleton<IHttpClientSingleton, HttpClientSingleton>();
       services.AddSingleton<IBotProvingService, BotProvingService>();
-      
-      services.AddControllers().AddJsonOptions(options =>
-      {
-        options.JsonSerializerOptions.WriteIndented = true;
-      });
+
+      services
+        .AddControllers()
+        .AddJsonOptions(options =>
+        {
+          options.JsonSerializerOptions.WriteIndented = true;
+        });
     }
 
     // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -82,9 +84,7 @@ namespace CryptoProfiteer
       app.UseEndpoints(endpoints =>
       {
         endpoints.MapRazorPages();
-        endpoints.MapControllerRoute(
-          name: "default",
-          pattern: "{controller=TheController}/{action=Index}/{id?}");
+        endpoints.MapControllerRoute(name: "default", pattern: "{controller=TheController}/{action=Index}/{id?}");
       });
     }
   }

@@ -15,24 +15,26 @@ namespace CryptoProfiteer.Pages
     private readonly IHistoricalCoinPriceService _historicalCoinPriceService;
     private readonly IFriendlyNameService _friendlyNameService;
 
-    public BotProofModel(ILogger<BotProofModel> logger,
+    public BotProofModel(
+      ILogger<BotProofModel> logger,
       ICandleService candleService,
       IHistoricalCoinPriceService historicalCoinPriceService,
-      IFriendlyNameService friendlyNameService)
+      IFriendlyNameService friendlyNameService
+    )
     {
       _logger = logger;
       _candleService = candleService;
       _historicalCoinPriceService = historicalCoinPriceService;
       _friendlyNameService = friendlyNameService;
     }
-    
-    public ICandleService CandleService => _candleService;
-    
-    public IEnumerable<(string MachineName, string FriendlyName)> CoinTypes => 
-      _historicalCoinPriceService.CoinbaseCoinTypes.Select(x => (x, _friendlyNameService.GetOrCreateFriendlyName(x).Value));
 
-    public void OnGet()
-    {
-    }
+    public ICandleService CandleService => _candleService;
+
+    public IEnumerable<(string MachineName, string FriendlyName)> CoinTypes =>
+      _historicalCoinPriceService.CoinbaseCoinTypes.Select(x =>
+        (x, _friendlyNameService.GetOrCreateFriendlyName(x).Value)
+      );
+
+    public void OnGet() { }
   }
 }

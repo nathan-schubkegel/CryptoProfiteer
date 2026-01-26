@@ -18,11 +18,9 @@ namespace CryptoProfiteer.Pages
       _logger = logger;
       _candleService = candleService;
     }
-    
+
     public ICandleService CandleService => _candleService;
 
-    public void OnGet()
-    {
-    }
+    public void OnGet() { }
   }
 }

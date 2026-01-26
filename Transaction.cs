@@ -8,7 +8,7 @@ namespace CryptoProfiteer
   {
     private readonly PersistedTransaction _data;
     private readonly Services _services;
-    
+
     private Decimal? _receivedValueUsd;
     private Decimal? _paymentValueUsd;
     private Decimal? _receivedPerCoinCostUsd;
@@ -27,46 +27,54 @@ namespace CryptoProfiteer
       _ = ReceivedPerCoinCostUsd;
       _ = PaymentPerCoinCostUsd;
     }
-    
+
     public string Id => _data.Id;
     public string OrderAggregationId => _data.OrderAggregationId;
     public TransactionType TransactionType => _data.TransactionType;
     public CryptoExchange Exchange => _data.Exchange;
     public DateTime Time => _data.Time;
-    
+
     public string ReceivedCoinType => _data.ReceivedCoinType;
     public string PaymentCoinType => _data.PaymentCoinType;
 
     public Decimal ReceivedCoinCount => _data.ReceivedCoinCount;
     public Decimal PaymentCoinCount => _data.PaymentCoinCount;
 
-    public Decimal? ReceivedValueUsd => _receivedValueUsd == null
-      ? (_receivedValueUsd = _services.HistoricalCoinPriceService.ToUsd(ReceivedCoinCount, ReceivedCoinType, Time))
-      : _receivedValueUsd;
+    public Decimal? ReceivedValueUsd =>
+      _receivedValueUsd == null
+        ? (_receivedValueUsd = _services.HistoricalCoinPriceService.ToUsd(ReceivedCoinCount, ReceivedCoinType, Time))
+        : _receivedValueUsd;
 
-    public Decimal? PaymentValueUsd => _paymentValueUsd == null
-      ? (_paymentValueUsd = _services.HistoricalCoinPriceService.ToUsd(PaymentCoinCount, PaymentCoinType, Time))
-      : _paymentValueUsd;
-    
-    public Decimal? ReceivedPerCoinCostUsd => _receivedPerCoinCostUsd == null ? 
-      (ReceivedValueUsd == null || (double)ReceivedCoinCount == 0)
-        ? null 
-        : MathOrNull(() => _receivedPerCoinCostUsd = ReceivedValueUsd.Value / ReceivedCoinCount)
-      : _receivedPerCoinCostUsd;
+    public Decimal? PaymentValueUsd =>
+      _paymentValueUsd == null
+        ? (_paymentValueUsd = _services.HistoricalCoinPriceService.ToUsd(PaymentCoinCount, PaymentCoinType, Time))
+        : _paymentValueUsd;
 
-    public Decimal? PaymentPerCoinCostUsd => _paymentPerCoinCostUsd == null ? 
-      (PaymentValueUsd == null || (double)PaymentCoinCount == 0)
-        ? null 
-        : MathOrNull(() => _paymentPerCoinCostUsd = PaymentValueUsd.Value / PaymentCoinCount)
-      : _paymentPerCoinCostUsd;
+    public Decimal? ReceivedPerCoinCostUsd =>
+      _receivedPerCoinCostUsd == null
+        ? (ReceivedValueUsd == null || (double)ReceivedCoinCount == 0)
+          ? null
+          : MathOrNull(() => _receivedPerCoinCostUsd = ReceivedValueUsd.Value / ReceivedCoinCount)
+        : _receivedPerCoinCostUsd;
+
+    public Decimal? PaymentPerCoinCostUsd =>
+      _paymentPerCoinCostUsd == null
+        ? (PaymentValueUsd == null || (double)PaymentCoinCount == 0)
+          ? null
+          : MathOrNull(() => _paymentPerCoinCostUsd = PaymentValueUsd.Value / PaymentCoinCount)
+        : _paymentPerCoinCostUsd;
 
     // ListPrice is the transfer rate claimed by the exchange, before fees
     // ListPrice is "how many of this coin for 1 of the other kind of coin"
-    public Decimal PaymentCoinsPerReceivedCoinListPrice => _paymentCoinsPerReceivedCoinListPrice != 0m ? _paymentCoinsPerReceivedCoinListPrice :
-      (_paymentCoinsPerReceivedCoinListPrice = _data.ListPrice >= 0 ? _data.ListPrice : 1 / -_data.ListPrice);
+    public Decimal PaymentCoinsPerReceivedCoinListPrice =>
+      _paymentCoinsPerReceivedCoinListPrice != 0m
+        ? _paymentCoinsPerReceivedCoinListPrice
+        : (_paymentCoinsPerReceivedCoinListPrice = _data.ListPrice >= 0 ? _data.ListPrice : 1 / -_data.ListPrice);
 
-    public Decimal ReceivedCoinsPerPaymentCoinListPrice => _receivedCoinsPerPaymentCoinListPrice != 0m ? _receivedCoinsPerPaymentCoinListPrice :
-      (_receivedCoinsPerPaymentCoinListPrice = _data.ListPrice <= 0 ? -_data.ListPrice : 1 / _data.ListPrice);
+    public Decimal ReceivedCoinsPerPaymentCoinListPrice =>
+      _receivedCoinsPerPaymentCoinListPrice != 0m
+        ? _receivedCoinsPerPaymentCoinListPrice
+        : (_receivedCoinsPerPaymentCoinListPrice = _data.ListPrice <= 0 ? -_data.ListPrice : 1 / _data.ListPrice);
 
     private static Decimal? MathOrNull(Func<Decimal?> math)
     {

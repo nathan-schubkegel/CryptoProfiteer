@@ -25,13 +25,17 @@ namespace CryptoProfiteer.Pages
       switch (sortBy)
       {
         default:
-        case "cashValue": return values.OrderByDescending(x => x.CashValue).ThenBy(x => x.CoinType);
-        case "cashValueAscending": return values.OrderBy(x => x.CashValue).ThenBy(x => x.CoinType);
-        case "coinTypeDescending": return values.OrderByDescending(x => x.CoinType);
-        case "coinType": return values.OrderBy(x => x.CoinType);
+        case "cashValue":
+          return values.OrderByDescending(x => x.CashValue).ThenBy(x => x.CoinType);
+        case "cashValueAscending":
+          return values.OrderBy(x => x.CashValue).ThenBy(x => x.CoinType);
+        case "coinTypeDescending":
+          return values.OrderByDescending(x => x.CoinType);
+        case "coinType":
+          return values.OrderBy(x => x.CoinType);
       }
     }
-    
+
     public Dictionary<string, List<Order>> OrdersByCoinType(string sortBy = null)
     {
       var result = new Dictionary<string, List<Order>>();
@@ -45,7 +49,7 @@ namespace CryptoProfiteer.Pages
           result[o.ReceivedCoinType] = bucket;
         }
         bucket.Add(o);
-        
+
         // account for payment coin type
         if (!result.TryGetValue(o.PaymentCoinType, out bucket))
         {
@@ -53,28 +57,30 @@ namespace CryptoProfiteer.Pages
           result[o.PaymentCoinType] = bucket;
         }
         bucket.Add(o);
-        
+
         // account for adjustments to USD
-        if (bucket.Count >= 2 && bucket[bucket.Count - 1] == bucket[bucket.Count - 2]) bucket.RemoveAt(bucket.Count - 1);
+        if (bucket.Count >= 2 && bucket[bucket.Count - 1] == bucket[bucket.Count - 2])
+          bucket.RemoveAt(bucket.Count - 1);
       }
-      
+
       foreach (var coinType in result.Keys.ToList())
       {
         var values = result[coinType];
         switch (sortBy)
         {
           default:
-          case "date": result[coinType] = values.OrderByDescending(x => x.Time).ToList(); break;
-          case "dateAscending": result[coinType] = values.OrderBy(x => x.Time).ToList(); break;
+          case "date":
+            result[coinType] = values.OrderByDescending(x => x.Time).ToList();
+            break;
+          case "dateAscending":
+            result[coinType] = values.OrderBy(x => x.Time).ToList();
+            break;
         }
       }
-      
+
       return result;
     }
 
-    public void OnGet()
-    {
-
-    }
+    public void OnGet() { }
   }
 }

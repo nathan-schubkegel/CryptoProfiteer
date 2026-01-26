@@ -7,7 +7,7 @@ namespace CryptoProfiteer.TradeBots.Messages
   {
     // The amount of USD to spend now, or null to spend none.
     public Decimal? UsdToSpend;
-    
+
     // Decision-making note to add to the log output. May be null if not needed.
     public string Note;
   }

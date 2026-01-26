@@ -1,11 +1,11 @@
-using Microsoft.Extensions.Hosting;
-using System.Threading;
-using System.Threading.Tasks;
-using System.IO;
-using System.Linq;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
@@ -27,15 +27,21 @@ namespace CryptoProfiteer
     // 'purchaseOrderUpdates' may be null when pinning adjustments
     // 'purchaseIdToPinSaleProceedsFudge' may be null to not do that
     // Returns the new/modified TaxAssociation ID
-    string UpdateTaxAssociation(string taxAssociationId, string saleOrderId,
+    string UpdateTaxAssociation(
+      string taxAssociationId,
+      string saleOrderId,
       (string orderId, Decimal contributingCoinCount)[] purchaseOrderUpdates,
-      string purchaseIdToPinSaleProceedsFudge);
+      string purchaseIdToPinSaleProceedsFudge
+    );
 
     void DeleteTaxAssociation(string taxAssociationId);
     string AddAdjustment(string coinType, decimal coinCount);
     void DeleteAdjustment(string transactionId);
 
-    (IEnumerable<PersistedTransaction> Transactions, IEnumerable<PersistedTaxAssociation> TaxAssociations) ClonePersistedData();
+    (
+      IEnumerable<PersistedTransaction> Transactions,
+      IEnumerable<PersistedTaxAssociation> TaxAssociations
+    ) ClonePersistedData();
   }
 
   public class DataService : IDataService
@@ -47,16 +53,20 @@ namespace CryptoProfiteer
     private readonly Services _services;
 
     public IEnumerable<string> CoinTypes { get; private set; } = Enumerable.Empty<string>();
-    public IReadOnlyDictionary<string, Transaction> Transactions { get; private set; } = new Dictionary<string, Transaction>();
+    public IReadOnlyDictionary<string, Transaction> Transactions { get; private set; } =
+      new Dictionary<string, Transaction>();
     public IReadOnlyDictionary<string, Order> Orders { get; private set; } = new Dictionary<string, Order>();
-    public IReadOnlyDictionary<string, CoinSummary> CoinSummaries { get; private set; } = new Dictionary<string, CoinSummary>();
-    public IReadOnlyDictionary<string, TaxAssociation> TaxAssociations { get; private set; } = new Dictionary<string, TaxAssociation>();
-    
+    public IReadOnlyDictionary<string, CoinSummary> CoinSummaries { get; private set; } =
+      new Dictionary<string, CoinSummary>();
+    public IReadOnlyDictionary<string, TaxAssociation> TaxAssociations { get; private set; } =
+      new Dictionary<string, TaxAssociation>();
+
     public DataService(
       ILogger<DataService> logger,
       IFriendlyNameService friendlyNameService,
       IPriceService priceService,
-      Services services)
+      Services services
+    )
     {
       _logger = logger;
       _friendlyNameService = friendlyNameService;
@@ -72,15 +82,13 @@ namespace CryptoProfiteer
         var newTransactions = new Dictionary<string, Transaction>(Transactions);
         foreach (var t in importedTransactions)
         {
-          newTransactions[t.Id] = new Transaction(
-            t ?? throw new Exception("invalid null transaction"),
-            _services);
+          newTransactions[t.Id] = new Transaction(t ?? throw new Exception("invalid null transaction"), _services);
         }
 
         var (newOrders, newCoinTypes) = BuildOrdersAndCoinTypes(newTransactions);
         var newCoinSummaries = BuildCoinSummaries(newTransactions);
         var newTaxAssociations = ImportTaxAssociations(new List<PersistedTaxAssociation>(0), newOrders);
-        
+
         CoinTypes = newCoinTypes;
         Transactions = newTransactions;
         Orders = newOrders;
@@ -90,15 +98,19 @@ namespace CryptoProfiteer
     }
 
     private (Dictionary<string, Order>, HashSet<string>) BuildOrdersAndCoinTypes(
-      IReadOnlyDictionary<string, Transaction> transactions)
+      IReadOnlyDictionary<string, Transaction> transactions
+    )
     {
       var coinTypes = new HashSet<string>();
       var newOrders = new Dictionary<string, Order>();
       var orderTransactions = new List<Transaction>();
-      
+
       // some transactions (like from kucoin) are aggregated perfectly by order id; so group those with zeal
-      foreach (var kGroup in transactions.Values.Where(x => x.OrderAggregationId != null)
-        .GroupBy(x => (x.PaymentCoinType, x.ReceivedCoinType, x.Exchange, x.TransactionType, x.OrderAggregationId)))
+      foreach (
+        var kGroup in transactions
+          .Values.Where(x => x.OrderAggregationId != null)
+          .GroupBy(x => (x.PaymentCoinType, x.ReceivedCoinType, x.Exchange, x.TransactionType, x.OrderAggregationId))
+      )
       {
         var order = new Order(kGroup.ToList(), _services);
         newOrders[order.Id] = order;
@@ -107,8 +119,11 @@ namespace CryptoProfiteer
       }
 
       // some transactions (like fills from coinbase pro without associated account statements) have no order id
-      foreach (var tGroup in transactions.Values.Where(x => x.OrderAggregationId == null)
-        .GroupBy(x => (x.PaymentCoinType, x.ReceivedCoinType, x.Exchange, x.TransactionType, x.OrderAggregationId)))
+      foreach (
+        var tGroup in transactions
+          .Values.Where(x => x.OrderAggregationId == null)
+          .GroupBy(x => (x.PaymentCoinType, x.ReceivedCoinType, x.Exchange, x.TransactionType, x.OrderAggregationId))
+      )
       {
         foreach (var t in tGroup.OrderBy(x => x.Time))
         {
@@ -117,7 +132,7 @@ namespace CryptoProfiteer
             orderTransactions.Add(t);
             continue;
           }
-          
+
           // consider fills within the same second to be part of the same order
           // (this won't be 100% reliable when I start doing bot trading... but it's true enough for a single human doing purchases)
           var difference = orderTransactions[0].Time - t.Time;
@@ -126,7 +141,7 @@ namespace CryptoProfiteer
             orderTransactions.Add(t);
             continue;
           }
-          
+
           var order = new Order(orderTransactions, _services);
           newOrders[order.Id] = order;
           coinTypes.Add(order.PaymentCoinType);
@@ -148,9 +163,8 @@ namespace CryptoProfiteer
 
       return (newOrders, coinTypes);
     }
-    
-    private Dictionary<string, CoinSummary> BuildCoinSummaries(
-      IReadOnlyDictionary<string, Transaction> transactions)
+
+    private Dictionary<string, CoinSummary> BuildCoinSummaries(IReadOnlyDictionary<string, Transaction> transactions)
     {
       // tally how much of each coin is held based on transactions
       var coinCounts = new Dictionary<string, Decimal>();
@@ -160,13 +174,13 @@ namespace CryptoProfiteer
         var coins = coinCounts.GetValueOrDefault(t.ReceivedCoinType, 0m);
         coins += t.ReceivedCoinCount;
         coinCounts[t.ReceivedCoinType] = coins;
-        
+
         // account for payment coin type
         coins = coinCounts.GetValueOrDefault(t.PaymentCoinType, 0m);
         coins -= t.PaymentCoinCount;
         coinCounts[t.PaymentCoinType] = coins;
       }
-      
+
       // return a CoinSummary for each
       return coinCounts.ToDictionary(
         x => x.Key,
@@ -174,10 +188,11 @@ namespace CryptoProfiteer
           coinType: x.Key,
           friendlyName: _friendlyNameService.GetOrCreateFriendlyName(x.Key),
           coinCount: x.Value,
-          coinPrice: _priceService.TryGetCoinPrice(x.Key))
+          coinPrice: _priceService.TryGetCoinPrice(x.Key)
+        )
       );
     }
-    
+
     public void ImportTaxAssociations(IEnumerable<PersistedTaxAssociation> importedTaxAssociations)
     {
       lock (_lock)
@@ -186,10 +201,11 @@ namespace CryptoProfiteer
         TaxAssociations = newTaxAssociations;
       }
     }
-    
+
     private IReadOnlyDictionary<string, TaxAssociation> ImportTaxAssociations(
-      IEnumerable<PersistedTaxAssociation> importedTaxAssociations, 
-      IReadOnlyDictionary<string, Order> orders)
+      IEnumerable<PersistedTaxAssociation> importedTaxAssociations,
+      IReadOnlyDictionary<string, Order> orders
+    )
     {
       // combine all existing and proposed tax association data into 1 collection
       var persistedTaxAssociations = new Dictionary<string, PersistedTaxAssociation>();
@@ -220,7 +236,7 @@ namespace CryptoProfiteer
         {
           // TODO: this would feel like a "changed some state that was supposed to be immutable" fault
           //t.Purchases = t.Purchases.Where(x => !orderIdsToRemove.Contains(x.OrderId)).ToList();
-          
+
           // so... I'm going with the safer but more drastic move "just gonna drop the tax association"
           taxAssociationIdsToRemove.Add(t.Id);
         }
@@ -248,8 +264,9 @@ namespace CryptoProfiteer
 
       // produce public-facing objects
       var newTaxAssociations = persistedTaxAssociations.Values.ToDictionary(
-        t => t.Id, 
-        t => new TaxAssociation(t, orders));
+        t => t.Id,
+        t => new TaxAssociation(t, orders)
+      );
 
       return newTaxAssociations;
     }
@@ -268,9 +285,12 @@ namespace CryptoProfiteer
     // 'purchaseOrderUpdates' may be null when pinning adjustments
     // 'purchaseIdToPinSaleProceedsFudge' may be null to not do that
     // Returns the new/modified TaxAssociation ID
-    public string UpdateTaxAssociation(string taxAssociationId, string saleOrderId,
+    public string UpdateTaxAssociation(
+      string taxAssociationId,
+      string saleOrderId,
       (string orderId, Decimal contributingCoinCount)[] purchaseOrderUpdates,
-      string purchaseIdToPinSaleProceedsFudge)
+      string purchaseIdToPinSaleProceedsFudge
+    )
     {
       lock (_lock)
       {
@@ -281,18 +301,28 @@ namespace CryptoProfiteer
         {
           if (!Orders.TryGetValue(saleOrderId ?? string.Empty, out var saleOrder))
           {
-            throw new Exception("saleOrderId is empty or refers to unrecognized order, but it is required when creating a new tax association");
+            throw new Exception(
+              "saleOrderId is empty or refers to unrecognized order, but it is required when creating a new tax association"
+            );
           }
-          
+
           if (!saleOrder.IsTaxableFuturesGain && !saleOrder.IsTaxableFuturesLoss && !saleOrder.IsTaxableSale)
           {
-            throw new Exception($"cannot use order id \"{saleOrderId}\" as tax association sale order because it does not satisfy {nameof(Order)}.{nameof(Order.IsTaxableSale)} or {nameof(Order.IsTaxableFuturesGain)} or {nameof(Order.IsTaxableFuturesLoss)}");
+            throw new Exception(
+              $"cannot use order id \"{saleOrderId}\" as tax association sale order because it does not satisfy {nameof(Order)}.{nameof(Order.IsTaxableSale)} or {nameof(Order.IsTaxableFuturesGain)} or {nameof(Order.IsTaxableFuturesLoss)}"
+            );
           }
 
           var existingTaxAssociation = TaxAssociations.Values.FirstOrDefault(t => t.Sale.Order.Id == saleOrderId);
           if (existingTaxAssociation != null)
           {
-            throw new Exception("saleOrderId \"" + saleOrderId + "\" is already tax-associated, see tax association \"" + existingTaxAssociation.Id + "\"");
+            throw new Exception(
+              "saleOrderId \""
+                + saleOrderId
+                + "\" is already tax-associated, see tax association \""
+                + existingTaxAssociation.Id
+                + "\""
+            );
           }
 
           data = new PersistedTaxAssociation
@@ -308,7 +338,7 @@ namespace CryptoProfiteer
             throw new Exception("Cannot add to unrecognized TaxAssociation id \"" + taxAssociationId + "\"");
           }
           data = thing.ClonePersistedData();
-          
+
           if (string.IsNullOrEmpty(saleOrderId))
           {
             saleOrderId = data.SaleOrderId;
@@ -319,17 +349,25 @@ namespace CryptoProfiteer
           }
           else if (!saleOrder.IsTaxableFuturesGain && !saleOrder.IsTaxableFuturesLoss && !saleOrder.IsTaxableSale)
           {
-            throw new Exception($"cannot use order id \"{saleOrderId}\" as tax association sale order because it does not satisfy {nameof(Order)}.{nameof(Order.IsTaxableSale)} or {nameof(Order.IsTaxableFuturesGain)} or {nameof(Order.IsTaxableFuturesLoss)}");
+            throw new Exception(
+              $"cannot use order id \"{saleOrderId}\" as tax association sale order because it does not satisfy {nameof(Order)}.{nameof(Order.IsTaxableSale)} or {nameof(Order.IsTaxableFuturesGain)} or {nameof(Order.IsTaxableFuturesLoss)}"
+            );
           }
 
           var existingTaxAssociation = TaxAssociations.Values.FirstOrDefault(t => t.Sale.Order.Id == saleOrderId);
           if (existingTaxAssociation != null && existingTaxAssociation != thing)
           {
-            throw new Exception("saleOrderId \"" + saleOrderId + "\" is already tax-associated, see tax association \"" + existingTaxAssociation.Id + "\"");
+            throw new Exception(
+              "saleOrderId \""
+                + saleOrderId
+                + "\" is already tax-associated, see tax association \""
+                + existingTaxAssociation.Id
+                + "\""
+            );
           }
           data.SaleOrderId = saleOrderId;
         }
-        
+
         if (purchaseOrderUpdates != null)
         {
           var revisedPurchases = new List<PersistedTaxAssociationPurchase>(data.Purchases);
@@ -340,15 +378,21 @@ namespace CryptoProfiteer
             {
               throw new Exception("Cannot add unrecognized purchase order id \"" + orderId + "\" to tax association");
             }
-            
+
             if (!order.IsTaxablePurchase && !order.IsTaxableFuturesGain)
             {
-              throw new Exception($"cannot add order id \"{orderId}\" to tax association purchase orders because it does not satisfy {nameof(Order)}.{nameof(Order.IsTaxablePurchase)} or {nameof(Order.IsTaxableFuturesGain)}");
+              throw new Exception(
+                $"cannot add order id \"{orderId}\" to tax association purchase orders because it does not satisfy {nameof(Order)}.{nameof(Order.IsTaxablePurchase)} or {nameof(Order.IsTaxableFuturesGain)}"
+              );
             }
-            
+
             if (order.ReceivedCoinType == "USD")
             {
-              throw new Exception("cannot add order id \"" + orderId + "\" to tax association purchase orders because USD was received with this order (it was clearly a sale)");
+              throw new Exception(
+                "cannot add order id \""
+                  + orderId
+                  + "\" to tax association purchase orders because USD was received with this order (it was clearly a sale)"
+              );
             }
 
             // make new purchase data
@@ -372,7 +416,7 @@ namespace CryptoProfiteer
 
           data.Purchases = revisedPurchases;
         }
-        
+
         if (purchaseIdToPinSaleProceedsFudge != null)
         {
           var saleOrder = Orders[saleOrderId];
@@ -387,21 +431,24 @@ namespace CryptoProfiteer
               foundPurchase = p;
             }
           }
-          
+
           var newFudge = saleOrder.TaxableReceivedValueUsd - total;
-          if (newFudge == 0) newFudge = null;
+          if (newFudge == 0)
+            newFudge = null;
           if (foundPurchase == null)
           {
-            throw new Exception($"'{nameof(purchaseIdToPinSaleProceedsFudge)}' = {purchaseIdToPinSaleProceedsFudge} is not a purchase of the given tax association");
+            throw new Exception(
+              $"'{nameof(purchaseIdToPinSaleProceedsFudge)}' = {purchaseIdToPinSaleProceedsFudge} is not a purchase of the given tax association"
+            );
           }
           foundPurchase.SaleProceedsFudge = newFudge;
         }
-        
+
         ImportTaxAssociations(new[] { data });
         return data.Id;
       }
     }
-    
+
     public void DeleteTaxAssociation(string taxAssociationId)
     {
       lock (_lock)
@@ -411,23 +458,25 @@ namespace CryptoProfiteer
         {
           throw new Exception("Cannot delete unrecognized TaxAssociation id \"" + taxAssociationId + "\"");
         }
-        
-        TaxAssociations = TaxAssociations.Values.Where(a => a.Id != taxAssociationId)
-          .ToDictionary(a => a.Id, a => a);
+
+        TaxAssociations = TaxAssociations.Values.Where(a => a.Id != taxAssociationId).ToDictionary(a => a.Id, a => a);
       }
     }
-    
-    public (IEnumerable<PersistedTransaction> Transactions, IEnumerable<PersistedTaxAssociation> TaxAssociations) ClonePersistedData()
+
+    public (
+      IEnumerable<PersistedTransaction> Transactions,
+      IEnumerable<PersistedTaxAssociation> TaxAssociations
+    ) ClonePersistedData()
     {
       lock (_lock)
       {
         return (
-          Transactions.Values.Select(x => x.ClonePersistedData()), 
+          Transactions.Values.Select(x => x.ClonePersistedData()),
           TaxAssociations.Values.Select(x => x.ClonePersistedData())
         );
       }
     }
-    
+
     public string AddAdjustment(string coinType, decimal coinCount)
     {
       lock (_lock)
@@ -436,19 +485,24 @@ namespace CryptoProfiteer
         {
           throw new Exception("Unrecognized coin type; you can only adjust coins that you already own.");
         }
-        
+
         var id = "adjustment-" + Guid.NewGuid().ToString();
-        ImportTransactions(new [] { new PersistedTransaction
-        {
-          Id = id,
-          TransactionType = TransactionType.Adjustment,
-          Exchange = CryptoExchange.None,
-          Time = DateTime.UtcNow,
-          PaymentCoinType = coinCount < 0 ? coinType : "USD",
-          PaymentCoinCount = coinCount < 0 ? coinCount : 0m,
-          ReceivedCoinType = coinCount >= 0 ? coinType : "USD",
-          ReceivedCoinCount = coinCount >= 0 ? coinCount : 0m,
-        }});
+        ImportTransactions(
+          new[]
+          {
+            new PersistedTransaction
+            {
+              Id = id,
+              TransactionType = TransactionType.Adjustment,
+              Exchange = CryptoExchange.None,
+              Time = DateTime.UtcNow,
+              PaymentCoinType = coinCount < 0 ? coinType : "USD",
+              PaymentCoinCount = coinCount < 0 ? coinCount : 0m,
+              ReceivedCoinType = coinCount >= 0 ? coinType : "USD",
+              ReceivedCoinCount = coinCount >= 0 ? coinCount : 0m,
+            },
+          }
+        );
         return id;
       }
     }
@@ -458,8 +512,9 @@ namespace CryptoProfiteer
       lock (_lock)
       {
         var oldTransactions = Transactions;
-        var newTransactions = new Dictionary<string, Transaction>(Transactions.Where(
-          kvp => !(kvp.Key == tradeId && kvp.Value.TransactionType == TransactionType.Adjustment)));
+        var newTransactions = new Dictionary<string, Transaction>(
+          Transactions.Where(kvp => !(kvp.Key == tradeId && kvp.Value.TransactionType == TransactionType.Adjustment))
+        );
         try
         {
           Transactions = newTransactions;

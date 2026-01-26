@@ -29,12 +29,13 @@ namespace CryptoProfiteer
     public CryptoExchange Exchange { get; set; }
     public Decimal? PricePerCoinUsd { get; set; }
 
-    public PersistedHistoricalCoinPrice ToLatest() => new PersistedHistoricalCoinPrice
-    {
-      CoinType = CoinType,
-      Time = Time,
-      PricePerCoinUsd = PricePerCoinUsd,
-      Exchange = Exchange,
-    };
+    public PersistedHistoricalCoinPrice ToLatest() =>
+      new PersistedHistoricalCoinPrice
+      {
+        CoinType = CoinType,
+        Time = Time,
+        PricePerCoinUsd = PricePerCoinUsd,
+        Exchange = Exchange,
+      };
   }
 }

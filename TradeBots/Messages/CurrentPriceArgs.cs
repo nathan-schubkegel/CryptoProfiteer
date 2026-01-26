@@ -7,7 +7,7 @@ namespace CryptoProfiteer.TradeBots.Messages
   {
     // The time this price was determined.
     public DateTime Time;
-    
+
     // The coin's price.
     public Decimal PerCoinPrice;
   }

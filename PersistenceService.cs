@@ -1,10 +1,10 @@
-using Microsoft.Extensions.Hosting;
-using System.Threading;
-using System.Threading.Tasks;
-using System.IO;
-using System.Linq;
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
@@ -18,8 +18,11 @@ namespace CryptoProfiteer
     private readonly string _dataFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "data.json");
     private string _lastSavedData;
 
-    public PersistenceService(ILogger<PersistenceService> logger, IDataService dataService,
-      IHistoricalCoinPriceService historicalCoinPriceService)
+    public PersistenceService(
+      ILogger<PersistenceService> logger,
+      IDataService dataService,
+      IHistoricalCoinPriceService historicalCoinPriceService
+    )
     {
       _logger = logger;
       _dataService = dataService;
@@ -37,60 +40,64 @@ namespace CryptoProfiteer
       TrySave(noTouchieFileSystem: true, (newData.Transactions, newData.TaxAssociations), newData.HistoricalCoinPrices);
 
       // NOTE: other services don't start until this method awaits
-      // and that is leveraged to 
+      // and that is leveraged to
       // 1.) defeat race condition of missing _dataService changes
       // 2.) make the application not start if it fails to load
       await Task.Yield();
-      
+
       try
       {
         while (!stoppingToken.IsCancellationRequested)
         {
-          TrySave(noTouchieFileSystem: false, _dataService.ClonePersistedData(), _historicalCoinPriceService.ClonePersistedData());
+          TrySave(
+            noTouchieFileSystem: false,
+            _dataService.ClonePersistedData(),
+            _historicalCoinPriceService.ClonePersistedData()
+          );
 
           await Task.Delay(1000, stoppingToken);
         }
       }
       finally
       {
-        TrySave(noTouchieFileSystem: false, _dataService.ClonePersistedData(), _historicalCoinPriceService.ClonePersistedData());
+        TrySave(
+          noTouchieFileSystem: false,
+          _dataService.ClonePersistedData(),
+          _historicalCoinPriceService.ClonePersistedData()
+        );
       }
     }
 
-    private void TrySave(bool noTouchieFileSystem, 
+    private void TrySave(
+      bool noTouchieFileSystem,
       (IEnumerable<PersistedTransaction> Transactions, IEnumerable<PersistedTaxAssociation> TaxAssociations) dataToSave,
-      IEnumerable<PersistedHistoricalCoinPrice> historicalCoinPrices)
+      IEnumerable<PersistedHistoricalCoinPrice> historicalCoinPrices
+    )
     {
       var toSave = new PersistenceData
       {
-        Transactions = dataToSave.Transactions
-          .OrderBy(x => x.Time)
-          .ThenBy(x => x.Id)
-          .ToList(),
-          
-        TaxAssociations = dataToSave.TaxAssociations
-          .OrderBy(x => x.Id)
-          .ToList(),
-          
-        HistoricalCoinPrices = historicalCoinPrices
-          .OrderBy(x => x.Time)
-          .ThenBy(x => x.CoinType)
-          .ToList()
+        Transactions = dataToSave.Transactions.OrderBy(x => x.Time).ThenBy(x => x.Id).ToList(),
+
+        TaxAssociations = dataToSave.TaxAssociations.OrderBy(x => x.Id).ToList(),
+
+        HistoricalCoinPrices = historicalCoinPrices.OrderBy(x => x.Time).ThenBy(x => x.CoinType).ToList(),
       };
-      
+
       // TODO: I'd really love to NOT be serializing all of my system state every second
       // just to see if it needs to be saved... but this works...
       var newData = JsonConvert.SerializeObject(toSave);
-      if (newData == _lastSavedData) return;
-      
+      if (newData == _lastSavedData)
+        return;
+
       _lastSavedData = newData;
-      
-      if (noTouchieFileSystem) return;
+
+      if (noTouchieFileSystem)
+        return;
 
       _logger.LogInformation("Saving " + _dataFilePath);
       try
       {
-        File.WriteAllLines(_dataFilePath, new[]{ toSave.FirstLine, newData });
+        File.WriteAllLines(_dataFilePath, new[] { toSave.FirstLine, newData });
       }
       catch (Exception ex)
       {

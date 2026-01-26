@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Globalization;
+using System.Linq;
 
 namespace CryptoProfiteer
 {
@@ -29,53 +29,69 @@ namespace CryptoProfiteer
 
     public Decimal? ReceivedValueUsd =>
       // if we traded for USD, then the fair market value was the USD we traded
-      PaymentCoinType == "USD" ? PaymentCoinCount :
-      _receivedValueUsd == null ? (
-        // Futures are simple
-        TransactionType == TransactionType.FuturesPnl ? (_receivedValueUsd = _services.HistoricalCoinPriceService.ToUsd(ReceivedCoinCount, ReceivedCoinType, Time)) :
-        // if we traded for something USD-ish, then use the fair market value of the USD-ish coin
-        // because I've received wildly different market prices (like 1.19 vs 1.3) from asking Kucoin's price history... don't stinkin' trust it anymore...
-        SomeUtils.IsBasicallyUsd(PaymentCoinType)
-          ? (_receivedValueUsd = _services.HistoricalCoinPriceService.ToUsd(PaymentCoinCount, PaymentCoinType, Time))
+      PaymentCoinType == "USD"
+        ? PaymentCoinCount
+      : _receivedValueUsd == null
+        ? (
+          // Futures are simple
+          TransactionType == TransactionType.FuturesPnl
+            ? (
+              _receivedValueUsd = _services.HistoricalCoinPriceService.ToUsd(ReceivedCoinCount, ReceivedCoinType, Time)
+            )
+          :
+          // if we traded for something USD-ish, then use the fair market value of the USD-ish coin
+          // because I've received wildly different market prices (like 1.19 vs 1.3) from asking Kucoin's price history... don't stinkin' trust it anymore...
+          SomeUtils.IsBasicallyUsd(PaymentCoinType)
+            ? (_receivedValueUsd = _services.HistoricalCoinPriceService.ToUsd(PaymentCoinCount, PaymentCoinType, Time))
           : (_receivedValueUsd = _services.HistoricalCoinPriceService.ToUsd(ReceivedCoinCount, ReceivedCoinType, Time))
-      ) : _receivedValueUsd;
+        )
+      : _receivedValueUsd;
 
     public Decimal? PaymentValueUsd =>
       // if we traded for USD, then the fair market value was the USD we traded
-      ReceivedCoinType == "USD" ? ReceivedCoinCount :
-      _paymentValueUsd == null ? (
-        // Futures are simple
-        TransactionType == TransactionType.FuturesPnl ? (_paymentValueUsd = _services.HistoricalCoinPriceService.ToUsd(PaymentCoinCount, PaymentCoinType, Time)) :
-        // if we traded for something USD-ish, then use the fair market value of the USD-ish coin
-        // because I've received wildly different market prices (like 1.19 vs 1.3) from asking Kucoin's price history... don't stinkin' trust it anymore...
-        SomeUtils.IsBasicallyUsd(ReceivedCoinType)
-          ? (_paymentValueUsd = _services.HistoricalCoinPriceService.ToUsd(ReceivedCoinCount, ReceivedCoinType, Time))
+      ReceivedCoinType == "USD"
+        ? ReceivedCoinCount
+      : _paymentValueUsd == null
+        ? (
+          // Futures are simple
+          TransactionType == TransactionType.FuturesPnl
+            ? (_paymentValueUsd = _services.HistoricalCoinPriceService.ToUsd(PaymentCoinCount, PaymentCoinType, Time))
+          :
+          // if we traded for something USD-ish, then use the fair market value of the USD-ish coin
+          // because I've received wildly different market prices (like 1.19 vs 1.3) from asking Kucoin's price history... don't stinkin' trust it anymore...
+          SomeUtils.IsBasicallyUsd(ReceivedCoinType)
+            ? (_paymentValueUsd = _services.HistoricalCoinPriceService.ToUsd(ReceivedCoinCount, ReceivedCoinType, Time))
           : (_paymentValueUsd = _services.HistoricalCoinPriceService.ToUsd(PaymentCoinCount, PaymentCoinType, Time))
-      ) : _paymentValueUsd;
+        )
+      : _paymentValueUsd;
 
-    public int? TaxableReceivedValueUsd => _taxableReceivedValueUsd == null ?
-      ReceivedValueUsd != null
-        ? (_taxableReceivedValueUsd = (int)Math.Round(ReceivedValueUsd.Value, MidpointRounding.AwayFromZero))
-        : null
-      : _taxableReceivedValueUsd;
+    public int? TaxableReceivedValueUsd =>
+      _taxableReceivedValueUsd == null
+        ? ReceivedValueUsd != null
+          ? (_taxableReceivedValueUsd = (int)Math.Round(ReceivedValueUsd.Value, MidpointRounding.AwayFromZero))
+          : null
+        : _taxableReceivedValueUsd;
 
-    public int? TaxablePaymentValueUsd => _taxablePaymentValueUsd == null ?
-      PaymentValueUsd != null 
-        ? (_taxablePaymentValueUsd = (int)Math.Round(PaymentValueUsd.Value, MidpointRounding.AwayFromZero)) 
-        : null
-      : _taxablePaymentValueUsd;
+    public int? TaxablePaymentValueUsd =>
+      _taxablePaymentValueUsd == null
+        ? PaymentValueUsd != null
+          ? (_taxablePaymentValueUsd = (int)Math.Round(PaymentValueUsd.Value, MidpointRounding.AwayFromZero))
+          : null
+        : _taxablePaymentValueUsd;
 
-    public Decimal? ReceivedPerCoinCostUsd => _receivedPerCoinCostUsd == null ? 
-      (ReceivedValueUsd == null || (double)ReceivedCoinCount == 0)
-        ? null 
-        : MathOrNull(() => _receivedPerCoinCostUsd = ReceivedValueUsd.Value / ReceivedCoinCount)
-      : _receivedPerCoinCostUsd;
+    public Decimal? ReceivedPerCoinCostUsd =>
+      _receivedPerCoinCostUsd == null
+        ? (ReceivedValueUsd == null || (double)ReceivedCoinCount == 0)
+          ? null
+          : MathOrNull(() => _receivedPerCoinCostUsd = ReceivedValueUsd.Value / ReceivedCoinCount)
+        : _receivedPerCoinCostUsd;
 
-    public Decimal? PaymentPerCoinCostUsd => _paymentPerCoinCostUsd == null ? 
-      (PaymentValueUsd == null || (double)PaymentCoinCount == 0)
-        ? null 
-        : MathOrNull(() => _paymentPerCoinCostUsd = PaymentValueUsd.Value / PaymentCoinCount)
-      : _paymentPerCoinCostUsd;
+    public Decimal? PaymentPerCoinCostUsd =>
+      _paymentPerCoinCostUsd == null
+        ? (PaymentValueUsd == null || (double)PaymentCoinCount == 0)
+          ? null
+          : MathOrNull(() => _paymentPerCoinCostUsd = PaymentValueUsd.Value / PaymentCoinCount)
+        : _paymentPerCoinCostUsd;
 
     private static Decimal? MathOrNull(Func<Decimal?> math)
     {
@@ -88,7 +104,7 @@ namespace CryptoProfiteer
         return (Decimal?)null;
       }
     }
-    
+
     public bool IsTaxableFuturesGain => TransactionType == TransactionType.FuturesPnl && ReceivedCoinCount > 0;
     public bool IsTaxableFuturesLoss => TransactionType == TransactionType.FuturesPnl && PaymentCoinCount > 0;
     public bool IsTaxableSale => TransactionType == TransactionType.Trade && PaymentCoinType != "USD";

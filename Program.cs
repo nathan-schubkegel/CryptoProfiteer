@@ -17,15 +17,18 @@ namespace CryptoProfiteer
       Host.CreateDefaultBuilder(args)
         .ConfigureWebHostDefaults(webBuilder =>
         {
-            webBuilder.ConfigureKestrel(serverOptions =>
+          webBuilder
+            .ConfigureKestrel(serverOptions =>
             {
-                // Set properties and call methods on options
+              // Set properties and call methods on options
 
-                // TODO: read before adding anthing
-                // https://docs.microsoft.com/en-us/aspnet/core/fundamentals/servers/kestrel/options?view=aspnetcore-6.0
+              // TODO: read before adding anthing
+              // https://docs.microsoft.com/en-us/aspnet/core/fundamentals/servers/kestrel/options?view=aspnetcore-6.0
             })
             .UseStartup<Startup>();
-        }).Build().Run();
+        })
+        .Build()
+        .Run();
     }
   }
 }

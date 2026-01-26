@@ -10,6 +10,7 @@ namespace CryptoProfiteer
     public string FriendlyName => _friendlyName.Value;
     public Decimal PerCoinCostUsd { get; }
     public DateTime LastUpdatedTime { get; }
+
     public CoinPrice(string coinType, decimal perCoinCostUsd, FriendlyName friendlyName, DateTime lastUpdated)
     {
       CoinType = coinType;

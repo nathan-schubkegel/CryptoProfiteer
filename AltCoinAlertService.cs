@@ -1,11 +1,11 @@
-using Microsoft.Extensions.Hosting;
-using System.Threading;
-using System.Threading.Tasks;
-using System.IO;
-using System.Linq;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
@@ -20,13 +20,14 @@ namespace CryptoProfiteer
   {
     private readonly object _lock = new object();
     private readonly List<AltCoinAlert> _alerts = new List<AltCoinAlert>();
-    
+
     public IReadOnlyList<AltCoinAlert> Alerts => _alerts;
 
     public AltCoinAlertService()
     {
       // copy pasted from some excel spreadsheet I built
-      var lineData = @"
+      var lineData =
+        @"
 Date	Hype					Gain					Loss
 1/1/2022	KP3R	TOMO	MIOTA	LTO	FTM	KP3R	TOP	SNTVT	UBT	SCRT	EGG	FUN	ORN	CEL	SUSHI
 1/2/2022	KP3R	TOMO	MIOTA	LTO	FTM	ELF	XRT	POLY	MFT	HNS	SXP	CHR	YUSRA	AR	XPRT
@@ -75,7 +76,9 @@ Date	Hype					Gain					Loss
       foreach (var line in lineData.GetLines().Where(x => x.Trim().Length > 0).Skip(1))
       {
         var fields = line.Split('\t');
-        var time = DateTime.Parse(fields[0] + " 11:30:00 PM", CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal).ToUniversalTime();
+        var time = DateTime
+          .Parse(fields[0] + " 11:30:00 PM", CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal)
+          .ToUniversalTime();
         var hypes = fields.Skip(1).Take(5).ToList();
         var winners = fields.Skip(6).Take(5).ToList();
         var losers = fields.Skip(11).Take(5).ToList();

@@ -36,7 +36,7 @@ namespace CryptoProfiteer
         parts.Add(current.ToString());
       }
 
-      // change items like 
+      // change items like
       //    "hello my ""dear"" wife"
       // to
       //    hello my "dear" wife
@@ -54,10 +54,10 @@ namespace CryptoProfiteer
           parts[i] = fields;
         }
       }
-      
+
       return parts;
     }
-    
+
     public static string Encode(IEnumerable<string> fields)
     {
       var builder = new StringBuilder();
@@ -69,11 +69,13 @@ namespace CryptoProfiteer
         {
           result = "\"" + field.Replace("\"", "\"\"") + "\"";
         }
-        if (fieldCount > 0) builder.Append(',');
+        if (fieldCount > 0)
+          builder.Append(',');
         builder.Append(result);
         fieldCount++;
       }
-      if (fieldCount == 1 && builder.Length == 0) builder.Append("\"\"");
+      if (fieldCount == 1 && builder.Length == 0)
+        builder.Append("\"\"");
       return builder.ToString();
     }
   }

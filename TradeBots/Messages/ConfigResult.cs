@@ -7,14 +7,14 @@ namespace CryptoProfiteer.TradeBots.Messages
   {
     // which crypto exchange this bot operates on
     public CryptoExchange Exchange;
-    
+
     // which crypto this bot buys/sells
     public string CoinType;
-  
+
     // what timespan of candles this bot desires
     // or null if it doesn't use candle data
     public CandleGranularity? CandleGranularity;
-    
+
     // whether the bot needs live market price updates
     public bool WantsCurrentPriceUpdates;
   }

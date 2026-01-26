@@ -1,24 +1,24 @@
-using Microsoft.Extensions.Hosting;
-using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
-using System.IO;
+using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System;
-using System.Collections.Generic;
-using Microsoft.Extensions.Logging;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using System.Globalization;
 
 namespace CryptoProfiteer
 {
-  public class BrowserLauncherService: BackgroundService
+  public class BrowserLauncherService : BackgroundService
   {
     private readonly ILogger<BrowserLauncherService> _logger;
     private readonly IServer _server;
@@ -28,13 +28,13 @@ namespace CryptoProfiteer
       _logger = logger;
       _server = server;
     }
-    
+
     private string GetServerAddress()
     {
       var addresses = _server?.Features.Get<IServerAddressesFeature>();
       return addresses?.Addresses?.FirstOrDefault(x => x.StartsWith("http://"));
     }
-    
+
     private async Task LaunchBrowser(CancellationToken stoppingToken)
     {
       stoppingToken.ThrowIfCancellationRequested();
@@ -52,7 +52,7 @@ namespace CryptoProfiteer
             args = $"/c explorer {GetServerAddress()}";
           }
         }
-        
+
         _logger.LogInformation("Launching new browser window. Press 'Enter' in command line to launch another.");
         using var p = Process.Start(new ProcessStartInfo(path, args));
       }
@@ -67,7 +67,7 @@ namespace CryptoProfiteer
     {
       // Other services can't start until this service awaits, so await now!
       await Task.Yield();
-      
+
       // wait until the server's address is known
       while (!stoppingToken.IsCancellationRequested)
       {
@@ -105,15 +105,16 @@ namespace CryptoProfiteer
         {
           var tcs = new TaskCompletionSource<object>();
           using var r = stoppingToken.Register(() => tcs.TrySetCanceled());
-          var readLine = Task.Run(() => 
+          var readLine = Task.Run(() =>
           {
-            while (Console.ReadKey().Key != ConsoleKey.Enter) {}
+            while (Console.ReadKey().Key != ConsoleKey.Enter) { }
           });
           var result = await Task.WhenAny(tcs.Task, readLine);
           if (result == readLine)
           {
             // if the application has no console for some reason, then just give up (don't go into an infinite loop opening chrome!)
-            if (!readLine.IsCompletedSuccessfully) break;
+            if (!readLine.IsCompletedSuccessfully)
+              break;
 
             // the application interprets Ctrl+C as a request to shut down
             // so wait 500ms to see if stoppingToken becomes signaled before launching another browser

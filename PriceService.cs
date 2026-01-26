@@ -1,18 +1,18 @@
-using Microsoft.Extensions.Hosting;
-using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System;
-using System.Collections.Generic;
-using System.Collections.Concurrent;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using System.Globalization;
 
 namespace CryptoProfiteer
 {
@@ -21,30 +21,35 @@ namespace CryptoProfiteer
     CoinPrice TryGetCoinPrice(string coinType);
     event Action CoinPricesUpdated;
   }
-  
+
   public class PriceService : BackgroundService, IPriceService
   {
     private readonly IHttpClientSingleton _httpClientSingleton;
     private readonly ILogger<PriceService> _logger;
     private readonly IFriendlyNameService _friendlyNameService;
-    
+
     // _prices is immutable, and must be completely replaced
     private Dictionary<string, CoinPrice> _prices = new Dictionary<string, CoinPrice>();
-    
+
     // _neededPrices is mutable, and must be locked before being read/modified
     private readonly HashSet<string> _neededPrices = new HashSet<string>();
-    
-    private readonly HashSet<(string, CryptoExchange)> _invalidCurrenciesByApi = new HashSet<(string, CryptoExchange)>();
-    
+
+    private readonly HashSet<(string, CryptoExchange)> _invalidCurrenciesByApi =
+      new HashSet<(string, CryptoExchange)>();
+
     public event Action CoinPricesUpdated;
 
-    public PriceService(ILogger<PriceService> logger, IFriendlyNameService friendlyNameService, IHttpClientSingleton httpClientSingleton)
+    public PriceService(
+      ILogger<PriceService> logger,
+      IFriendlyNameService friendlyNameService,
+      IHttpClientSingleton httpClientSingleton
+    )
     {
       _logger = logger;
       _friendlyNameService = friendlyNameService;
       _httpClientSingleton = httpClientSingleton;
     }
-    
+
     public CoinPrice TryGetCoinPrice(string coinType)
     {
       if (_prices.TryGetValue(coinType, out var result))
@@ -74,33 +79,48 @@ namespace CryptoProfiteer
           var kucoins = new HashSet<string>();
           {
             var url = $"https://api.kucoin.com/api/v1/prices?base=USD";
-            await _httpClientSingleton.UseAsync("fetching current prices of all cryptos on kucoin", stoppingToken, async http =>
-            {
-              var response = await http.GetAsync(url);
-              string responseBody = await response.Content.ReadAsStringAsync();
-              if (!response.IsSuccessStatusCode)
+            await _httpClientSingleton.UseAsync(
+              "fetching current prices of all cryptos on kucoin",
+              stoppingToken,
+              async http =>
               {
-                throw new HttpRequestException($"kucoin prices api returned {response.StatusCode}: {responseBody}");
-              }
-              var json = JObject.Parse(responseBody);
-              var systemCode = json.SelectToken("code")?.Value<string>();
-              if (systemCode != "200000")
-              {
-                throw new HttpRequestException($"kucoin prices api returned system code {systemCode}: {responseBody}");
-              }
+                var response = await http.GetAsync(url);
+                string responseBody = await response.Content.ReadAsStringAsync();
+                if (!response.IsSuccessStatusCode)
+                {
+                  throw new HttpRequestException($"kucoin prices api returned {response.StatusCode}: {responseBody}");
+                }
+                var json = JObject.Parse(responseBody);
+                var systemCode = json.SelectToken("code")?.Value<string>();
+                if (systemCode != "200000")
+                {
+                  throw new HttpRequestException(
+                    $"kucoin prices api returned system code {systemCode}: {responseBody}"
+                  );
+                }
 
-              var now = DateTime.UtcNow;
-              var newPrices = new Dictionary<string, CoinPrice>(_prices);
-              foreach ((string coinType, JToken priceToken) in (JObject)json.SelectToken("data"))
-              {
-                var price = Decimal.Parse(priceToken.Value<string>(), NumberStyles.Float, CultureInfo.InvariantCulture);
-                var newPrice = new CoinPrice(coinType, price, _friendlyNameService.GetOrCreateFriendlyName(coinType), now);
-                newPrices[coinType] = newPrice;
-                kucoins.Add(coinType);
+                var now = DateTime.UtcNow;
+                var newPrices = new Dictionary<string, CoinPrice>(_prices);
+                foreach ((string coinType, JToken priceToken) in (JObject)json.SelectToken("data"))
+                {
+                  var price = Decimal.Parse(
+                    priceToken.Value<string>(),
+                    NumberStyles.Float,
+                    CultureInfo.InvariantCulture
+                  );
+                  var newPrice = new CoinPrice(
+                    coinType,
+                    price,
+                    _friendlyNameService.GetOrCreateFriendlyName(coinType),
+                    now
+                  );
+                  newPrices[coinType] = newPrice;
+                  kucoins.Add(coinType);
+                }
+                _prices = newPrices;
               }
-              _prices = newPrices;
-            });
-            
+            );
+
             NotifyCoinPricesUpdated();
           }
 
@@ -110,9 +130,11 @@ namespace CryptoProfiteer
             List<string> coinTypesToRequest;
             lock (_neededPrices)
             {
-              coinTypesToRequest = _neededPrices.Where(x => !kucoins.Contains(x) && coinBaseCurrencies.Contains(x)).ToList();
+              coinTypesToRequest = _neededPrices
+                .Where(x => !kucoins.Contains(x) && coinBaseCurrencies.Contains(x))
+                .ToList();
             }
-          
+
             // Ask CoinBase for those prices
             // TODO: should really change this to be asking for prices from Coinbase Pro!
             foreach (var coinType in coinTypesToRequest)
@@ -121,29 +143,44 @@ namespace CryptoProfiteer
               {
                 continue;
               }
-              
-              await _httpClientSingleton.UseAsync($"fetching current price of {coinType} from coinbase", stoppingToken, async http =>
-              {
-                var url = $"https://api.coinbase.com/v2/prices/{coinType}-USD/spot";
-                var response = await http.GetAsync(url);
-                string responseBody = await response.Content.ReadAsStringAsync();
-                if (!response.IsSuccessStatusCode)
+
+              await _httpClientSingleton.UseAsync(
+                $"fetching current price of {coinType} from coinbase",
+                stoppingToken,
+                async http =>
                 {
-                  if (responseBody.Contains("\"Invalid base currency\""))
+                  var url = $"https://api.coinbase.com/v2/prices/{coinType}-USD/spot";
+                  var response = await http.GetAsync(url);
+                  string responseBody = await response.Content.ReadAsStringAsync();
+                  if (!response.IsSuccessStatusCode)
                   {
-                    _invalidCurrenciesByApi.Add((coinType, CryptoExchange.Coinbase));
+                    if (responseBody.Contains("\"Invalid base currency\""))
+                    {
+                      _invalidCurrenciesByApi.Add((coinType, CryptoExchange.Coinbase));
+                    }
+                    throw new HttpRequestException(
+                      $"coinbase price api for {coinType} returned {response.StatusCode}: {responseBody}"
+                    );
                   }
-                  throw new HttpRequestException($"coinbase price api for {coinType} returned {response.StatusCode}: {responseBody}");
+                  var json = JObject.Parse(responseBody);
+                  var price = Decimal.Parse(
+                    json.SelectToken("data.amount").Value<string>(),
+                    NumberStyles.Float,
+                    CultureInfo.InvariantCulture
+                  );
+                  var now = DateTime.UtcNow;
+                  var newPrice = new CoinPrice(
+                    coinType,
+                    price,
+                    _friendlyNameService.GetOrCreateFriendlyName(coinType),
+                    now
+                  );
+                  var newPrices = new Dictionary<string, CoinPrice>(_prices);
+                  newPrices[coinType] = newPrice;
+                  _prices = newPrices;
                 }
-                var json = JObject.Parse(responseBody);
-                var price = Decimal.Parse(json.SelectToken("data.amount").Value<string>(), NumberStyles.Float, CultureInfo.InvariantCulture);
-                var now = DateTime.UtcNow;
-                var newPrice = new CoinPrice(coinType, price, _friendlyNameService.GetOrCreateFriendlyName(coinType), now);
-                var newPrices = new Dictionary<string, CoinPrice>(_prices);
-                newPrices[coinType] = newPrice;
-                _prices = newPrices;
-              });
-              
+              );
+
               NotifyCoinPricesUpdated();
             }
           }
@@ -157,12 +194,12 @@ namespace CryptoProfiteer
         {
           _logger.LogError(ex, $"{ex.GetType().Name} while fetching coin prices: {ex.Message}");
         }
-        
+
         // TODO: be able to interrupt this when someone requests a price that coinbase has that we don't have yet
         await Task.Delay(30000, stoppingToken);
       }
     }
-    
+
     private void NotifyCoinPricesUpdated()
     {
       try

@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 
 namespace CryptoProfiteer.Pages
 {
-  public class AltCoinAlertsModel: PageModel
+  public class AltCoinAlertsModel : PageModel
   {
     private readonly ILogger<AltCoinAlertsModel> _logger;
     private readonly IDataService _data;
@@ -17,12 +17,14 @@ namespace CryptoProfiteer.Pages
     private readonly IPriceService _currentPrices;
     private readonly IFriendlyNameService _friendlyNames;
 
-    public AltCoinAlertsModel(ILogger<AltCoinAlertsModel> logger,
+    public AltCoinAlertsModel(
+      ILogger<AltCoinAlertsModel> logger,
       IDataService data,
       IAltCoinAlertService alerts,
       IHistoricalCoinPriceService historicalPrices,
       IPriceService currentPrices,
-      IFriendlyNameService friendlyNames)
+      IFriendlyNameService friendlyNames
+    )
     {
       _logger = logger;
       _data = data;
@@ -31,30 +33,32 @@ namespace CryptoProfiteer.Pages
       _currentPrices = currentPrices;
       _friendlyNames = friendlyNames;
     }
-    
+
     public IEnumerable<AltCoinAlert> Alerts(string sortBy = null)
     {
       var values = _alerts.Alerts;
       switch (sortBy)
       {
         default:
-        case "date": return values.OrderByDescending(x => x.Date);
-        case "dateAscending": return values.OrderBy(x => x.Date);
+        case "date":
+          return values.OrderByDescending(x => x.Date);
+        case "dateAscending":
+          return values.OrderBy(x => x.Date);
       }
     }
-    
+
     public string GetFriendlyName(string coinType) => _friendlyNames.GetOrCreateFriendlyName(coinType).Value;
-    
-    public Decimal? GetHistoricalPrice(string coinType, DateTime date) {
+
+    public Decimal? GetHistoricalPrice(string coinType, DateTime date)
+    {
       return _historicalPrices.ToUsd(1m, coinType, date);
     }
-    
-    public Decimal? GetCurrentPrice(string coinType) {
+
+    public Decimal? GetCurrentPrice(string coinType)
+    {
       return _currentPrices.TryGetCoinPrice(coinType)?.PerCoinCostUsd;
     }
 
-    public void OnGet()
-    {
-    }
+    public void OnGet() { }
   }
 }

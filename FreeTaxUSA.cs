@@ -1,5 +1,5 @@
-using System.Collections.Generic;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
@@ -7,7 +7,8 @@ namespace CryptoProfiteer
 {
   public static class FreeTaxUSA
   {
-    const string scriptHeader = @"
+    const string scriptHeader =
+      @"
       
 Add()
 
@@ -27,11 +28,13 @@ MsgBox, Make sure you're at the ""What type of investment did you sell?"" page, 
 CoordMode, Mouse, Client
 ";
 
-      const string scriptTrailer = @"
+    const string scriptTrailer =
+      @"
 }
 ";
 
-      const string scriptFormat = @"
+    const string scriptFormat =
+      @"
 
 if WinExist(""FreeTaxUSA"")
 {{
@@ -140,8 +143,17 @@ Click, 321 565
 Sleep, 1500
 
       ";
-      
-    public static MemoryStream MakeScript(int iStart, IEnumerable<(string descriptionFormat, DateTime dateAcquired, DateTime dateSold, int saleProceeds, int costBasis)> data)
+
+    public static MemoryStream MakeScript(
+      int iStart,
+      IEnumerable<(
+        string descriptionFormat,
+        DateTime dateAcquired,
+        DateTime dateSold,
+        int saleProceeds,
+        int costBasis
+      )> data
+    )
     {
       StringBuilder builder = new StringBuilder();
 
@@ -152,12 +164,14 @@ Sleep, 1500
         var description = string.Format(item.descriptionFormat, i);
         var dateAcquired = item.dateAcquired.ToLocalTime().ToString("MM/dd/yyyy");
         var dateSold = item.dateSold.ToLocalTime().ToString("MM/dd");
-        builder.AppendLine(string.Format(scriptFormat, description, dateAcquired, dateSold, item.saleProceeds, item.costBasis));
+        builder.AppendLine(
+          string.Format(scriptFormat, description, dateAcquired, dateSold, item.saleProceeds, item.costBasis)
+        );
         Console.WriteLine(description);
         i++;
       }
       builder.AppendLine(scriptTrailer);
-      
+
       return new MemoryStream(Encoding.UTF8.GetBytes(builder.ToString()));
     }
   }

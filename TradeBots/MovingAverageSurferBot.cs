@@ -1,9 +1,8 @@
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Microsoft.Extensions.Logging;
 using CryptoProfiteer.TradeBots.Messages;
+using Microsoft.Extensions.Logging;
 
 namespace CryptoProfiteer.TradeBots
 {
@@ -15,22 +14,24 @@ namespace CryptoProfiteer.TradeBots
     {
       None,
       Rising,
-      Falling
+      Falling,
     }
-    
+
     private class MovingAverage
     {
       public int IntendedCandleCount;
       public Dequeue<decimal> Prices = new Dequeue<decimal>();
       public Dequeue<decimal> Averages = new Dequeue<decimal>();
       public PriceDirection Slope;
-      
+
       public void AddCandle(Candle candle)
       {
         Prices.AddBack(candle.Close);
-        while (Prices.Count > IntendedCandleCount) Prices.RemoveFront();
+        while (Prices.Count > IntendedCandleCount)
+          Prices.RemoveFront();
         Averages.AddBack(Prices.Average());
-        while (Averages.Count > IntendedCandleCount) Averages.RemoveFront();
+        while (Averages.Count > IntendedCandleCount)
+          Averages.RemoveFront();
         if (Averages.Count == 1)
         {
           Slope = PriceDirection.None;
@@ -38,13 +39,14 @@ namespace CryptoProfiteer.TradeBots
         else
         {
           var difference = Averages[Averages.Count - 1] - Averages[Averages.Count - 2];
-          Slope = difference > 0 ? PriceDirection.Rising
+          Slope =
+            difference > 0 ? PriceDirection.Rising
             : difference < 0 ? PriceDirection.Falling
             : PriceDirection.None;
         }
       }
     }
-    
+
     private readonly ConfigResult _config;
     private readonly int _movingAverageCandleCount;
     private readonly decimal _targetGainPercent;
@@ -54,13 +56,18 @@ namespace CryptoProfiteer.TradeBots
     private decimal _lossPreventionSellCoinPrice;
     private bool _bought = false;
 
-    public MovingAverageSurferBot(string coinType, CandleGranularity granularity,
-      int movingAverageCandleCount, decimal targetGainPercent, decimal lossPreventionPercent)
+    public MovingAverageSurferBot(
+      string coinType,
+      CandleGranularity granularity,
+      int movingAverageCandleCount,
+      decimal targetGainPercent,
+      decimal lossPreventionPercent
+    )
     {
       _movingAverageCandleCount = movingAverageCandleCount;
       _targetGainPercent = targetGainPercent;
       _lossPreventionPercent = lossPreventionPercent;
-      
+
       _thing = new MovingAverage { IntendedCandleCount = movingAverageCandleCount };
       _config = new ConfigResult
       {
@@ -69,41 +76,40 @@ namespace CryptoProfiteer.TradeBots
         CandleGranularity = granularity,
       };
     }
-    
+
     // the runner asks the bot for this info at the start of a trading session
     // to determine stuff like what coin the runner should watch and try to buy
     public ConfigResult GetConfig() => _config;
-   
+
     // does the bot want to buy coins right now? how much money to spend? (assumes market price)
     // a non-null return value doesn't complete a purchase; it just instructs the system how much to buy if it can
     public WantsToBuyResult WantsToBuy(WantsToBuyArgs args)
     {
       // don't buy if I haven't measured enough
-      if (_thing.Averages.Count < _thing.IntendedCandleCount) return default;
-      
+      if (_thing.Averages.Count < _thing.IntendedCandleCount)
+        return default;
+
       // don't buy if I already bought
-      if (_bought) return default;
-      
+      if (_bought)
+        return default;
+
       // buy when the moving average slope is positive
       if (_thing.Slope == PriceDirection.Rising)
       {
-        return new WantsToBuyResult
-        {
-          UsdToSpend = args.Usd,
-          Note = $"buying because moving average slope is flat/up",
-        };
+        return new WantsToBuyResult { UsdToSpend = args.Usd, Note = $"buying because moving average slope is flat/up" };
       }
-      
+
       return default;
     }
-    
+
     // does the bot want to sell coins right now? how many coins to sell? (assumes market price)
     // a non-null return value doesn't complete a sale; it just instructs the system how much to sell if it can
     public WantsToSellResult WantsToSell(WantsToSellArgs args)
     {
       // don't sell if I haven't purchased coins yet
-      if (!_bought) return default;
-      
+      if (!_bought)
+        return default;
+
       // sell when the target price is reached AND the moving average turns down
       if (args.PerCoinPrice >= _targetSaleCoinPrice && _thing.Slope == PriceDirection.Falling)
       {
@@ -113,7 +119,7 @@ namespace CryptoProfiteer.TradeBots
           Note = $"selling because target profit met, and moving average slope is flat/down",
         };
       }
-      
+
       // sell when the price gets too low
       if (args.PerCoinPrice <= _lossPreventionSellCoinPrice)
       {
@@ -123,10 +129,10 @@ namespace CryptoProfiteer.TradeBots
           Note = $"selling to prevent further loss :'(",
         };
       }
-      
+
       return default;
     }
-    
+
     // notifies the bot that it successfully purchased X coins for Y dollars
     public void Bought(BoughtArgs args)
     {
@@ -134,14 +140,14 @@ namespace CryptoProfiteer.TradeBots
       _targetSaleCoinPrice = args.PerCoinPriceBeforeFee * (1 + _targetGainPercent);
       _lossPreventionSellCoinPrice = args.PerCoinPriceBeforeFee * (1 - _lossPreventionPercent);
     }
-    
+
     // notifies the bot that it successfully sold X coins for Y dollars
     public void Sold(SoldArgs args)
     {
       _bought = false;
       _thing = new MovingAverage { IntendedCandleCount = _movingAverageCandleCount };
     }
-    
+
     // Notifies the bot of the latest-produced ticker candle
     public void ApplyNextCandle(NextCandleArgs args)
     {

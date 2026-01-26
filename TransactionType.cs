@@ -5,20 +5,20 @@ using Newtonsoft.Json.Converters;
 namespace CryptoProfiteer
 {
   // NOTE: this type is JSON serialized/deserialized
-  [JsonConverter(typeof(StringEnumConverter))] 
-  public enum TransactionType 
-  { 
+  [JsonConverter(typeof(StringEnumConverter))]
+  public enum TransactionType
+  {
     Trade,
     Adjustment,
-    FuturesPnl
+    FuturesPnl,
   }
-  
+
   // NOTE: this type is JSON serialized/deserialized
-  [JsonConverter(typeof(StringEnumConverter))] 
+  [JsonConverter(typeof(StringEnumConverter))]
   public enum TransactionType_v04
-  { 
+  {
     Buy,
     Sell,
-    Adjustment 
+    Adjustment,
   }
 }

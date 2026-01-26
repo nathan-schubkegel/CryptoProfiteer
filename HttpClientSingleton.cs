@@ -1,8 +1,8 @@
-using Microsoft.Extensions.Logging;
+using System;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Net.Http;
-using System;
+using Microsoft.Extensions.Logging;
 
 namespace CryptoProfiteer
 {
@@ -10,7 +10,7 @@ namespace CryptoProfiteer
   {
     Task UseAsync(string description, CancellationToken stoppingToken, Func<HttpClient, Task> action);
   }
-  
+
   public class HttpClientSingleton : IHttpClientSingleton
   {
     public static readonly string UserAgent = "CryptoProfiteer/0.3.0";
