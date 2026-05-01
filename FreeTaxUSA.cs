@@ -26,15 +26,6 @@ Add()
 
 MsgBox, Make sure you're at the ""What type of investment did you sell?"" page, and press ""Escape"" to pause if needed
 CoordMode, Mouse, Client
-";
-
-    const string scriptTrailer =
-      @"
-}
-";
-
-    const string scriptFormat =
-      @"
 
 if WinExist(""FreeTaxUSA"")
 {{
@@ -48,98 +39,123 @@ else
 }}
 
 ; ""it's a crypto"" button
-Click, 636 501
+Click, 957 748
 Sleep, 500
 
 ; ""save and continue"" 
-Click, 1086 750
+Click, 1433 1017
 Sleep, 2500
 
+";
+
+    const string scriptTrailer =
+      @"
+}
+";
+
+    const string scriptFormat =
+      @"
+
 ; ""both"" (Nathan and Rachel) 
-Click, 220 545
+Click, 541 565
 Sleep, 500
 
+; ""Coinbase""
+Click, 634 667
+Sleep, 500
+Send, Coinbase
+
 ; ""save and continue"" 
-Click, 1078 694
+Click, 1424 809
 Sleep, 2500
 
 ; ""one at a time"" 
-Click, 536 547
+Click, 855 581
 Sleep, 500
 
 ; ""save and continue""
-Click, 1082 819
+Click, 1430 790
 Sleep, 2500
 
 ; description textbox 
-Click, 693 508
+Click, 1025 792
 Sleep, 500
 Send, {0}
 
 ; date acquired box  (month/day/year)
-Click, 718 692
+Click, 1049 1017
 Sleep, 500
 Send, {1}
 
 ; date sold (just month/day)
-Click, 692 772
+Sleep, 500
+Send, {{Tab}}
 Sleep, 500
 Send, {2}
 
 ; sale proceeds 
-Click, 756 861
+Sleep, 500
+Send, {{Tab}}
 Sleep, 500
 Send, {3}
 
 ; cost basis
-Click, 753 957
+Sleep, 500
+Send, {{Tab}}
 Sleep, 500
 Send, {4}
 
 ; pagedown a few times
-Click, 1000 958
+Click, 180 698
 Sleep, 500
 Send, {{PgDn}}
 Send, {{PgDn}}
 Sleep, 1500
 
-; ""not reported on 1099-B"" 
-Click, 510 411
+; ""basis not reported on 1099-DA"" 
+Click, 828 411
 Sleep, 500
 
 ; ""save and continue"" 
-Click, 1073 807
+Click, 1429 872
 Sleep, 2500
 
 ; ""save and continue"" 
 if (({3} = 0) and ({4} = 0))
 {{
-  Click, 1077 752
+  ; zero adjustments 
+  Click, 675 822
   Sleep, 500
-  Send, {{PgDn}}
-  Sleep, 500
-  Click, 1077 774
+  ;Send, {{PgDn}}
+  ;Sleep, 500
+  Click, 1435 990
 }}
 else if ({3} = 0)
 {{
-  Click, 1077 916
+  MsgBox, need new click points for zero win crypto I think?
+  ;Click, 1077 916
 }}
 else if ({4} = 0)
 {{
-  Click, 1077 847
+  MsgBox, need new click points for zero loss crypto I think?
+  ;Click, 1077 847
 }}
 else
 {{
-  Click, 1077 717
+  ; no adjustments (1099-DA is correct)
+  Click, 637
+
+  ; save and continue
+  Click, 1439 782
 }}
-Sleep, 5000
+Sleep, 3000
 
 ; press end key
 Send, {{End}}
 Sleep, 1500
 
 ; ""add another"" button 
-Click, 321 565
+Click, 629 357
 Sleep, 1500
 
       ";

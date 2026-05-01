@@ -36,7 +36,7 @@ namespace CryptoProfiteer.Pages
       }
     }
 
-    public Dictionary<string, List<Order>> OrdersByCoinType(string sortBy = null)
+    public Dictionary<string, List<(Order Order, decimal RunningTotal)>> OrdersByCoinType(string sortBy = null)
     {
       var result = new Dictionary<string, List<Order>>();
       var orders = _data.Orders;
@@ -63,22 +63,40 @@ namespace CryptoProfiteer.Pages
           bucket.RemoveAt(bucket.Count - 1);
       }
 
-      foreach (var coinType in result.Keys.ToList())
+      Dictionary<string, List<(Order Order, decimal RunningTotal)>> betterResult = new();
+      foreach ((var coinType, var values) in result)
       {
-        var values = result[coinType];
+        decimal runningTotal = 0;
+        var orderedValues = values
+          .OrderBy(x => x.Time)
+          .Select(x =>
+          {
+            if (x.ReceivedCoinType == coinType)
+            {
+              runningTotal += x.ReceivedCoinCount;
+            }
+            if (x.PaymentCoinType == coinType)
+            {
+              runningTotal -= x.PaymentCoinCount;
+            }
+            return (x, runningTotal);
+          })
+          .ToList();
+
         switch (sortBy)
         {
           default:
           case "date":
-            result[coinType] = values.OrderByDescending(x => x.Time).ToList();
+            orderedValues.Reverse();
+            betterResult[coinType] = orderedValues;
             break;
           case "dateAscending":
-            result[coinType] = values.OrderBy(x => x.Time).ToList();
+            betterResult[coinType] = orderedValues;
             break;
         }
       }
 
-      return result;
+      return betterResult;
     }
 
     public void OnGet() { }

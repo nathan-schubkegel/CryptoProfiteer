@@ -227,6 +227,18 @@ namespace CryptoProfiteer
           {
             transactionType = TransactionType_v04.Sell;
           }
+          else if (transactionTypeField == "Asset Migration")
+          {
+            transactionType = TransactionType_v04.Adjustment;
+          }
+          else if (transactionTypeField == "Reward Income")
+          {
+            continue; // I only earned $0.015 in rewards in 2025, so I'm not caring about these
+          }
+          else if (transactionTypeField == "Derivatives Settlement")
+          {
+            continue; // I'm no going to report these via this software, since it's easier to just use the info from coinbase's website to report these
+          }
           else
           {
             throw new Exception(
@@ -345,6 +357,32 @@ namespace CryptoProfiteer
           TotalCost = totalCost,
           PaymentCoinType = paymentCoinType,
         };
+
+        // I predict Coinbase is going to tell IRS that this forced token conversion counts as a taxable event
+        // so I'll report it
+        if (transactionType == TransactionType_v04.Adjustment)
+        {
+          if (paymentCoinType == "USD")
+          {
+            if (totalCost > 0)
+            {
+              transaction.TransactionType = TransactionType_v04.Sell;
+            }
+            else if (totalCost < 0)
+            {
+              transaction.TransactionType = TransactionType_v04.Buy;
+            }
+            else
+            {
+              throw new Exception($"Unsupported zero adjustment amount on CSV line {lineNumber}");
+            }
+          }
+          else
+          {
+            throw new Exception($"Unsupported adjustment scenario on CSV line {lineNumber}");
+          }
+        }
+
         transactions.Add(transaction.ToLatest());
       }
 

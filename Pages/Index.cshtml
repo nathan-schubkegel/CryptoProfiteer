@@ -87,6 +87,7 @@ const nextSortByCashValue = sortBy === 'cashValue' ? 'cashValueAscending' : 'cas
             <thead>
               <tr>
                 <th scope="col">Date</th>
+                <th scope="col">Running Total</th>
                 <th scope="col">Change</th>
                 <th scope="col">Rate</th>
                 <th scope="col">Explanation</th>
@@ -98,10 +99,11 @@ const nextSortByCashValue = sortBy === 'cashValue' ? 'cashValueAscending' : 'cas
     foreach (var o in orders)
     {
               <tr>
-                <td>@o.Time.ToLocalTime().ToString("g")</td>
-                <td>@o.FormatCoinCountChange(s.CoinType)</td>
-                <td>@o.FormatExchangeRateUsd(s.CoinType)</td>
-                <td>@o.FormatExplanation(s.CoinType)</td>
+                <td>@o.Order.Time.ToLocalTime().ToString("g")</td>
+                <td>@o.RunningTotal.ToString("G29")</td>
+                <td>@o.Order.FormatCoinCountChange(s.CoinType)</td>
+                <td>@o.Order.FormatExchangeRateUsd(s.CoinType)</td>
+                <td>@o.Order.FormatExplanation(s.CoinType)</td>
               </tr>
     }
 }

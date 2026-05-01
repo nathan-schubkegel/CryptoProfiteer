@@ -95,6 +95,12 @@ namespace CryptoProfiteer
         }
       }
 
+      // if debugging via visual studio, then just don't
+      if (Debugger.IsAttached)
+      {
+        return;
+      }
+
       // launch a browser
       await LaunchBrowser(stoppingToken);
 
